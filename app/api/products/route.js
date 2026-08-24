@@ -6,11 +6,12 @@ function formatDriveUrl(url) {
   if (!url) return '';
   const trimmed = url.trim();
   
-  // استخراج ID الصورة من أي رابط Google Drive وتحويله لرابط سريع ومباشر 100%
-  if (trimmed.includes('drive.google.com')) {
+  // فك حظر Google Drive وتمرير الصورة عبر CDN وسيط سريع
+  if (trimmed.includes('drive.google.com') || trimmed.includes('googleusercontent.com')) {
     const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`;
+      const fileId = match[1];
+      return `https://wsrv.nl/?url=https://drive.google.com/thumbnail?id=${fileId}&sz=w800&w=400&output=webp`;
     }
   }
   return trimmed;
