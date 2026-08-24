@@ -382,10 +382,12 @@ export default function Home() {
                           <img 
                             src={product.image} 
                             alt={product.name} 
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                             onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234d7c60' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.style.display = 'none';
                             }}
                           />
                         ) : (
@@ -393,7 +395,9 @@ export default function Home() {
                             <ImageIcon className="w-6 h-6 text-[#4d7c60]/50" />
                           </div>
                         )}
-                        <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
+                        {product.image && (
+                          <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -451,7 +455,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* Image Zoom Lightbox Modal (Highest Priority Layer Z-Index) */}
+      {/* Image Zoom Lightbox Modal */}
       {zoomedImage && (
         <div 
           style={{ zIndex: 99999 }}
@@ -469,7 +473,12 @@ export default function Home() {
               <X className="w-5 h-5" />
             </button>
             <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center">
-              <img src={zoomedImage} alt="صورة المنتج" className="w-full h-full object-contain" />
+              <img 
+                src={zoomedImage} 
+                alt="صورة المنتج" 
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-contain" 
+              />
             </div>
             <p className="text-xs font-bold text-slate-500 mt-2.5">انقر في أي مكان للإغلاق</p>
           </div>
@@ -510,7 +519,12 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 {activeModalProduct.image && (
                   <div className="w-12 h-12 rounded-xl bg-slate-100 border overflow-hidden shrink-0">
-                    <img src={activeModalProduct.image} alt={activeModalProduct.name} className="w-full h-full object-cover" />
+                    <img 
+                      src={activeModalProduct.image} 
+                      alt={activeModalProduct.name} 
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover" 
+                    />
                   </div>
                 )}
                 <div>
@@ -836,7 +850,7 @@ export default function Home() {
 
       {/* Clear Cart Confirmation Dialog */}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 z-60 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
             <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-1.5" />
             <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
