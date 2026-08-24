@@ -2,18 +2,31 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-function formatDriveUrl(url) {
+function formatImageUrl(url) {
   if (!url) return '';
-  const trimmed = url.trim();
-  
-  // فك حظر Google Drive وتمرير الصورة عبر CDN وسيط سريع
+  const trimmed = url.trim().replace(/^["']|["']$/g, '');
+  if (!trimmed) return '';
+
+  // استخراج ID الصورة من أي رابط Google Drive وتحويله لمسار مباشر
   if (trimmed.includes('drive.google.com') || trimmed.includes('googleusercontent.com')) {
-    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
+                  trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                  trimmed.match(/id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
-      const fileId = match[1];
-      return `https://wsrv.nl/?url=https://drive.google.com/thumbnail?id=${fileId}&sz=w800&w=400&output=webp`;
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
+
+  // إذا كان رابط HTTP أو HTTPS مباشر
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  // إذا تم إدخال معرف الملف (File ID) مباشرة
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) {
+    return `https://lh3.googleusercontent.com/d/${trimmed}`;
+  }
+
   return trimmed;
 }
 
@@ -46,7 +59,14 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
   const priceIdx = headers.findIndex(h => h.includes('سعر') || h.includes('ثمن'));
-  const imageIdx = headers.findIndex(h => h.includes('صورة') || h.includes('image') || h.includes('img') || h.includes('رابط'));
+  const imageIdx = headers.findIndex(h => 
+    h.includes('صورة') || 
+    h.includes('صوره') || 
+    h.includes('image') || 
+    h.includes('img') || 
+    h.includes('رابط') || 
+    h.includes('الصور')
+  );
   
   let statusIdx = headers.findIndex(h => 
     h.includes('حالة') || 
@@ -96,7 +116,7 @@ function parseCSV(text) {
     }
 
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
-    const formattedImageUrl = formatDriveUrl(rawImageUrl);
+    const formattedImageUrl = formatImageUrl(rawImageUrl);
 
     rows.push({
       category: values[categoryIdx] || 'أخرى',
@@ -120,6 +140,7 @@ function parseCSV(text) {
         variants: []
       };
     }
+    // حفظ الرابط إذا وُجد في أي صف من صفوف نفس المنتج
     if (item.image && !productsMap[key].image) {
       productsMap[key].image = item.image;
     }
