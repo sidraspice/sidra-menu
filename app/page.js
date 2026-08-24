@@ -455,62 +455,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* Image Zoom Lightbox Modal */}
-      {zoomedImage && (
-        <div 
-          style={{ zIndex: 99999 }}
-          className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200" 
-          onClick={() => setZoomedImage(null)}
-        >
-          <div 
-            className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl overflow-hidden flex flex-col items-center" 
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              onClick={() => setZoomedImage(null)} 
-              className="absolute top-4 left-4 z-20 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition shadow-md"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center">
-              <img 
-                src={zoomedImage} 
-                alt="صورة المنتج" 
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-contain" 
-              />
-            </div>
-            <p className="text-xs font-bold text-slate-500 mt-2.5">انقر في أي مكان للإغلاق</p>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Bottom Cart Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
-        <div className="max-w-xl mx-auto flex items-center gap-2">
-          <button
-            onClick={() => {
-              setCurrentStep('cart');
-              setIsCartOpen(true);
-            }}
-            className="w-full bg-[#1e382b] text-white p-3 rounded-2xl font-bold flex items-center justify-between shadow-md active:scale-[0.99] transition"
-          >
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-[#c89d56]" />
-                {totalItemsCount > 0 && (
-                  <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-black">
-                    {totalItemsCount}
-                  </span>
-                )}
-              </div>
-              <span className="text-xs font-bold">سلة الطلبات</span>
-            </div>
-            <span className="text-xs text-[#c89d56] font-black">{totalAmount} جنيه</span>
-          </button>
-        </div>
-      </div>
-
       {/* Product Selection Modal */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
@@ -518,13 +462,21 @@ export default function Home() {
             <div className="flex justify-between items-start mb-3">
               <div className="flex items-center gap-3">
                 {activeModalProduct.image && (
-                  <div className="w-12 h-12 rounded-xl bg-slate-100 border overflow-hidden shrink-0">
+                  <div 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setZoomedImage(activeModalProduct.image);
+                    }}
+                    className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group"
+                    title="انقر لتكبير الصورة"
+                  >
                     <img 
                       src={activeModalProduct.image} 
                       alt={activeModalProduct.name} 
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-200" 
                     />
+                    <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[8px] font-bold">تكبير</span>
                   </div>
                 )}
                 <div>
@@ -596,6 +548,62 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Image Zoom Lightbox Modal (Highest Priority Layer Z-Index) */}
+      {zoomedImage && (
+        <div 
+          style={{ zIndex: 99999 }}
+          className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200" 
+          onClick={() => setZoomedImage(null)}
+        >
+          <div 
+            className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl overflow-hidden flex flex-col items-center" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setZoomedImage(null)} 
+              className="absolute top-4 left-4 z-20 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition shadow-md"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center">
+              <img 
+                src={zoomedImage} 
+                alt="صورة المنتج" 
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-contain" 
+              />
+            </div>
+            <p className="text-xs font-bold text-slate-500 mt-2.5">انقر في أي مكان للإغلاق</p>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bottom Cart Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
+        <div className="max-w-xl mx-auto flex items-center gap-2">
+          <button
+            onClick={() => {
+              setCurrentStep('cart');
+              setIsCartOpen(true);
+            }}
+            className="w-full bg-[#1e382b] text-white p-3 rounded-2xl font-bold flex items-center justify-between shadow-md active:scale-[0.99] transition"
+          >
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <ShoppingBag className="w-5 h-5 text-[#c89d56]" />
+                {totalItemsCount > 0 && (
+                  <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-black">
+                    {totalItemsCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs font-bold">سلة الطلبات</span>
+            </div>
+            <span className="text-xs text-[#c89d56] font-black">{totalAmount} جنيه</span>
+          </button>
+        </div>
+      </div>
 
       {/* Cart & Checkout Drawer */}
       {isCartOpen && (
@@ -850,7 +858,7 @@ export default function Home() {
 
       {/* Clear Cart Confirmation Dialog */}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/70 z-60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
             <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-1.5" />
             <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
