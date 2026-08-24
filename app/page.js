@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon 
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -43,6 +43,9 @@ export default function Home() {
   const [activeModalProduct, setActiveModalProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [modalQty, setModalQty] = useState(1);
+
+  // Image Zoom Lightbox State
+  const [zoomedImage, setZoomedImage] = useState(null);
 
   // Checkout & Review State
   const [currentStep, setCurrentStep] = useState('shop');
@@ -255,7 +258,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Container with Sticky Search & Modern Visual Categories */}
       <main className="max-w-xl mx-auto px-4 mt-2">
         
         {/* Sticky Search & Icon Categories */}
@@ -346,7 +349,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid with Product Images */}
         {!loading && !error && (
           <div>
             <div className="flex justify-between items-center mb-2.5">
@@ -359,30 +362,63 @@ export default function Home() {
               {filteredProducts.map(product => (
                 <div
                   key={product.id}
-                  onClick={() => product.isAvailable && openProductModal(product)}
                   className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${
                     product.isAvailable
-                      ? 'border-[#e8e2d5] cursor-pointer hover:shadow-sm active:scale-[0.98]'
-                      : 'border-slate-200 opacity-65 cursor-not-allowed bg-slate-50/70'
+                      ? 'border-[#e8e2d5] hover:shadow-sm'
+                      : 'border-slate-200 opacity-65 bg-slate-50/70'
                   }`}
                 >
                   <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1.5 py-0.5 rounded border border-[#e8e2d5] inline-block">
-                        {product.category}
-                      </span>
-                      {!product.isAvailable && (
-                        <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200">
-                          غير متوفر
-                        </span>
-                      )}
+                    {/* Product Image & Category Header */}
+                    <div className="flex items-start gap-2 mb-2">
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (product.image) setZoomedImage(product.image);
+                        }}
+                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 relative group cursor-pointer"
+                        title="انقر لتكبير الصورة"
+                      >
+                        {product.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234d7c60' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='18' height='18' x='3' y='3' rx='2' ry='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]">
+                            <ImageIcon className="w-6 h-6 text-[#4d7c60]/50" />
+                          </div>
+                        )}
+                        <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-[9px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1 py-0.2 rounded border border-[#e8e2d5] truncate max-w-[70%]">
+                            {product.category}
+                          </span>
+                          {!product.isAvailable && (
+                            <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1 py-0.2 rounded border border-red-200">
+                              غير متوفر
+                            </span>
+                          )}
+                        </div>
+                        <h3 
+                          onClick={() => product.isAvailable && openProductModal(product)}
+                          className="font-bold text-xs sm:text-sm text-[#1e382b] line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e]"
+                        >
+                          {product.name}
+                        </h3>
+                      </div>
                     </div>
-                    <h3 className="font-bold text-xs sm:text-sm text-[#1e382b] mb-2 line-clamp-2 leading-snug">
-                      {product.name}
-                    </h3>
                   </div>
 
-                  <div>
+                  <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
                     <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
                       {product.variants.map((v, i) => (
                         <div key={i} className="flex justify-between items-center py-0.5 border-t border-slate-50">
@@ -416,6 +452,24 @@ export default function Home() {
         )}
       </main>
 
+      {/* Image Zoom Lightbox Modal */}
+      {zoomedImage && (
+        <div className="fixed inset-0 bg-black/80 z-70 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setZoomedImage(null)}>
+          <div className="relative max-w-lg w-full bg-white rounded-3xl p-3 shadow-2xl overflow-hidden flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setZoomedImage(null)} 
+              className="absolute top-4 left-4 z-10 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center">
+              <img src={zoomedImage} alt="صورة المنتج" className="w-full h-full object-contain" />
+            </div>
+            <p className="text-xs font-bold text-slate-600 mt-3">انقر في أي مكان للإغلاق</p>
+          </div>
+        </div>
+      )}
+
       {/* Floating Bottom Cart Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
         <div className="max-w-xl mx-auto flex items-center gap-2">
@@ -447,9 +501,16 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
             <div className="flex justify-between items-start mb-3">
-              <div>
-                <span className="text-[10px] font-bold text-[#c89d56]">{activeModalProduct.category}</span>
-                <h2 className="text-base font-black text-[#1e382b]">{activeModalProduct.name}</h2>
+              <div className="flex items-center gap-3">
+                {activeModalProduct.image && (
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 border overflow-hidden shrink-0">
+                    <img src={activeModalProduct.image} alt={activeModalProduct.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div>
+                  <span className="text-[10px] font-bold text-[#c89d56]">{activeModalProduct.category}</span>
+                  <h2 className="text-base font-black text-[#1e382b]">{activeModalProduct.name}</h2>
+                </div>
               </div>
               <button onClick={() => setActiveModalProduct(null)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -587,7 +648,7 @@ export default function Home() {
                             onClick={() => updateCartQty(item.key, 1)}
                             className="w-6.5 h-6.5 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-700 font-bold"
                           >
-                            <Plus className="w-3 h-3" />
+                            <Plus className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => removeCartItem(item.key)}
