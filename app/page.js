@@ -349,7 +349,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Products Grid with Product Images */}
+        {/* Products Grid */}
         {!loading && !error && (
           <div>
             <div className="flex justify-between items-center mb-2.5">
@@ -369,7 +369,6 @@ export default function Home() {
                   }`}
                 >
                   <div>
-                    {/* Product Image & Category Header */}
                     <div className="flex items-start gap-2 mb-2">
                       <div 
                         onClick={(e) => {
@@ -452,20 +451,27 @@ export default function Home() {
         )}
       </main>
 
-      {/* Image Zoom Lightbox Modal */}
+      {/* Image Zoom Lightbox Modal (Highest Priority Layer Z-Index) */}
       {zoomedImage && (
-        <div className="fixed inset-0 bg-black/80 z-70 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setZoomedImage(null)}>
-          <div className="relative max-w-lg w-full bg-white rounded-3xl p-3 shadow-2xl overflow-hidden flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+        <div 
+          style={{ zIndex: 99999 }}
+          className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200" 
+          onClick={() => setZoomedImage(null)}
+        >
+          <div 
+            className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl overflow-hidden flex flex-col items-center" 
+            onClick={(e) => e.stopPropagation()}
+          >
             <button 
               onClick={() => setZoomedImage(null)} 
-              className="absolute top-4 left-4 z-10 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition"
+              className="absolute top-4 left-4 z-20 p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition shadow-md"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center">
+            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center">
               <img src={zoomedImage} alt="صورة المنتج" className="w-full h-full object-contain" />
             </div>
-            <p className="text-xs font-bold text-slate-600 mt-3">انقر في أي مكان للإغلاق</p>
+            <p className="text-xs font-bold text-slate-500 mt-2.5">انقر في أي مكان للإغلاق</p>
           </div>
         </div>
       )}
@@ -830,7 +836,7 @@ export default function Home() {
 
       {/* Clear Cart Confirmation Dialog */}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/70 z-60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
             <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-1.5" />
             <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
