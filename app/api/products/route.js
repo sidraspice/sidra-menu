@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+function formatDriveUrl(url) {
+  if (!url) return '';
+  const trimmed = url.trim();
+  
+  // استخراج ID الصورة من أي رابط Google Drive وتحويله لرابط سريع ومباشر 100%
+  if (trimmed.includes('drive.google.com')) {
+    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w800`;
+    }
+  }
+  return trimmed;
+}
+
 function parseCSVLine(text) {
   const result = [];
   let cur = '';
@@ -80,7 +94,8 @@ function parseCSV(text) {
       }
     }
 
-    const imageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
+    const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
+    const formattedImageUrl = formatDriveUrl(rawImageUrl);
 
     rows.push({
       category: values[categoryIdx] || 'أخرى',
@@ -88,7 +103,7 @@ function parseCSV(text) {
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
       price: parseFloat(values[priceIdx]) || 0,
       available: isAvailable,
-      image: imageUrl
+      image: formattedImageUrl
     });
   }
 
@@ -104,7 +119,6 @@ function parseCSV(text) {
         variants: []
       };
     }
-    // Update image if available in later rows
     if (item.image && !productsMap[key].image) {
       productsMap[key].image = item.image;
     }
