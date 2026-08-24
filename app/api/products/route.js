@@ -31,6 +31,7 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
   const priceIdx = headers.findIndex(h => h.includes('سعر') || h.includes('ثمن'));
+  const imageIdx = headers.findIndex(h => h.includes('صورة') || h.includes('image') || h.includes('img') || h.includes('رابط'));
   
   let statusIdx = headers.findIndex(h => 
     h.includes('حالة') || 
@@ -79,12 +80,15 @@ function parseCSV(text) {
       }
     }
 
+    const imageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
+
     rows.push({
       category: values[categoryIdx] || 'أخرى',
       name: values[nameIdx],
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
       price: parseFloat(values[priceIdx]) || 0,
-      available: isAvailable
+      available: isAvailable,
+      image: imageUrl
     });
   }
 
@@ -96,8 +100,13 @@ function parseCSV(text) {
         id: key,
         name: item.name,
         category: item.category,
+        image: item.image || '',
         variants: []
       };
+    }
+    // Update image if available in later rows
+    if (item.image && !productsMap[key].image) {
+      productsMap[key].image = item.image;
     }
     productsMap[key].variants.push({
       weight: item.weight,
