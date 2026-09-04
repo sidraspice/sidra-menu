@@ -26,6 +26,18 @@ const getCategoryVisual = (catName) => {
   return { icon: '🍃', label: catName };
 };
 
+// دالة استخراج الوزن بالجرام حتى لو كان مكتوباً بالكيلو لضمان دقة التسعير المرجعي
+const getWeightNumberInGrams = (weightStr) => {
+  if (!weightStr) return 1;
+  const str = weightStr.toString().toLowerCase();
+  const match = str.match(/\d+(\.\d+)?/);
+  let num = match ? parseFloat(match[0]) : 1;
+  if (str.includes('كيلو') || str.includes('كجم') || str.includes('kg')) {
+    num = num * 1000;
+  }
+  return num;
+};
+
 export default function Home() {
   const [data, setData] = useState({ products: [], categories: [] });
   const [loading, setLoading] = useState(true);
@@ -43,6 +55,10 @@ export default function Home() {
   const [activeModalProduct, setActiveModalProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [modalQty, setModalQty] = useState(1);
+  
+  // Custom Weight State
+  const [isCustomWeight, setIsCustomWeight] = useState(false);
+  const [customWeightValue, setCustomWeightValue] = useState('');
 
   // Image Zoom Lightbox State
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -112,11 +128,38 @@ export default function Home() {
     const firstAvailable = product.variants.find(v => v.available) || product.variants[0] || null;
     setSelectedVariant(firstAvailable);
     setModalQty(1);
+    setIsCustomWeight(false);
+    setCustomWeightValue('');
+  };
+
+  // حساب سعر الوزن المخصص بناءً على الوزن الجاهز المحدد كسعر مرجعي
+  const getCalculatedPrice = () => {
+    if (!selectedVariant) return 0;
+    if (!isCustomWeight) return selectedVariant.price;
+    
+    const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
+    const basePrice = selectedVariant.price;
+    const pricePerGram = basePrice / baseWeightGrams;
+    
+    const weightInput = parseFloat(customWeightValue) || 0;
+    return parseFloat((pricePerGram * weightInput).toFixed(2));
   };
 
   const addToCart = () => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
-    const itemKey = `${activeModalProduct.id}_${selectedVariant.weight}`;
+    
+    let finalWeight = selectedVariant.weight;
+    let finalPrice = selectedVariant.price;
+
+    if (isCustomWeight) {
+      const parsedWeight = parseFloat(customWeightValue);
+      if (!parsedWeight || parsedWeight <= 0) return; // حماية إضافية
+      finalWeight = `${parsedWeight} جرام`;
+      finalPrice = getCalculatedPrice();
+    }
+
+    const itemKey = `${activeModalProduct.id}_${finalWeight}`;
+    
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) {
@@ -126,8 +169,8 @@ export default function Home() {
         key: itemKey,
         name: activeModalProduct.name,
         category: activeModalProduct.category,
-        weight: selectedVariant.weight,
-        price: selectedVariant.price,
+        weight: finalWeight,
+        price: finalPrice,
         qty: modalQty
       }];
     });
@@ -491,18 +534,23 @@ export default function Home() {
 
             <div className="mb-3.5">
               <label className="text-xs font-bold text-slate-600 block mb-1.5">الأوزان المتاحة:</label>
+              
+              {/* Preset Weights */}
               <div className="grid grid-cols-2 gap-2">
                 {activeModalProduct.variants.map((variant, idx) => (
                   <button
                     key={idx}
                     disabled={!variant.available}
-                    onClick={() => setSelectedVariant(variant)}
+                    onClick={() => {
+                      setSelectedVariant(variant);
+                      setIsCustomWeight(false); // الرجوع للوزن الجاهز وإلغاء المخصص
+                    }}
                     className={`p-2.5 rounded-xl border text-right transition ${
                       !variant.available 
                         ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed'
-                        : selectedVariant?.weight === variant.weight
+                        : (!isCustomWeight && selectedVariant?.weight === variant.weight)
                           ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] font-bold ring-2 ring-[#2d533e]/20'
-                          : 'border-slate-200 text-slate-700'
+                          : 'border-slate-200 text-slate-700 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex justify-between items-center">
@@ -514,6 +562,56 @@ export default function Home() {
                     </div>
                   </button>
                 ))}
+              </div>
+
+              {/* Custom Weight Toggle Box */}
+              <div 
+                onClick={() => setIsCustomWeight(true)}
+                className={`mt-3 p-3 rounded-xl border transition cursor-pointer ${
+                  isCustomWeight 
+                    ? 'border-[#2d533e] bg-[#2d533e]/5 ring-2 ring-[#2d533e]/20' 
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-[#2d533e] bg-[#2d533e]' : 'border-slate-300 bg-white'}`}>
+                    {isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                  <span className={`text-xs font-bold ${isCustomWeight ? 'text-[#1e382b]' : 'text-slate-600'}`}>
+                    تحديد وزن مخصص (بالجرام)
+                  </span>
+                </div>
+
+                {isCustomWeight && (
+                  <div className="mt-3 pl-6" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        min="1"
+                        value={customWeightValue}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setCustomWeightValue(val);
+                        }}
+                        placeholder="أدخل الوزن بالجرام (مثال: 300)"
+                        className="flex-1 p-2.5 text-center text-sm font-bold border border-[#e8e2d5] rounded-xl outline-none focus:border-[#2d533e] bg-white shadow-sm"
+                      />
+                      <span className="text-xs font-bold text-slate-600 shrink-0">جرام</span>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between text-[10px]">
+                      <span className="text-slate-500 font-semibold">
+                        السعر المرجعي: (وزن {selectedVariant?.weight})
+                      </span>
+                      {customWeightValue > 0 && (
+                        <span className="font-bold text-[#2d533e] bg-white px-2 py-0.5 rounded border border-[#e8e2d5]">
+                          = {getCalculatedPrice().toFixed(2)} ج.م
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -537,19 +635,21 @@ export default function Home() {
             </div>
 
             <button
-              disabled={!selectedVariant || !selectedVariant.available}
+              disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))}
               onClick={addToCart}
               className="w-full bg-[#2d533e] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition"
             >
-              {selectedVariant?.available 
-                ? `إضافة للسلة — ${((selectedVariant?.price || 0) * modalQty).toFixed(2)} ج.م` 
-                : 'هذا الوزن غير متوفر حالياً'}
+              {(isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))
+                ? 'أدخل الوزن المطلوب أولاً'
+                : selectedVariant?.available 
+                  ? `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
+                  : 'هذا الصنف غير متوفر حالياً'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Image Zoom Lightbox Modal (Highest Priority Layer Z-Index) */}
+      {/* Image Zoom Lightbox Modal */}
       {zoomedImage && (
         <div 
           style={{ zIndex: 99999 }}
@@ -657,7 +757,7 @@ export default function Home() {
                         <div className="flex-1">
                           <h4 className="font-bold text-xs text-[#1e382b] leading-snug">{item.name}</h4>
                           <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                            {item.weight} — <span className="text-[#2d533e] font-bold">{item.price} ج.م</span>
+                            الوزن: {item.weight} — <span className="text-[#2d533e] font-bold">السعر: {item.price} ج.م</span>
                           </div>
                           <div className="text-[10px] text-[#c89d56] font-bold mt-0.5">
                             الإجمالي: {(item.price * item.qty).toFixed(2)} ج.م
@@ -804,22 +904,33 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bottom Actions */}
-            <div className="pt-2.5 border-t border-slate-100 space-y-2">
+            {/* Bottom Actions with Continue Shopping */}
+            <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
               <div className="flex justify-between items-center font-bold text-xs pb-0.5">
                 <span className="text-slate-600">الإجمالي النهائي:</span>
                 <span className="text-[#2d533e] text-base font-black">{totalAmount} جنيه</span>
               </div>
 
               {currentStep === 'cart' && (
-                <button
-                  disabled={cart.length === 0}
-                  onClick={() => setCurrentStep('checkout')}
-                  className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1e382b] transition"
-                >
-                  <span>متابعة إتمام الطلب</span>
-                  <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    disabled={cart.length === 0}
+                    onClick={() => setCurrentStep('checkout')}
+                    className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1e382b] transition"
+                  >
+                    <span>متابعة إتمام الطلب</span>
+                    <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                  </button>
+                  
+                  {/* زر الرجوع لمتابعة التسوق الجديد */}
+                  <button
+                    onClick={() => setIsCartOpen(false)}
+                    className="w-full bg-[#fbf9f4] text-[#1e382b] border border-[#e8e2d5] py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#e8e2d5]/70 transition"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>رجوع لمتابعة التسوق</span>
+                  </button>
+                </div>
               )}
 
               {currentStep === 'checkout' && (
