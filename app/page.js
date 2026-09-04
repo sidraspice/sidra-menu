@@ -26,7 +26,6 @@ const getCategoryVisual = (catName) => {
   return { icon: '🍃', label: catName };
 };
 
-// دالة استخراج الوزن بالجرام حتى لو كان مكتوباً بالكيلو لضمان دقة التسعير المرجعي
 const getWeightNumberInGrams = (weightStr) => {
   if (!weightStr) return 1;
   const str = weightStr.toString().toLowerCase();
@@ -92,7 +91,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // LocalStorage Cart Sync
   useEffect(() => {
     try {
       const saved = localStorage.getItem('sedra_cart');
@@ -132,7 +130,6 @@ export default function Home() {
     setCustomWeightValue('');
   };
 
-  // حساب سعر الوزن المخصص بناءً على الوزن الجاهز المحدد كسعر مرجعي
   const getCalculatedPrice = () => {
     if (!selectedVariant) return 0;
     if (!isCustomWeight) return selectedVariant.price;
@@ -153,7 +150,7 @@ export default function Home() {
 
     if (isCustomWeight) {
       const parsedWeight = parseFloat(customWeightValue);
-      if (!parsedWeight || parsedWeight <= 0) return; // حماية إضافية
+      if (!parsedWeight || parsedWeight <= 0) return;
       finalWeight = `${parsedWeight} جرام`;
       finalPrice = getCalculatedPrice();
     }
@@ -301,7 +298,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container with Sticky Search & Modern Visual Categories */}
+      {/* Main Container */}
       <main className="max-w-xl mx-auto px-4 mt-2">
         
         {/* Sticky Search & Icon Categories */}
@@ -543,7 +540,7 @@ export default function Home() {
                     disabled={!variant.available}
                     onClick={() => {
                       setSelectedVariant(variant);
-                      setIsCustomWeight(false); // الرجوع للوزن الجاهز وإلغاء المخصص
+                      setIsCustomWeight(false);
                     }}
                     className={`p-2.5 rounded-xl border text-right transition ${
                       !variant.available 
@@ -564,26 +561,26 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Custom Weight Toggle Box */}
+              {/* Custom Weight Toggle Box (Updated to Bold Red) */}
               <div 
                 onClick={() => setIsCustomWeight(true)}
-                className={`mt-3 p-3 rounded-xl border transition cursor-pointer ${
+                className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${
                   isCustomWeight 
-                    ? 'border-[#2d533e] bg-[#2d533e]/5 ring-2 ring-[#2d533e]/20' 
-                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    ? 'border-red-600 bg-red-50 shadow-md' 
+                    : 'border-red-200 bg-white hover:border-red-300'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-[#2d533e] bg-[#2d533e]' : 'border-slate-300 bg-white'}`}>
-                    {isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-red-300 bg-white'}`}>
+                    {isCustomWeight && <div className="w-2 h-2 rounded-full bg-white" />}
                   </div>
-                  <span className={`text-xs font-bold ${isCustomWeight ? 'text-[#1e382b]' : 'text-slate-600'}`}>
-                    تحديد وزن مخصص (بالجرام)
+                  <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-red-500'}`}>
+                    + تحديد وزن مخصص (بالجرام)
                   </span>
                 </div>
 
                 {isCustomWeight && (
-                  <div className="mt-3 pl-6" onClick={e => e.stopPropagation()}>
+                  <div className="mt-3 pl-7" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -596,16 +593,16 @@ export default function Home() {
                           setCustomWeightValue(val);
                         }}
                         placeholder="أدخل الوزن بالجرام (مثال: 300)"
-                        className="flex-1 p-2.5 text-center text-sm font-bold border border-[#e8e2d5] rounded-xl outline-none focus:border-[#2d533e] bg-white shadow-sm"
+                        className="flex-1 p-2.5 text-center text-sm font-black border-2 border-red-200 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300"
                       />
-                      <span className="text-xs font-bold text-slate-600 shrink-0">جرام</span>
+                      <span className="text-sm font-black text-red-600 shrink-0">جرام</span>
                     </div>
-                    <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                      <span className="text-slate-500 font-semibold">
+                    <div className="mt-2.5 flex items-center justify-between text-xs">
+                      <span className="text-slate-500 font-bold">
                         السعر المرجعي: (وزن {selectedVariant?.weight})
                       </span>
                       {customWeightValue > 0 && (
-                        <span className="font-bold text-[#2d533e] bg-white px-2 py-0.5 rounded border border-[#e8e2d5]">
+                        <span className="font-black text-red-700 bg-white px-2.5 py-1 rounded-lg border-2 border-red-100 shadow-sm">
                           = {getCalculatedPrice().toFixed(2)} ج.م
                         </span>
                       )}
@@ -730,17 +727,15 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {/* زر مسح السلة (تم التكبير والتوضيح وإلغاء حرف X) */}
                   {currentStep === 'cart' && cart.length > 0 && (
                     <button
                       onClick={() => setShowClearConfirm(true)}
-                      className="text-[10px] font-bold text-red-600 hover:text-red-700 px-2 py-0.5 bg-red-50 rounded-lg border border-red-100"
+                      className="text-xs font-black text-red-600 hover:text-white hover:bg-red-600 px-3 py-1.5 bg-red-50 rounded-xl border border-red-200 transition shadow-sm"
                     >
                       مسح السلة
                     </button>
                   )}
-                  <button onClick={() => setIsCartOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
 
@@ -904,7 +899,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bottom Actions with Continue Shopping */}
+            {/* Bottom Actions with Continue Shopping (Updated to Bold Red Outline) */}
             <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
               <div className="flex justify-between items-center font-bold text-xs pb-0.5">
                 <span className="text-slate-600">الإجمالي النهائي:</span>
@@ -912,7 +907,7 @@ export default function Home() {
               </div>
 
               {currentStep === 'cart' && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                   <button
                     disabled={cart.length === 0}
                     onClick={() => setCurrentStep('checkout')}
@@ -925,9 +920,9 @@ export default function Home() {
                   {/* زر الرجوع لمتابعة التسوق الجديد */}
                   <button
                     onClick={() => setIsCartOpen(false)}
-                    className="w-full bg-[#fbf9f4] text-[#1e382b] border border-[#e8e2d5] py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#e8e2d5]/70 transition"
+                    className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-red-50 transition"
                   >
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight className="w-4 h-4" />
                     <span>رجوع لمتابعة التسوق</span>
                   </button>
                 </div>
