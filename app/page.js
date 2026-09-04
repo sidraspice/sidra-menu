@@ -37,6 +37,21 @@ const getWeightNumberInGrams = (weightStr) => {
   return num;
 };
 
+// دالة حساب الوزن الإجمالي (وزن الوحدة × الكمية)
+const getCalculatedTotalWeight = (weightStr, qty) => {
+  if (!weightStr) return '';
+  const str = weightStr.toString();
+  const numMatch = str.match(/\d+(\.\d+)?/);
+  if (numMatch) {
+    const unitWeight = parseFloat(numMatch[0]);
+    const calculatedTotalWeight = unitWeight * qty;
+    return str.replace(numMatch[0], calculatedTotalWeight.toString());
+  } else if (qty > 1) {
+    return `${str} (عدد ${qty})`;
+  }
+  return str;
+};
+
 export default function Home() {
   const [data, setData] = useState({ products: [], categories: [] });
   const [loading, setLoading] = useState(true);
@@ -241,17 +256,7 @@ export default function Home() {
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
-      
-      const numMatch = item.weight.match(/\d+(\.\d+)?/);
-      let totalWeightStr = item.weight;
-
-      if (numMatch) {
-        const unitWeight = parseFloat(numMatch[0]);
-        const calculatedTotalWeight = unitWeight * item.qty;
-        totalWeightStr = item.weight.replace(numMatch[0], calculatedTotalWeight.toString());
-      } else if (item.qty > 1) {
-        totalWeightStr = `${item.weight} (عدد ${item.qty})`;
-      }
+      const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
       message += `\n*${index + 1} ◂ ${item.name}*\n`;
       message += `   ⚖️ *الوزن:* ${totalWeightStr}\n`;
@@ -534,34 +539,40 @@ export default function Home() {
               
               {/* Preset Weights */}
               <div className="grid grid-cols-2 gap-2">
-                {activeModalProduct.variants.map((variant, idx) => (
-                  <button
-                    key={idx}
-                    disabled={!variant.available}
-                    onClick={() => {
-                      setSelectedVariant(variant);
-                      setIsCustomWeight(false);
-                    }}
-                    className={`p-2.5 rounded-xl border text-right transition ${
-                      !variant.available 
-                        ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed'
-                        : (!isCustomWeight && selectedVariant?.weight === variant.weight)
-                          ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] font-bold ring-2 ring-[#2d533e]/20'
-                          : 'border-slate-200 text-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold">{variant.weight}</span>
-                      {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
-                    </div>
-                    <div className="text-xs font-black text-[#2d533e] mt-0.5">
-                      {variant.available ? `${variant.price} ج.م` : 'غير متوفر'}
-                    </div>
-                  </button>
-                ))}
+                {activeModalProduct.variants.map((variant, idx) => {
+                  const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
+                  const displayWeight = isSelected ? getCalculatedTotalWeight(variant.weight, modalQty) : variant.weight;
+                  const displayPrice = isSelected ? (variant.price * modalQty).toFixed(2) : variant.price;
+
+                  return (
+                    <button
+                      key={idx}
+                      disabled={!variant.available}
+                      onClick={() => {
+                        setSelectedVariant(variant);
+                        setIsCustomWeight(false);
+                      }}
+                      className={`p-2.5 rounded-xl border text-right transition ${
+                        !variant.available 
+                          ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed'
+                          : isSelected
+                            ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] font-bold ring-2 ring-[#2d533e]/20'
+                            : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold">{displayWeight}</span>
+                        {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
+                      </div>
+                      <div className="text-xs font-black text-[#2d533e] mt-0.5">
+                        {variant.available ? `${displayPrice} ج.م` : 'غير متوفر'}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Custom Weight Toggle Box (Updated to Bold Red) */}
+              {/* Custom Weight Toggle Box */}
               <div 
                 onClick={() => setIsCustomWeight(true)}
                 className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${
@@ -575,7 +586,7 @@ export default function Home() {
                     {isCustomWeight && <div className="w-2 h-2 rounded-full bg-white" />}
                   </div>
                   <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-red-500'}`}>
-                    + تحديد وزن مخصص (بالجرام)
+                    وزن مخصص بالجرام
                   </span>
                 </div>
 
@@ -596,16 +607,6 @@ export default function Home() {
                         className="flex-1 p-2.5 text-center text-sm font-black border-2 border-red-200 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300"
                       />
                       <span className="text-sm font-black text-red-600 shrink-0">جرام</span>
-                    </div>
-                    <div className="mt-2.5 flex items-center justify-between text-xs">
-                      <span className="text-slate-500 font-bold">
-                        السعر المرجعي: (وزن {selectedVariant?.weight})
-                      </span>
-                      {customWeightValue > 0 && (
-                        <span className="font-black text-red-700 bg-white px-2.5 py-1 rounded-lg border-2 border-red-100 shadow-sm">
-                          = {getCalculatedPrice().toFixed(2)} ج.م
-                        </span>
-                      )}
                     </div>
                   </div>
                 )}
@@ -639,7 +640,7 @@ export default function Home() {
               {(isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))
                 ? 'أدخل الوزن المطلوب أولاً'
                 : selectedVariant?.available 
-                  ? `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
+                  ? `إضافة للسلة ( ${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue || 0} جرام` : (selectedVariant?.weight || ''), modalQty)} ) — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
                   : 'هذا الصنف غير متوفر حالياً'}
             </button>
           </div>
@@ -727,7 +728,6 @@ export default function Home() {
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  {/* زر مسح السلة (تم التكبير والتوضيح وإلغاء حرف X) */}
                   {currentStep === 'cart' && cart.length > 0 && (
                     <button
                       onClick={() => setShowClearConfirm(true)}
@@ -752,9 +752,9 @@ export default function Home() {
                         <div className="flex-1">
                           <h4 className="font-bold text-xs text-[#1e382b] leading-snug">{item.name}</h4>
                           <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                            الوزن: {item.weight} — <span className="text-[#2d533e] font-bold">السعر: {item.price} ج.م</span>
+                            الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}
                           </div>
-                          <div className="text-[10px] text-[#c89d56] font-bold mt-0.5">
+                          <div className="text-[10px] text-[#2d533e] font-bold mt-0.5">
                             الإجمالي: {(item.price * item.qty).toFixed(2)} ج.م
                           </div>
                         </div>
@@ -885,7 +885,7 @@ export default function Home() {
                           <div>
                             <span className="font-bold text-[#1e382b]">{item.name}</span>
                             <span className="text-[10px] text-slate-500 block">
-                              {item.weight} × {item.qty} ({item.price} ج.م)
+                              {getCalculatedTotalWeight(item.weight, item.qty)}
                             </span>
                           </div>
                           <span className="font-black text-[#2d533e]">
