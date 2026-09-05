@@ -37,7 +37,6 @@ const getWeightNumberInGrams = (weightStr) => {
   return num;
 };
 
-// دالة حساب الوزن الإجمالي (وزن الوحدة × الكمية)
 const getCalculatedTotalWeight = (weightStr, qty) => {
   if (!weightStr) return '';
   const str = weightStr.toString();
@@ -504,7 +503,7 @@ export default function Home() {
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
-            <div className="flex justify-between items-start mb-3">
+            <div className="flex items-start mb-4">
               <div className="flex items-center gap-3">
                 {activeModalProduct.image && (
                   <div 
@@ -529,9 +528,6 @@ export default function Home() {
                   <h2 className="text-base font-black text-[#1e382b]">{activeModalProduct.name}</h2>
                 </div>
               </div>
-              <button onClick={() => setActiveModalProduct(null)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             <div className="mb-3.5">
@@ -632,17 +628,26 @@ export default function Home() {
               </div>
             </div>
 
-            <button
-              disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))}
-              onClick={addToCart}
-              className="w-full bg-[#2d533e] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition"
-            >
-              {(isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))
-                ? 'أدخل الوزن المطلوب أولاً'
-                : selectedVariant?.available 
-                  ? `إضافة للسلة ( ${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue || 0} جرام` : (selectedVariant?.weight || ''), modalQty)} ) — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
-                  : 'هذا الصنف غير متوفر حالياً'}
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button
+                disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))}
+                onClick={addToCart}
+                className="w-full bg-[#2d533e] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition"
+              >
+                {(isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))
+                  ? 'أدخل الوزن المطلوب أولاً'
+                  : selectedVariant?.available 
+                    ? `إضافة للسلة ( ${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue || 0} جرام` : (selectedVariant?.weight || ''), modalQty)} ) — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
+                    : 'هذا الصنف غير متوفر حالياً'}
+              </button>
+              
+              <button
+                onClick={() => setActiveModalProduct(null)}
+                className="w-full bg-white text-slate-600 border-2 border-slate-200 py-3 rounded-xl font-bold text-xs hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
+              >
+                العودة إلى المنيو
+              </button>
+            </div>
           </div>
         </div>
       )}
