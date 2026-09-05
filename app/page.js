@@ -641,9 +641,10 @@ export default function Home() {
                     : 'هذا الصنف غير متوفر حالياً'}
               </button>
               
+              {/* زر العودة إلى المنيو (معدل بالتصميم المطلوب) */}
               <button
                 onClick={() => setActiveModalProduct(null)}
-                className="w-full bg-white text-slate-600 border-2 border-slate-200 py-3 rounded-xl font-bold text-xs hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
+                className="w-full bg-white text-red-700 border-2 border-red-600 py-3 rounded-xl font-black text-sm hover:bg-red-50 transition shadow-sm"
               >
                 العودة إلى المنيو
               </button>
@@ -904,7 +905,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bottom Actions with Continue Shopping (Updated to Bold Red Outline) */}
+            {/* Bottom Actions with Continue Shopping */}
             <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
               <div className="flex justify-between items-center font-bold text-xs pb-0.5">
                 <span className="text-slate-600">الإجمالي النهائي:</span>
@@ -922,7 +923,7 @@ export default function Home() {
                     <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                   </button>
                   
-                  {/* زر الرجوع لمتابعة التسوق الجديد */}
+                  {/* زر الرجوع لمتابعة التسوق */}
                   <button
                     onClick={() => setIsCartOpen(false)}
                     className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-red-50 transition"
