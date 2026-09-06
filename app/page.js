@@ -76,6 +76,9 @@ export default function Home() {
   // Image Zoom Lightbox State
   const [zoomedImage, setZoomedImage] = useState(null);
 
+  // Toast Notification State
+  const [toastMessage, setToastMessage] = useState(null);
+
   // Checkout & Review State
   const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({
@@ -105,6 +108,7 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Load Cart from LocalStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('sedra_cart');
@@ -117,6 +121,7 @@ export default function Home() {
     setIsCartLoaded(true);
   }, []);
 
+  // Save Cart to LocalStorage
   useEffect(() => {
     if (isCartLoaded) {
       try {
@@ -126,6 +131,28 @@ export default function Home() {
       }
     }
   }, [cart, isCartLoaded]);
+
+  // Load Customer Data from LocalStorage
+  useEffect(() => {
+    try {
+      const savedCustomer = localStorage.getItem('sedra_customer');
+      if (savedCustomer) {
+        setCustomer(JSON.parse(savedCustomer));
+      }
+    } catch (e) {
+      console.error('Error loading customer from storage', e);
+    }
+  }, []);
+
+  // Toast Timer Effect
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const filteredProducts = useMemo(() => {
     return data.products.filter(item => {
@@ -170,6 +197,7 @@ export default function Home() {
     }
 
     const itemKey = `${activeModalProduct.id}_${finalWeight}`;
+    const productName = activeModalProduct.name;
     
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
@@ -185,7 +213,9 @@ export default function Home() {
         qty: modalQty
       }];
     });
+    
     setActiveModalProduct(null);
+    setToastMessage(`تم إضافة "${productName}" بنجاح`);
   };
 
   const updateCartQty = (key, delta) => {
@@ -236,6 +266,12 @@ export default function Home() {
   const handleProceedToReview = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      // حفظ بيانات العميل للمرات القادمة
+      try {
+        localStorage.setItem('sedra_customer', JSON.stringify(customer));
+      } catch (err) {
+        console.error('Error saving customer data', err);
+      }
       setCurrentStep('review');
     }
   };
@@ -272,6 +308,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
+      
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#1e382b] text-white px-4 py-2.5 rounded-2xl shadow-xl font-bold text-xs flex items-center gap-2 animate-in slide-in-from-top-4 fade-in duration-300 border border-[#d4af37]/30 whitespace-nowrap">
+          <Check className="w-4 h-4 text-[#d4af37]" />
+          {toastMessage}
+        </div>
+      )}
+
       {/* Top Logo Banner */}
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
         <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-1.5 sm:p-2 shadow-xs border border-[#e8e2d5] flex flex-col items-center">
@@ -641,7 +686,6 @@ export default function Home() {
                     : 'هذا الصنف غير متوفر حالياً'}
               </button>
               
-              {/* زر العودة إلى المنيو (معدل بالتصميم المطلوب) */}
               <button
                 onClick={() => setActiveModalProduct(null)}
                 className="w-full bg-white text-red-700 border-2 border-red-600 py-3 rounded-xl font-black text-sm hover:bg-red-50 transition shadow-sm"
