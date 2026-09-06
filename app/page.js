@@ -1013,15 +1013,15 @@ export default function Home() {
                 </div>
               )}
 
-              {/* إضافة زر "رجوع لمتابعة التسوق" لخطوة المراجعة النهائية */}
+              {/* إضافة زر "تعديل البيانات" وزر "رجوع لمتابعة التسوق" لخطوة المراجعة النهائية */}
               {currentStep === 'review' && (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex gap-2">
                     <button
                       onClick={() => setCurrentStep('checkout')}
-                      className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-xs hover:bg-slate-200 transition"
+                      className="flex-1 bg-slate-100 text-[#1e382b] border border-slate-200 py-3 rounded-xl font-bold text-xs hover:bg-slate-200 transition shadow-sm"
                     >
-                      تعديل الطلب
+                      تعديل البيانات
                     </button>
                     <button
                       onClick={handleSendWhatsAppOrder}
