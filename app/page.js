@@ -297,43 +297,33 @@ export default function Home() {
     }
   };
 
-  // الدالة المعدلة بالكامل لتنسيق رسالة واتساب
   const handleSendWhatsAppOrder = () => {
-    let message = `🛒 *طلب جديد - عطارة سدرة*\n\n`;
-    message += `👤 *بيانات العميل*\n`;
-    message += `الاسم: ${customer.name.trim()}\n`;
-    message += `📱 ${customer.phone.trim()}\n`;
-    message += `📍 ${customer.address.trim()}\n`;
+    let message = `🌿 *طلب جديد - عطارة سدرة بدمنهور*\n`;
+    message += `═══════════════════\n`;
+    message += `📋 *بيانات التوصيل:*\n`;
+    message += `👤 *الاسم:* ${customer.name.trim()}\n`;
+    message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
+    message += `📍 *العنوان:* ${customer.address.trim()}\n`;
     if (customer.notes.trim()) {
-      message += `📝 الملاحظات: ${customer.notes.trim()}\n`;
+      message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
     }
-    message += `\n📦 *المنتجات*\n`;
+    message += `\n📦 *تفاصيل المنتجات:*\n`;
+    message += `───────────────────\n`;
     
-    const productsList = cart.map((item, index) => {
+    cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
-      
-      // استخراج الوزن الإجمالي وإزالة المسافات وتغيير (جرام إلى جم)
-      let totalWeightStr = item.weight;
-      const numMatch = item.weight.match(/\d+(\.\d+)?/);
-      if (numMatch) {
-        const unitWeight = parseFloat(numMatch[0]);
-        const calculatedTotalWeight = unitWeight * item.qty;
-        totalWeightStr = item.weight.replace(numMatch[0], calculatedTotalWeight.toString());
-      }
-      
-      // تصغير الكلمات وإزالة المسافات لتبدو مثل: 250جم
-      totalWeightStr = totalWeightStr
-        .replace(/جرام/g, 'جم')
-        .replace(/كيلو/g, 'كجم')
-        .replace(/\s+/g, ''); 
+      const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
-      // الشكل النهائي للسطر الواحد
-      return `${index + 1}) ${item.name} — ${totalWeightStr} — ${itemTotal}ج`;
-    }).join('\n');
+      if (index > 0) message += `\n`;
+      // تم تعديل المثلث ليصبح أعرض (◄) وجعل السطر بأكمله عريض (Bold)
+      message += `*${index + 1} ◄ ${item.name}*\n`;
+      message += `   ⚖️ *الوزن: ${totalWeightStr}*\n`;
+      message += `   💵 *السعر: ${itemTotal} جنيه*\n`;
+    });
 
-    message += productsList + `\n\n`;
-    message += `💰 *الإجمالي:* ${totalAmount}ج\n`;
-    message += `💵 *الدفع:* عند الاستلام`;
+    message += `═══════════════════\n`;
+    message += `💰 *إجمالي الطلب:* *${totalAmount} جنيه*\n`;
+    message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
