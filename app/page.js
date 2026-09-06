@@ -89,6 +89,27 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
+  // زر الرجوع في الهاتف (Android Back Button Interceptor)
+  useEffect(() => {
+    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm;
+    
+    const handlePopState = () => {
+      if (isCartOpen) setIsCartOpen(false);
+      if (activeModalProduct) setActiveModalProduct(null);
+      if (zoomedImage) setZoomedImage(null);
+      if (showClearConfirm) setShowClearConfirm(false);
+    };
+
+    if (isAnyModalOpen) {
+      window.history.pushState({ modal: true }, '');
+      window.addEventListener('popstate', handlePopState);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm]);
+
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -309,9 +330,9 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* Toast Notification */}
+      {/* Toast Notification (تم تعديل المكان ليصبح أعلى شريط السلة) */}
       {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-[#1e382b] text-white px-4 py-2.5 rounded-2xl shadow-xl font-bold text-xs flex items-center gap-2 animate-in slide-in-from-top-4 fade-in duration-300 border border-[#d4af37]/30 whitespace-nowrap">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-[#1e382b] text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center justify-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-300 border border-[#d4af37]/30 whitespace-nowrap">
           <Check className="w-4 h-4 text-[#d4af37]" />
           {toastMessage}
         </div>
@@ -758,18 +779,10 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md h-[88vh] rounded-t-[2rem] sm:rounded-2xl p-4 shadow-2xl flex flex-col justify-between">
             
-            {/* Header of Drawer */}
+            {/* Header of Drawer (تم إزالة السهم من هنا كما طلبت) */}
             <div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-1.5">
-                  {currentStep !== 'cart' && (
-                    <button 
-                      onClick={() => setCurrentStep(currentStep === 'review' ? 'checkout' : 'cart')} 
-                      className="p-1 text-slate-500 hover:text-[#1e382b] ml-1"
-                    >
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  )}
                   <h2 className="text-sm font-black text-[#1e382b]">
                     {currentStep === 'cart' && 'سلة المشتريات'}
                     {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
@@ -978,31 +991,53 @@ export default function Home() {
                 </div>
               )}
 
+              {/* إضافة زر "رجوع لمتابعة التسوق" لخطوة إدخال البيانات */}
               {currentStep === 'checkout' && (
-                <button
-                  form="checkout-form"
-                  type="submit"
-                  className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1e382b] transition"
-                >
-                  <span>مراجعة الطلب قبل الإرسال</span>
-                  <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                </button>
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    form="checkout-form"
+                    type="submit"
+                    className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1e382b] transition"
+                  >
+                    <span>مراجعة الطلب قبل الإرسال</span>
+                    <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                  </button>
+
+                  <button
+                    onClick={() => setIsCartOpen(false)}
+                    className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-red-50 transition"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    <span>رجوع لمتابعة التسوق</span>
+                  </button>
+                </div>
               )}
 
+              {/* إضافة زر "رجوع لمتابعة التسوق" لخطوة المراجعة النهائية */}
               {currentStep === 'review' && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentStep('checkout')}
+                      className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-xs hover:bg-slate-200 transition"
+                    >
+                      تعديل الطلب
+                    </button>
+                    <button
+                      onClick={handleSendWhatsAppOrder}
+                      className="flex-[2] bg-[#25D366] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1ebd5a] transition"
+                    >
+                      <Phone className="w-3.5 h-3.5 fill-white" />
+                      <span>إرسال الطلب عبر واتساب</span>
+                    </button>
+                  </div>
+
                   <button
-                    onClick={() => setCurrentStep('checkout')}
-                    className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-bold text-xs hover:bg-slate-200 transition"
+                    onClick={() => setIsCartOpen(false)}
+                    className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-red-50 transition"
                   >
-                    تعديل الطلب
-                  </button>
-                  <button
-                    onClick={handleSendWhatsAppOrder}
-                    className="flex-[2] bg-[#25D366] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-[#1ebd5a] transition"
-                  >
-                    <Phone className="w-3.5 h-3.5 fill-white" />
-                    <span>إرسال الطلب عبر واتساب</span>
+                    <ArrowRight className="w-4 h-4" />
+                    <span>رجوع لمتابعة التسوق</span>
                   </button>
                 </div>
               )}
