@@ -299,7 +299,7 @@ export default function Home() {
 
   const handleSendWhatsAppOrder = () => {
     let message = `🌿 *طلب جديد - عطارة سدرة بدمنهور*\n`;
-    message += `═══════════════════\n\n`;
+    message += `═══════════════════\n`; // تم التعديل: سطر زوجي واحد
     message += `📋 *بيانات التوصيل:*\n`;
     message += `👤 *الاسم:* ${customer.name.trim()}\n`;
     message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
@@ -308,18 +308,19 @@ export default function Home() {
       message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
     }
     message += `\n📦 *تفاصيل المنتجات:*\n`;
-    message += `───────────────────\n`;
+    message += `───────────────────\n`; // تم التعديل: سطر فردي واحد
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
       const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
-      message += `\n*${index + 1} ◂ ${item.name}*\n`;
+      if (index > 0) message += `\n`; // مسافة بين المنتجات فقط وليس في البداية
+      message += `*${index + 1} ◂ ${item.name}*\n`;
       message += `   ⚖️ *الوزن:* ${totalWeightStr}\n`;
       message += `   💵 *السعر:* ${itemTotal} جنيه\n`;
     });
 
-    message += `\n═══════════════════\n`;
+    message += `═══════════════════\n`; // تم التعديل: سطر زوجي واحد
     message += `💰 *إجمالي الطلب:* *${totalAmount} جنيه*\n`;
     message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
 
@@ -330,7 +331,7 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* Toast Notification (تم تعديل المكان ليصبح أعلى شريط السلة) */}
+      {/* Toast Notification (أعلى شريط السلة) */}
       {toastMessage && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-[#1e382b] text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center justify-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-300 border border-[#d4af37]/30 whitespace-nowrap">
           <Check className="w-4 h-4 text-[#d4af37]" />
@@ -779,7 +780,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md h-[88vh] rounded-t-[2rem] sm:rounded-2xl p-4 shadow-2xl flex flex-col justify-between">
             
-            {/* Header of Drawer (تم إزالة السهم من هنا كما طلبت) */}
+            {/* Header of Drawer */}
             <div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-1.5">
@@ -991,7 +992,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* إضافة زر "رجوع لمتابعة التسوق" لخطوة إدخال البيانات */}
               {currentStep === 'checkout' && (
                 <div className="flex flex-col gap-2.5">
                   <button
@@ -1013,7 +1013,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* إضافة زر "تعديل البيانات" وزر "رجوع لمتابعة التسوق" لخطوة المراجعة النهائية */}
               {currentStep === 'review' && (
                 <div className="flex flex-col gap-2.5">
                   <div className="flex gap-2">
