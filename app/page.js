@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
   ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon 
@@ -76,8 +76,9 @@ export default function Home() {
   // Image Zoom Lightbox State
   const [zoomedImage, setZoomedImage] = useState(null);
 
-  // Toast Notification State
-  const [toastMessage, setToastMessage] = useState(null);
+  // Toast Notification State (معدل)
+  const [toast, setToast] = useState({ visible: false, message: '' });
+  const toastTimeoutRef = useRef(null);
 
   // Checkout & Review State
   const [currentStep, setCurrentStep] = useState('shop');
@@ -89,7 +90,7 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // زر الرجوع في الهاتف (Android Back Button Interceptor)
+  // زر الرجوع في الهاتف
   useEffect(() => {
     const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm;
     
@@ -153,27 +154,21 @@ export default function Home() {
     }
   }, [cart, isCartLoaded]);
 
-  // Load Customer Data from LocalStorage
+  // Load Customer Data from LocalStorage (معدل لتصفير الملاحظات)
   useEffect(() => {
     try {
       const savedCustomer = localStorage.getItem('sedra_customer');
       if (savedCustomer) {
-        setCustomer(JSON.parse(savedCustomer));
+        const parsedData = JSON.parse(savedCustomer);
+        setCustomer({
+          ...parsedData,
+          notes: '' // تصفير الملاحظات للطلب الجديد
+        });
       }
     } catch (e) {
       console.error('Error loading customer from storage', e);
     }
   }, []);
-
-  // Toast Timer Effect
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => {
-        setToastMessage(null);
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
 
   const filteredProducts = useMemo(() => {
     return data.products.filter(item => {
@@ -236,7 +231,18 @@ export default function Home() {
     });
     
     setActiveModalProduct(null);
-    setToastMessage(`تم إضافة "${productName}" بنجاح`);
+    
+    // -- بداية تعديل الإشعار (Toast) لعدم التراكم --
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    
+    setToast({ visible: true, message: `تمت إضافة "${productName}" بنجاح` });
+    
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast({ visible: false, message: '' });
+    }, 2500);
+    // -- نهاية تعديل الإشعار --
   };
 
   const updateCartQty = (key, delta) => {
@@ -315,7 +321,6 @@ export default function Home() {
       const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
       if (index > 0) message += `\n`;
-      // تم تعديل المثلث ليصبح أعرض (◄) وجعل السطر بأكمله عريض (Bold)
       message += `*${index + 1} ◄ ${item.name}*\n`;
       message += `   ⚖️ *الوزن: ${totalWeightStr}*\n`;
       message += `   💵 *السعر: ${itemTotal} جنيه*\n`;
@@ -327,18 +332,33 @@ export default function Home() {
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
+
+    // -- بداية التعديل: تصفير السلة والملاحظات للطلب القادم --
+    setCart([]);
+    setCustomer(prev => {
+      const newDataForNextOrder = { ...prev, notes: '' };
+      localStorage.setItem('sedra_customer', JSON.stringify(newDataForNextOrder));
+      return newDataForNextOrder;
+    });
+    setIsCartOpen(false);
+    setCurrentStep('cart');
+    // -- نهاية التعديل --
   };
 
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* Toast Notification (أعلى شريط السلة) */}
-      {toastMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] bg-[#1e382b] text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center justify-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-300 border border-[#d4af37]/30 whitespace-nowrap">
-          <Check className="w-4 h-4 text-[#d4af37]" />
-          {toastMessage}
+      {/* Toast Notification المعدل (تصميم أبيض مميز، لا يحجب السلة، انسيابي الحركة) */}
+      <div 
+        className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw]
+          ${toast.visible ? 'bottom-24 opacity-100' : 'bottom-16 opacity-0'}
+        `}
+      >
+        <div className="bg-emerald-100 rounded-full p-1">
+          <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
         </div>
-      )}
+        <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
+      </div>
 
       {/* Top Logo Banner */}
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
