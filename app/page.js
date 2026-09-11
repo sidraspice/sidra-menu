@@ -57,7 +57,7 @@ const isOfferValid = (price, originalPrice) => {
 };
 
 export default function Home() {
-  const [data, setData] = useState({ products: [], categories: [] });
+  const [data, setData] = useState({ products: [], categories: [], storeSettings: { openHour: 9, closeHour: 23, mode: 'تلقائي' } });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -89,6 +89,31 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
+  // 🟢 حساب حالة المتجر بناءً على إعدادات شيت جوجل
+  const storeStatus = useMemo(() => {
+    const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
+    const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
+
+    if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
+      return { isOpen: false, text: 'المتجر مغلق حالياً' };
+    }
+    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
+      return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
+    }
+
+    // الوضع التلقائي بناءً على الساعات
+    const now = new Date();
+    const currentHour = now.getHours();
+    const openH = settings.openHour ?? 9;
+    const closeH = settings.closeHour ?? 23;
+
+    if (currentHour >= openH && currentHour < closeH) {
+      return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
+    } else {
+      return { isOpen: false, text: `المتجر مغلق الآن (مواعيد العمل من ${openH}:00 إلى ${closeH}:00)` };
+    }
+  }, [data.storeSettings]);
+
   useEffect(() => {
     const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm;
     
@@ -116,7 +141,11 @@ export default function Home() {
       const res = await fetch('/api/products');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setData({ products: json.products, categories: json.categories });
+      setData({ 
+        products: json.products, 
+        categories: json.categories, 
+        storeSettings: json.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' } 
+      });
     } catch (err) {
       setError(err.message || 'حدث خطأ في تحميل البيانات');
     } finally {
@@ -341,7 +370,6 @@ export default function Home() {
     }
   };
 
-  // 🟢 رسالة واتساب نظيفة تماماً بدون خطوط مزدوجة، فاصل بنجمتين (**) فقط
   const handleSendWhatsAppOrder = () => {
     let message = `🛒 *طلب جديد من متجر عطارة سدرة بدمنهور*\n`;
     message += `**\n`;
@@ -410,10 +438,13 @@ export default function Home() {
             />
           </div>
 
-          <div className="w-full mt-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold py-1 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>المتجر مفتوح الآن ويستقبل طلباتكم</span>
-            <Clock className="w-3 h-3 text-emerald-600 ml-1" />
+          {/* 🟢 شريط حالة المتجر المرتبط بالشيت */}
+          <div className={`w-full mt-2 border text-[11px] font-bold py-1 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-2xs ${
+            storeStatus.isOpen ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${storeStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
+            <span>{storeStatus.text}</span>
+            <Clock className={`w-3 h-3 ml-1 ${storeStatus.isOpen ? 'text-emerald-600' : 'text-red-600'}`} />
           </div>
 
           <div 
