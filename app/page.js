@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon 
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock 
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -165,6 +165,26 @@ export default function Home() {
     }
   }, []);
 
+  // دالة مشاركة المنتج
+  const handleShareProduct = (product, e) => {
+    e.stopPropagation();
+    const shareText = `🌿 شاهد هذا المنتج الرائع من عطارة سدرة بدمنهور:\n*${product.name}*\nاطلبه الآن من المنيو الإلكتروني!`;
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: shareText,
+        url: window.location.href,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      setToast({ visible: true, message: 'تم نسخ رابط المنيو بنجاح' });
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast({ visible: false, message: '' });
+      }, 2500);
+    }
+  };
+
   const displayCategories = useMemo(() => {
     if (!data.categories || data.categories.length === 0) return [];
     const originalCats = data.categories.filter(c => c !== 'كل المنتجات' && !c.includes('خصم') && !c.includes('عروض'));
@@ -322,37 +342,38 @@ export default function Home() {
     }
   };
 
+  // 🟢 تحسين رسالة الواتساب لتشبه الفاتورة الاحترافية
   const handleSendWhatsAppOrder = () => {
-    let message = `🌿 *طلب جديد - عطارة سدرة بدمنهور*\n`;
-    message += `═══════════════════\n`;
-    message += `📋 *بيانات التوصيل:*\n`;
+    let message = `🛒 *طلب جديد من متجر عطارة سدرة بدمنهور*\n`;
+    message += `═══════════════════════\n`;
+    message += `📋 *بيانات العميل والتوصيل:*\n`;
     message += `👤 *الاسم:* ${customer.name.trim()}\n`;
     message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
     message += `📍 *العنوان:* ${customer.address.trim()}\n`;
     if (customer.notes.trim()) {
       message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
     }
-    message += `\n📦 *تفاصيل المنتجات:*\n`;
-    message += `───────────────────\n`;
+    message += `═══════════════════════\n`;
+    message += `📦 *تفاصيل المنتجات المطلوبة:*\n`;
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
       const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
       const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
-      if (index > 0) message += `\n`;
-      message += `*${index + 1} ◄ ${item.name}*\n`;
-      message += `   ⚖️ *الوزن: ${totalWeightStr}*\n`;
+      message += `\n*${index + 1}. ${item.name}*\n`;
+      message += `   🔹 الوزن: ${totalWeightStr}\n`;
+      message += `   🔹 الكمية: ${item.qty}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `   💵 *السعر: ~${itemOriginalTotal}~ ⬅️ ${itemTotal} جنيه* 📌 (عرض)\n`;
+        message += `   🔹 السعر: ~${itemOriginalTotal} جنيه~ ⬅️ *${itemTotal} جنيه* 📌 (عرض)\n`;
       } else {
-        message += `   💵 *السعر: ${itemTotal} جنيه*\n`;
+        message += `   🔹 السعر: *${itemTotal} جنيه*\n`;
       }
+      message += `───────────────────────`;
     });
 
-    message += `═══════════════════\n`;
-    message += `💰 *إجمالي الطلب:* *${totalAmount} جنيه*\n`;
+    message += `\n\n💰 *الإجمالي النهائي:* *${totalAmount} جنيه*\n`;
     message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
@@ -391,6 +412,14 @@ export default function Home() {
               className="w-full h-full object-cover"
             />
           </div>
+
+          {/* 🟢 شريط حالة المتجر (مفتوح الآن) */}
+          <div className="w-full mt-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold py-1 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>المتجر مفتوح الآن ويستقبل طلباتكم</span>
+            <Clock className="w-3 h-3 text-emerald-600 ml-1" />
+          </div>
+
           <div 
             style={{
               background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)',
@@ -576,11 +605,15 @@ export default function Home() {
                           <span className="text-[9px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1 py-0.2 rounded border border-[#e8e2d5] truncate max-w-[70%]">
                             {product.category}
                           </span>
-                          {!product.isAvailable && (
-                            <span className="text-[8px] font-bold text-red-600 bg-red-50 px-1 py-0.2 rounded border border-red-200">
-                              غير متوفر
-                            </span>
-                          )}
+                          
+                          {/* 🟢 زر مشاركة المنتج السريع */}
+                          <button 
+                            onClick={(e) => handleShareProduct(product, e)}
+                            className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md"
+                            title="مشاركة المنتج"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                         <h3 
                           onClick={() => product.isAvailable && openProductModal(product)}
@@ -599,9 +632,8 @@ export default function Home() {
                         return (
                           <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
                             <div className="flex items-center gap-1.5">
-                              {/* استبدال جم بكلمة جرام كاملة */}
                               <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>
-                                {v.weight}
+                                {v.weight} {v.grind ? `(${v.grind})` : ''}
                               </span>
                               {hasOffer && v.available && (
                                 <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">خصم</span>
@@ -612,8 +644,7 @@ export default function Home() {
                               {v.available ? (
                                 <>
                                   {hasOffer && (
-                                    /* السعر المشطوب أوضح وبكلمة جنيه كاملة */
-                                    <span className="text-slate-600 line-through decoration-slate-500 text-[9px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>
+                                    <span className="text-slate-500 line-through decoration-slate-400/80 text-[9px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>
                                   )}
                                   <span className="text-[10px] sm:text-[11px] leading-none">{v.price} جنيه</span>
                                 </>
@@ -711,7 +742,7 @@ export default function Home() {
                       )}
                       
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold">{displayWeight}</span>
+                        <span className="text-xs font-bold">{displayWeight} {variant.grind ? `(${variant.grind})` : ''}</span>
                         {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
                       </div>
                       <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
@@ -719,7 +750,7 @@ export default function Home() {
                           <div className="flex items-center gap-1.5">
                             <span>{displayPrice} جنيه</span>
                             {hasOffer && (
-                               <span className="text-slate-600 line-through decoration-slate-500 text-[10px] font-semibold">{displayOriginalPrice} جنيه</span>
+                               <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-semibold">{displayOriginalPrice} جنيه</span>
                             )}
                           </div>
                         ) : 'غير متوفر'}
