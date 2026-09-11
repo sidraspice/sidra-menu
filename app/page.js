@@ -598,7 +598,6 @@ export default function Home() {
                         const hasOffer = isOfferValid(v.price, v.originalPrice);
                         return (
                           <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
-                            {/* الوزن والشارة على اليمين */}
                             <div className="flex items-center gap-1.5">
                               <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>
                                 {v.weight.replace('جرام', 'جم').replace('كيلو', 'كجم')}
@@ -608,12 +607,12 @@ export default function Home() {
                               )}
                             </div>
                             
-                            {/* الأسعار مرتبة بشكل عمودي أنيق على اليسار */}
                             <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
                               {v.available ? (
                                 <>
                                   {hasOffer && (
-                                    <span className="text-slate-400 line-through text-[8px] font-normal leading-none mb-0.5">{v.originalPrice} ج.م</span>
+                                    // 🔴 تعديل السعر المشطوب (في الكروت الخارجية) ليصبح مقروءاً واحترافياً
+                                    <span className="text-slate-500 line-through decoration-slate-400/80 text-[9px] font-normal leading-none mb-0.5">{v.originalPrice} ج.م</span>
                                   )}
                                   <span className="text-[10px] sm:text-[11px] leading-none">{v.price} ج.م</span>
                                 </>
@@ -719,7 +718,8 @@ export default function Home() {
                           <div className="flex items-center gap-1.5">
                             <span>{displayPrice} ج.م</span>
                             {hasOffer && (
-                               <span className="text-slate-400 line-through text-[10px] font-normal">{displayOriginalPrice} ج.م</span>
+                               // 🔴 تعديل السعر المشطوب (في المودال) ليصبح مقروءاً واحترافياً
+                               <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-normal">{displayOriginalPrice} ج.م</span>
                             )}
                           </div>
                         ) : 'غير متوفر'}
@@ -810,7 +810,8 @@ export default function Home() {
                     <div className="flex items-center justify-center gap-2">
                       <span>إضافة للسلة ( {displayWeightText} ) — {currentFinalPrice.toFixed(2)} ج.م</span>
                       {currentOriginalPrice && (
-                        <span className="line-through text-white/60 text-[10px] font-normal">{currentOriginalPrice.toFixed(2)} ج.م</span>
+                        // 🔴 تعديل السعر المشطوب (في زر إضافة للسلة) ليصبح مقروءاً واحترافياً
+                        <span className="line-through decoration-white/60 text-white/80 text-[10px] font-normal">{currentOriginalPrice.toFixed(2)} ج.م</span>
                       )}
                     </div>
                   );
@@ -925,7 +926,8 @@ export default function Home() {
                           <div className="text-[10px] text-[#2d533e] font-bold mt-0.5 flex items-center gap-1.5">
                             <span>الإجمالي: {(item.price * item.qty).toFixed(2)} ج.م</span>
                             {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
-                              <span className="text-slate-400 line-through font-normal">
+                              // 🔴 تعديل السعر المشطوب (في السلة)
+                              <span className="text-slate-500 line-through decoration-slate-400/80 font-normal">
                                 {(item.originalPrice * item.qty).toFixed(2)} ج.م
                               </span>
                             )}
@@ -1061,7 +1063,8 @@ export default function Home() {
                           </div>
                           <span className="font-black text-[#2d533e] flex items-center gap-1.5">
                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
-                              <span className="text-slate-400 line-through font-normal text-[9px]">
+                              // 🔴 تعديل السعر المشطوب (في مراجعة الطلب)
+                              <span className="text-slate-500 line-through decoration-slate-400/80 font-normal text-[9px]">
                                 {(item.originalPrice * item.qty).toFixed(2)} ج.م
                               </span>
                             )}
