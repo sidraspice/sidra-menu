@@ -341,17 +341,17 @@ export default function Home() {
     }
   };
 
-  // 🟢 رسالة واتساب نظيفة وموجزة (الاسم، الوزن الإجمالي، السعر النهائي فقط بدون خطوط أو كميات زائدة)
+  // 🟢 رسالة واتساب نظيفة تماماً بدون خطوط مزدوجة، فاصل بنجمتين (**) فقط
   const handleSendWhatsAppOrder = () => {
     let message = `🛒 *طلب جديد من متجر عطارة سدرة بدمنهور*\n`;
-    message += `═══════════════════════\n`;
+    message += `**\n`;
     message += `👤 *الاسم:* ${customer.name.trim()}\n`;
     message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
     message += `📍 *العنوان:* ${customer.address.trim()}\n`;
     if (customer.notes.trim()) {
       message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
     }
-    message += `═══════════════════════\n`;
+    message += `**\n`;
     message += `📦 *المنتجات المطلوبة:*\n`;
     
     cart.forEach((item, index) => {
@@ -369,7 +369,7 @@ export default function Home() {
       }
     });
 
-    message += `\n═══════════════════════\n`;
+    message += `**\n`;
     message += `💰 *الإجمالي النهائي:* *${totalAmount} جنيه*\n`;
     message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
 
