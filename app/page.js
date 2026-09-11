@@ -11,7 +11,6 @@ const WHATSAPP_NUMBER = "201044760160";
 const getCategoryVisual = (catName) => {
   const name = catName.trim().toLowerCase();
   if (name.includes('كل')) return { icon: '✨', label: 'الكل' };
-  // اللمسة الجديدة: أيقونة واسم مميز لقسم العروض
   if (name.includes('عروض') || name.includes('خصم')) return { icon: '🔥', label: 'عروض وخصومات' };
   if (name.includes('اعشاب') || name.includes('أعشاب')) return { icon: '🌿', label: 'أعشاب' };
   if (name.includes('خلطات') || name.includes('توابل')) return { icon: '🌶️', label: 'خلطات وتوابل' };
@@ -166,28 +165,21 @@ export default function Home() {
     }
   }, []);
 
-  // 🔴 اللمسة السحرية 1: بناء وترتيب الأقسام بذكاء
   const displayCategories = useMemo(() => {
     if (!data.categories || data.categories.length === 0) return [];
-    // استبعاد "كل المنتجات" وأي قسم قديم اسمه "خصم" لتجنب التكرار
     const originalCats = data.categories.filter(c => c !== 'كل المنتجات' && !c.includes('خصم') && !c.includes('عروض'));
-    // وضع "كل المنتجات" ثم "عروض وخصومات" في البداية دائماً
     return ['كل المنتجات', 'عروض وخصومات', ...originalCats];
   }, [data.categories]);
 
-  // 🔴 اللمسة السحرية 2: فلترة ذكية لقسم العروض الوهمي
   const filteredProducts = useMemo(() => {
     return data.products.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(search.trim().toLowerCase());
       
-      // إذا كان القسم المختار هو "عروض وخصومات"
       if (selectedCategory === 'عروض وخصومات') {
-        // ابحث عن أي منتج يحتوي على الأقل على وزن واحد عليه عرض حقيقي
         const hasOffer = item.variants.some(v => isOfferValid(v.price, v.originalPrice));
         return hasOffer && matchesSearch;
       }
       
-      // للأقسام العادية
       const matchesCat = selectedCategory === 'كل المنتجات' || item.category === selectedCategory;
       return matchesCat && matchesSearch;
     });
@@ -434,7 +426,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* 🔴 اللمسة السحرية 3: تطبيق التصميم الفخم على زر العروض */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
               {displayCategories.map(cat => {
@@ -448,7 +439,7 @@ export default function Home() {
                 if (isOfferBtn) {
                   if (isSelected) {
                     btnStyle = {
-                      background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', // أحمر قوي متدرج
+                      background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)',
                       border: '2px solid #ff7675',
                       color: '#ffffff',
                       boxShadow: '0 4px 10px rgba(214, 48, 49, 0.4)',
@@ -457,7 +448,7 @@ export default function Home() {
                     textClass = 'text-white';
                   } else {
                     btnStyle = {
-                      background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', // خلفية حمراء فاتحة جداً
+                      background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)',
                       border: '1.5px solid #ff7675',
                       color: '#d63031',
                       boxShadow: '0 2px 5px rgba(214, 48, 49, 0.15)'
@@ -465,7 +456,6 @@ export default function Home() {
                     textClass = 'text-[#d63031]';
                   }
                 } else {
-                  // التصميم الأصلي لباقي الأزرار
                   if (isSelected) {
                     btnStyle = {
                       background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)',
@@ -607,23 +597,27 @@ export default function Home() {
                       {product.variants.map((v, i) => {
                         const hasOffer = isOfferValid(v.price, v.originalPrice);
                         return (
-                          <div key={i} className="flex justify-between items-center py-0.5 border-t border-slate-50">
-                            <span className={!v.available ? 'line-through text-slate-400' : ''}>{v.weight}</span>
+                          <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
+                            {/* الوزن والشارة على اليمين */}
                             <div className="flex items-center gap-1.5">
-                              {/* 🔴 اللمسة السحرية 4: تصميم كلمة عرض الأنيق في البطاقة */}
-                              {hasOffer && v.available && (
-                                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-md font-black shadow-sm tracking-wider">عرض</span>
-                              )}
-                              <span className={`font-bold flex flex-col items-end ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
-                                {v.available ? (
-                                  <span className="flex items-center gap-1">
-                                    <span>{v.price} ج.م</span>
-                                    {hasOffer && (
-                                      <span className="text-slate-400 line-through text-[9px] font-normal">{v.originalPrice} ج.م</span>
-                                    )}
-                                  </span>
-                                ) : 'غير متوفر'}
+                              <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>
+                                {v.weight.replace('جرام', 'جم').replace('كيلو', 'كجم')}
                               </span>
+                              {hasOffer && v.available && (
+                                <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">خصم</span>
+                              )}
+                            </div>
+                            
+                            {/* الأسعار مرتبة بشكل عمودي أنيق على اليسار */}
+                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
+                              {v.available ? (
+                                <>
+                                  {hasOffer && (
+                                    <span className="text-slate-400 line-through text-[8px] font-normal leading-none mb-0.5">{v.originalPrice} ج.م</span>
+                                  )}
+                                  <span className="text-[10px] sm:text-[11px] leading-none">{v.price} ج.م</span>
+                                </>
+                              ) : 'غير متوفر'}
                             </div>
                           </div>
                         );
@@ -710,15 +704,14 @@ export default function Home() {
                             : 'border-slate-200 text-slate-700 hover:border-slate-300'
                       }`}
                     >
-                      {/* 🔴 اللمسة السحرية 5: تصميم كلمة عرض داخل المودال */}
                       {hasOffer && variant.available && (
-                        <span className="absolute top-0 right-0 -mt-2 -mr-2 bg-[#d63031] text-white text-[11px] px-2.5 py-1 rounded-md shadow-md font-black border border-white tracking-widest z-10">
+                        <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">
                           خصم خاص
                         </span>
                       )}
                       
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold">{displayWeight}</span>
+                        <span className="text-xs font-bold">{displayWeight.replace('جرام', 'جم').replace('كيلو', 'كجم')}</span>
                         {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
                       </div>
                       <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
