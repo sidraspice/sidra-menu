@@ -48,15 +48,13 @@ function parseCSVLine(text) {
 
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { products: [], storeSettings: { openHour: 9, closeHour: 23, mode: 'تلقائي' } };
 
   const headers = parseCSVLine(lines[0]);
   
   const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف'));
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
-  
-  // 🟢 دعم عمود نوع الطحن
   const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('نوع') || h.includes('grind'));
 
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
@@ -84,10 +82,30 @@ function parseCSV(text) {
     }
   }
 
+  let storeSettings = { openHour: 9, closeHour: 23, mode: 'تلقائي' };
   const rows = [];
+
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
-    if (!values[nameIdx] || !values[regularPriceIdx]) continue;
+    if (!values[nameIdx]) continue;
+
+    // 🟢 قراءة إعدادات المتجر من الشيت إذا وجد صف باسم "حالة المتجر" أو قسم "إعدادات"
+    const rowName = values[nameIdx].trim();
+    const rowCat = categoryIdx !== -1 && values[categoryIdx] ? values[categoryIdx].trim() : '';
+    
+    if (rowName.includes('حالة المتجر') || rowName.includes('مواعيد العمل') || rowCat.includes('إعدادات')) {
+      const openVal = parseInt(values[weightIdx]);
+      const closeVal = parseInt(values[regularPriceIdx]);
+      const modeVal = statusIdx !== -1 && values[statusIdx] ? values[statusIdx].trim() : 'تلقائي';
+
+      if (!isNaN(openVal)) storeSettings.openHour = openVal;
+      if (!isNaN(closeVal)) storeSettings.closeHour = closeVal;
+      if (modeVal) storeSettings.mode = modeVal;
+      
+      continue; // تخطي هذا الصف حتى لا يُعامل كمنتج
+    }
+
+    if (!values[regularPriceIdx]) continue;
 
     const rawWeight = values[weightIdx] ? values[weightIdx].trim() : '';
     if (rawWeight === '1000' || rawWeight === '1000g' || rawWeight === '1 كجم' || rawWeight === '1كجم' || rawWeight === '1 كيلو' || rawWeight === 'كيلو') {
@@ -125,10 +143,10 @@ function parseCSV(text) {
     const grindType = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
 
     rows.push({
-      category: values[categoryIdx] || 'أخرى',
-      name: values[nameIdx],
+      category: rowCat || 'أخرى',
+      name: rowName,
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
-      grind: grindType, // 👈 تمرير نوع الطحن
+      grind: grindType,
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
       available: isAvailable,
@@ -154,17 +172,19 @@ function parseCSV(text) {
     
     productsMap[key].variants.push({
       weight: item.weight,
-      grind: item.grind, // 👈 حفظ نوع الطحن في الـ Variant
+      grind: item.grind,
       price: item.price,
       originalPrice: item.originalPrice, 
       available: item.available
     });
   });
 
-  return Object.values(productsMap).map(product => ({
+  const products = Object.values(productsMap).map(product => ({
     ...product,
     isAvailable: product.variants.some(v => v.available)
   }));
+
+  return { products, storeSettings };
 }
 
 export async function GET() {
@@ -185,7 +205,7 @@ export async function GET() {
     }
 
     const csvData = await res.text();
-    const products = parseCSV(csvData);
+    const { products, storeSettings } = parseCSV(csvData);
     const rawCategories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
     const categories = ['كل المنتجات', ...rawCategories];
 
@@ -193,6 +213,7 @@ export async function GET() {
       success: true,
       categories,
       products,
+      storeSettings,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
