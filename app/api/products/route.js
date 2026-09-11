@@ -56,13 +56,13 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
   
-  // البحث عن عمود السعر القديم
-  const originalPriceIdx = headers.findIndex(h => h.includes('قديم') || h.includes('خصم') || h.includes('قبل'));
+  // البحث عن عمود "السعر الجديد" أو "الخصم"
+  const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
   
-  // تأمين عمود السعر الحالي لكي لا يختلط مع السعر القديم
-  const priceIdx = headers.findIndex(h => 
+  // تأمين عمود السعر الأساسي الأصلي
+  const regularPriceIdx = headers.findIndex(h => 
     (h.includes('سعر') || h.includes('ثمن')) && 
-    !(h.includes('قديم') || h.includes('خصم') || h.includes('قبل'))
+    !(h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'))
   );
 
   const imageIdx = headers.findIndex(h => 
@@ -98,7 +98,7 @@ function parseCSV(text) {
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
-    if (!values[nameIdx] || !values[priceIdx]) continue;
+    if (!values[nameIdx] || !values[regularPriceIdx]) continue;
 
     const rawWeight = values[weightIdx] ? values[weightIdx].trim() : '';
     if (rawWeight === '1000' || rawWeight === '1000g' || rawWeight === '1 كجم' || rawWeight === '1كجم' || rawWeight === '1 كيلو' || rawWeight === 'كيلو') {
@@ -124,12 +124,21 @@ function parseCSV(text) {
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
     const formattedImageUrl = formatImageUrl(rawImageUrl);
 
-    // استخراج السعر القديم إن وُجد وكان رقماً صحيحاً
-    let originalPrice = null;
-    if (originalPriceIdx !== -1 && values[originalPriceIdx]) {
-      const parsedOriginal = parseFloat(values[originalPriceIdx]);
-      if (!isNaN(parsedOriginal)) {
-        originalPrice = parsedOriginal;
+    // المنطق الجديد: 
+    // السعر الأساسي هو السعر العادي
+    const parsedRegular = parseFloat(values[regularPriceIdx]);
+    if (isNaN(parsedRegular)) continue;
+
+    let finalPriceToPay = parsedRegular;
+    let crossedOutPrice = null;
+
+    // التحقق من وجود سعر جديد مخفض
+    if (newDiscountPriceIdx !== -1 && values[newDiscountPriceIdx]) {
+      const parsedNew = parseFloat(values[newDiscountPriceIdx]);
+      // إذا كان السعر الجديد أقل من السعر الأساسي، يتم تفعيل العرض
+      if (!isNaN(parsedNew) && parsedNew > 0 && parsedNew < parsedRegular) {
+        finalPriceToPay = parsedNew;      // السعر الذي سيدفعه العميل فعلياً
+        crossedOutPrice = parsedRegular;  // السعر الأصلي الذي سيظهر مشطوباً
       }
     }
 
@@ -137,8 +146,8 @@ function parseCSV(text) {
       category: values[categoryIdx] || 'أخرى',
       name: values[nameIdx],
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
-      price: parseFloat(values[priceIdx]) || 0,
-      originalPrice: originalPrice, // تمرير السعر القديم للواجهة
+      price: finalPriceToPay, 
+      originalPrice: crossedOutPrice, 
       available: isAvailable,
       image: formattedImageUrl
     });
@@ -160,7 +169,6 @@ function parseCSV(text) {
       productsMap[key].image = item.image;
     }
     
-    // إضافة السعر القديم لبيانات الـ Variant
     productsMap[key].variants.push({
       weight: item.weight,
       price: item.price,
