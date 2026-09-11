@@ -165,7 +165,6 @@ export default function Home() {
     }
   }, []);
 
-  // دالة مشاركة المنتج
   const handleShareProduct = (product, e) => {
     e.stopPropagation();
     const shareText = `🌿 شاهد هذا المنتج الرائع من عطارة سدرة بدمنهور:\n*${product.name}*\nاطلبه الآن من المنيو الإلكتروني!`;
@@ -342,11 +341,10 @@ export default function Home() {
     }
   };
 
-  // 🟢 تحسين رسالة الواتساب لتشبه الفاتورة الاحترافية
+  // 🟢 رسالة واتساب نظيفة وموجزة (الاسم، الوزن الإجمالي، السعر النهائي فقط بدون خطوط أو كميات زائدة)
   const handleSendWhatsAppOrder = () => {
     let message = `🛒 *طلب جديد من متجر عطارة سدرة بدمنهور*\n`;
     message += `═══════════════════════\n`;
-    message += `📋 *بيانات العميل والتوصيل:*\n`;
     message += `👤 *الاسم:* ${customer.name.trim()}\n`;
     message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
     message += `📍 *العنوان:* ${customer.address.trim()}\n`;
@@ -354,7 +352,7 @@ export default function Home() {
       message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
     }
     message += `═══════════════════════\n`;
-    message += `📦 *تفاصيل المنتجات المطلوبة:*\n`;
+    message += `📦 *المنتجات المطلوبة:*\n`;
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
@@ -363,17 +361,16 @@ export default function Home() {
 
       message += `\n*${index + 1}. ${item.name}*\n`;
       message += `   🔹 الوزن: ${totalWeightStr}\n`;
-      message += `   🔹 الكمية: ${item.qty}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `   🔹 السعر: ~${itemOriginalTotal} جنيه~ ⬅️ *${itemTotal} جنيه* 📌 (عرض)\n`;
+        message += `   🔹 السعر: ~${itemOriginalTotal} جنيه~ ⬅️ *${itemTotal} جنيه*\n`;
       } else {
         message += `   🔹 السعر: *${itemTotal} جنيه*\n`;
       }
-      message += `───────────────────────`;
     });
 
-    message += `\n\n💰 *الإجمالي النهائي:* *${totalAmount} جنيه*\n`;
+    message += `\n═══════════════════════\n`;
+    message += `💰 *الإجمالي النهائي:* *${totalAmount} جنيه*\n`;
     message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
@@ -413,7 +410,6 @@ export default function Home() {
             />
           </div>
 
-          {/* 🟢 شريط حالة المتجر (مفتوح الآن) */}
           <div className="w-full mt-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold py-1 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>المتجر مفتوح الآن ويستقبل طلباتكم</span>
@@ -606,7 +602,6 @@ export default function Home() {
                             {product.category}
                           </span>
                           
-                          {/* 🟢 زر مشاركة المنتج السريع */}
                           <button 
                             onClick={(e) => handleShareProduct(product, e)}
                             className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md"
