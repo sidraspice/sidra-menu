@@ -11,6 +11,8 @@ const WHATSAPP_NUMBER = "201044760160";
 const getCategoryVisual = (catName) => {
   const name = catName.trim().toLowerCase();
   if (name.includes('كل')) return { icon: '✨', label: 'الكل' };
+  // اللمسة الجديدة: أيقونة واسم مميز لقسم العروض
+  if (name.includes('عروض') || name.includes('خصم')) return { icon: '🔥', label: 'عروض وخصومات' };
   if (name.includes('اعشاب') || name.includes('أعشاب')) return { icon: '🌿', label: 'أعشاب' };
   if (name.includes('خلطات') || name.includes('توابل')) return { icon: '🌶️', label: 'خلطات وتوابل' };
   if (name.includes('مشروبات') || name.includes('شاي') || name.includes('قهوة')) return { icon: '☕', label: 'مشروبات' };
@@ -51,7 +53,6 @@ const getCalculatedTotalWeight = (weightStr, qty) => {
   return str;
 };
 
-// --- دالة مساعدة جديدة للتحقق من وجود عرض حقيقي ---
 const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
 };
@@ -63,29 +64,23 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
   
-  // Cart State
   const [cart, setCart] = useState([]);
   const [isCartLoaded, setIsCartLoaded] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Modal State
   const [activeModalProduct, setActiveModalProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [modalQty, setModalQty] = useState(1);
   
-  // Custom Weight State
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
 
-  // Image Zoom Lightbox State
   const [zoomedImage, setZoomedImage] = useState(null);
 
-  // Toast Notification State
   const [toast, setToast] = useState({ visible: false, message: '' });
   const toastTimeoutRef = useRef(null);
 
-  // Checkout & Review State
   const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({
     name: '',
@@ -171,10 +166,29 @@ export default function Home() {
     }
   }, []);
 
+  // 🔴 اللمسة السحرية 1: بناء وترتيب الأقسام بذكاء
+  const displayCategories = useMemo(() => {
+    if (!data.categories || data.categories.length === 0) return [];
+    // استبعاد "كل المنتجات" وأي قسم قديم اسمه "خصم" لتجنب التكرار
+    const originalCats = data.categories.filter(c => c !== 'كل المنتجات' && !c.includes('خصم') && !c.includes('عروض'));
+    // وضع "كل المنتجات" ثم "عروض وخصومات" في البداية دائماً
+    return ['كل المنتجات', 'عروض وخصومات', ...originalCats];
+  }, [data.categories]);
+
+  // 🔴 اللمسة السحرية 2: فلترة ذكية لقسم العروض الوهمي
   const filteredProducts = useMemo(() => {
     return data.products.filter(item => {
-      const matchesCat = selectedCategory === 'كل المنتجات' || item.category === selectedCategory;
       const matchesSearch = item.name.toLowerCase().includes(search.trim().toLowerCase());
+      
+      // إذا كان القسم المختار هو "عروض وخصومات"
+      if (selectedCategory === 'عروض وخصومات') {
+        // ابحث عن أي منتج يحتوي على الأقل على وزن واحد عليه عرض حقيقي
+        const hasOffer = item.variants.some(v => isOfferValid(v.price, v.originalPrice));
+        return hasOffer && matchesSearch;
+      }
+      
+      // للأقسام العادية
+      const matchesCat = selectedCategory === 'كل المنتجات' || item.category === selectedCategory;
       return matchesCat && matchesSearch;
     });
   }, [data.products, selectedCategory, search]);
@@ -193,14 +207,13 @@ export default function Home() {
     if (!isCustomWeight) return selectedVariant.price;
     
     const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
-    const basePrice = selectedVariant.price; // 🔴 يتم الحساب بناءً على السعر الحالي الفعلي
+    const basePrice = selectedVariant.price; 
     const pricePerGram = basePrice / baseWeightGrams;
     
     const weightInput = parseFloat(customWeightValue) || 0;
     return parseFloat((pricePerGram * weightInput).toFixed(2));
   };
 
-  // --- دالة جديدة لحساب السعر القديم للوزن المخصص (للعرض فقط) ---
   const getCalculatedOriginalPrice = () => {
     if (!selectedVariant || !isOfferValid(selectedVariant.price, selectedVariant.originalPrice)) return null;
     if (!isCustomWeight) return selectedVariant.originalPrice;
@@ -241,8 +254,8 @@ export default function Home() {
         name: activeModalProduct.name,
         category: activeModalProduct.category,
         weight: finalWeight,
-        price: finalPrice, // السعر الفعلي
-        originalPrice: finalOriginalPrice, // السعر القديم إن وجد للعرض
+        price: finalPrice,
+        originalPrice: finalOriginalPrice,
         qty: modalQty
       }];
     });
@@ -332,7 +345,6 @@ export default function Home() {
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
-      // التحقق من وجود عرض في السلة للواتساب
       const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
       const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
@@ -340,7 +352,6 @@ export default function Home() {
       message += `*${index + 1} ◄ ${item.name}*\n`;
       message += `   ⚖️ *الوزن: ${totalWeightStr}*\n`;
       
-      // طباعة السعر مع توضيح الخصم إذا وجد
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
         message += `   💵 *السعر: ~${itemOriginalTotal}~ ⬅️ ${itemTotal} جنيه* 📌 (عرض)\n`;
       } else {
@@ -423,44 +434,76 @@ export default function Home() {
             )}
           </div>
 
-          {!loading && !error && data.categories.length > 0 && (
+          {/* 🔴 اللمسة السحرية 3: تطبيق التصميم الفخم على زر العروض */}
+          {!loading && !error && displayCategories.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
-              {data.categories.map(cat => {
+              {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
+                const isOfferBtn = cat === 'عروض وخصومات';
                 const visual = getCategoryVisual(cat);
+                
+                let btnStyle = {};
+                let textClass = '';
+
+                if (isOfferBtn) {
+                  if (isSelected) {
+                    btnStyle = {
+                      background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', // أحمر قوي متدرج
+                      border: '2px solid #ff7675',
+                      color: '#ffffff',
+                      boxShadow: '0 4px 10px rgba(214, 48, 49, 0.4)',
+                      transform: 'scale(1.02)'
+                    };
+                    textClass = 'text-white';
+                  } else {
+                    btnStyle = {
+                      background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', // خلفية حمراء فاتحة جداً
+                      border: '1.5px solid #ff7675',
+                      color: '#d63031',
+                      boxShadow: '0 2px 5px rgba(214, 48, 49, 0.15)'
+                    };
+                    textClass = 'text-[#d63031]';
+                  }
+                } else {
+                  // التصميم الأصلي لباقي الأزرار
+                  if (isSelected) {
+                    btnStyle = {
+                      background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)',
+                      border: '2px solid #d4af37',
+                      color: '#fff9ea',
+                      boxShadow: '0 4px 10px rgba(212, 175, 55, 0.35)',
+                      transform: 'scale(1.02)'
+                    };
+                    textClass = 'text-[#fff4d6]';
+                  } else {
+                    btnStyle = {
+                      background: '#ffffff',
+                      border: '1.5px solid #e2d9c8',
+                      color: '#1b3828',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.03)'
+                    };
+                    textClass = 'text-[#1e382b]';
+                  }
+                }
+
                 return (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    style={
-                      isSelected
-                        ? {
-                            background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)',
-                            border: '2px solid #d4af37',
-                            color: '#fff9ea',
-                            boxShadow: '0 4px 10px rgba(212, 175, 55, 0.35)',
-                            transform: 'scale(1.02)'
-                          }
-                        : {
-                            background: '#ffffff',
-                            border: '1.5px solid #e2d9c8',
-                            color: '#1b3828',
-                            boxShadow: '0 2px 5px rgba(0,0,0,0.03)'
-                          }
-                    }
+                    style={btnStyle}
                     className="relative px-2 py-1.5 rounded-2xl transition-all duration-200 flex flex-col items-center justify-center min-h-[46px] active:scale-95 text-center group"
                   >
                     {isSelected && (
                       <span 
-                        style={{ background: '#d4af37' }} 
+                        style={{ background: isOfferBtn ? '#ffffff' : '#d4af37' }} 
                         className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white animate-ping"
                       ></span>
                     )}
-                    <span className="text-base sm:text-lg mb-0.5 leading-none select-none">
+                    <span className={`text-base sm:text-lg mb-0.5 leading-none select-none ${isOfferBtn && !isSelected ? 'animate-pulse' : ''}`}>
                       {visual.icon}
                     </span>
-                    <span className={`text-[10px] sm:text-[11px] font-black leading-tight truncate max-w-[95%] ${isSelected ? 'text-[#fff4d6]' : 'text-[#1e382b]'}`}>
-                      {cat}
+                    <span className={`text-[10px] sm:text-[11px] font-black leading-tight truncate max-w-[95%] ${textClass}`}>
+                      {visual.label}
                     </span>
                   </button>
                 );
@@ -567,8 +610,9 @@ export default function Home() {
                           <div key={i} className="flex justify-between items-center py-0.5 border-t border-slate-50">
                             <span className={!v.available ? 'line-through text-slate-400' : ''}>{v.weight}</span>
                             <div className="flex items-center gap-1.5">
+                              {/* 🔴 اللمسة السحرية 4: تصميم كلمة عرض الأنيق في البطاقة */}
                               {hasOffer && v.available && (
-                                <span className="text-[8px] bg-red-50 text-red-600 border border-red-100 px-1 py-0.5 rounded font-bold">عرض</span>
+                                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-md font-black shadow-sm tracking-wider">عرض</span>
                               )}
                               <span className={`font-bold flex flex-col items-end ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
                                 {v.available ? (
@@ -608,7 +652,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* Product Selection Modal */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
@@ -667,10 +710,10 @@ export default function Home() {
                             : 'border-slate-200 text-slate-700 hover:border-slate-300'
                       }`}
                     >
-                      {/* شارة العرض في المودال */}
+                      {/* 🔴 اللمسة السحرية 5: تصميم كلمة عرض داخل المودال */}
                       {hasOffer && variant.available && (
-                        <span className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-md shadow-sm font-bold">
-                          عرض
+                        <span className="absolute top-0 right-0 -mt-2 -mr-2 bg-[#d63031] text-white text-[11px] px-2.5 py-1 rounded-md shadow-md font-black border border-white tracking-widest z-10">
+                          خصم خاص
                         </span>
                       )}
                       
