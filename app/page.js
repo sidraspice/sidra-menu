@@ -440,7 +440,6 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      {/* 🟢 الهيدر: اللوجو وتحته بانر الضمان مباشرة */}
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
         <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white">
@@ -468,11 +467,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 🟢 القسم المثبت: شريط حالة المتجر أولاً، وتحته مباشرة شريط البحث الفخم */}
       <main className="max-w-xl mx-auto px-4 mt-2">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط حالة المتجر المميز في الأعلى */}
+          {/* شريط حالة المتجر في الأعلى */}
           <div 
             style={{
               background: storeStatus.isOpen 
@@ -490,7 +488,7 @@ export default function Home() {
             <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
           </div>
 
-          {/* شريط البحث تحت شريط حالة المتجر */}
+          {/* شريط البحث تحت شريط حالة المتجر مباشرة */}
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
             <input
@@ -507,7 +505,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* أزرار الفئات */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
               {displayCategories.map(cat => {
@@ -685,7 +682,7 @@ export default function Home() {
                           <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
                             <div className="flex items-center gap-1.5">
                               <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>
-                                {v.weight} {v.grind ? `(${v.grind})` : ''}
+                                {v.weight}
                               </span>
                               {hasOffer && v.available && (
                                 <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">خصم</span>
@@ -794,7 +791,7 @@ export default function Home() {
                       )}
                       
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold">{displayWeight} {variant.grind ? `(${variant.grind})` : ''}</span>
+                        <span className="text-xs font-bold">{displayWeight}</span>
                         {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
                       </div>
                       <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
