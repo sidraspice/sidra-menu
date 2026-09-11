@@ -8,7 +8,6 @@ import {
 
 const WHATSAPP_NUMBER = "201044760160";
 
-// دالة ذكية لتحويل الساعة من نظام 24 إلى نظام 12 ساعة مع (صباحاً / مساءً)
 const formatHour12 = (hour24) => {
   if (hour24 == null || isNaN(hour24)) return '9:00 صباحاً';
   const h = parseInt(hour24);
@@ -101,7 +100,6 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // 🟢 حساب حالة المتجر ومواعيد العمل بصيغة 12 ساعة
   const storeStatus = useMemo(() => {
     const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
@@ -442,6 +440,7 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
+      {/* 🟢 الهيدر: اللوجو وتحته بانر الضمان مباشرة */}
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
         <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white">
@@ -452,31 +451,14 @@ export default function Home() {
             />
           </div>
 
-          {/* 🟢 شريط حالة المتجر المميز والفخم */}
-          <div 
-            style={{
-              background: storeStatus.isOpen 
-                ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' 
-                : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
-              border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935',
-              boxShadow: '0 3px 8px rgba(0,0,0,0.06)'
-            }}
-            className="w-full mt-2.5 py-2 px-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide"
-          >
-            <span className={`w-2.5 h-2.5 rounded-full ${storeStatus.isOpen ? 'bg-emerald-600 animate-ping' : 'bg-red-600'}`}></span>
-            <span className={storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-red-700'}>
-              {storeStatus.text}
-            </span>
-            <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
-          </div>
-
+          {/* بانر الضمان ملاصق للوجو */}
           <div 
             style={{
               background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)',
               border: '2px solid #d4af37',
               boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
             }}
-            className="w-full mt-2.5 mb-0.5 py-2 px-3 rounded-2xl flex items-center justify-center gap-2"
+            className="w-full mt-2 mb-0.5 py-2 px-3 rounded-2xl flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
             <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide drop-shadow-sm text-center leading-tight">
@@ -487,9 +469,12 @@ export default function Home() {
         </div>
       </header>
 
+      {/* 🟢 القسم المثبت: شريط البحث وتحته مباشرة شريط حالة المتجر */}
       <main className="max-w-xl mx-auto px-4 mt-2">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
-          <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
+          
+          {/* شريط البحث */}
+          <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
             <input
               type="text"
@@ -505,6 +490,25 @@ export default function Home() {
             )}
           </div>
 
+          {/* شريط حالة المتجر تحت شريط البحث مباشرة */}
+          <div 
+            style={{
+              background: storeStatus.isOpen 
+                ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' 
+                : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
+              border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.06)'
+            }}
+            className="w-full mb-2.5 py-2 px-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide"
+          >
+            <span className={`w-2.5 h-2.5 rounded-full ${storeStatus.isOpen ? 'bg-emerald-600 animate-ping' : 'bg-red-600'}`}></span>
+            <span className={storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-red-700'}>
+              {storeStatus.text}
+            </span>
+            <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
+          </div>
+
+          {/* أزرار الفئات */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
               {displayCategories.map(cat => {
