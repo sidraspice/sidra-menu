@@ -8,6 +8,18 @@ import {
 
 const WHATSAPP_NUMBER = "201044760160";
 
+// دالة ذكية لتحويل الساعة من نظام 24 إلى نظام 12 ساعة مع (صباحاً / مساءً)
+const formatHour12 = (hour24) => {
+  if (hour24 == null || isNaN(hour24)) return '9:00 صباحاً';
+  const h = parseInt(hour24);
+  if (h === 0) return '12:00 منتصف الليل';
+  if (h === 12) return '12:00 ظهراً';
+  if (h > 12) {
+    return `${h - 12}:00 مساءً`;
+  }
+  return `${h}:00 صباحاً`;
+};
+
 const getCategoryVisual = (catName) => {
   const name = catName.trim().toLowerCase();
   if (name.includes('كل')) return { icon: '✨', label: 'الكل' };
@@ -89,10 +101,15 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // 🟢 حساب حالة المتجر بناءً على إعدادات شيت جوجل
+  // 🟢 حساب حالة المتجر ومواعيد العمل بصيغة 12 ساعة
   const storeStatus = useMemo(() => {
     const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
+    const openH = settings.openHour ?? 9;
+    const closeH = settings.closeHour ?? 23;
+
+    const openStr = formatHour12(openH);
+    const closeStr = formatHour12(closeH);
 
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
       return { isOpen: false, text: 'المتجر مغلق حالياً' };
@@ -101,16 +118,13 @@ export default function Home() {
       return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
     }
 
-    // الوضع التلقائي بناءً على الساعات
     const now = new Date();
     const currentHour = now.getHours();
-    const openH = settings.openHour ?? 9;
-    const closeH = settings.closeHour ?? 23;
 
     if (currentHour >= openH && currentHour < closeH) {
       return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
     } else {
-      return { isOpen: false, text: `المتجر مغلق الآن (مواعيد العمل من ${openH}:00 إلى ${closeH}:00)` };
+      return { isOpen: false, text: `المتجر مغلق الآن (مواعيد العمل من ${openStr} إلى ${closeStr})` };
     }
   }, [data.storeSettings]);
 
@@ -429,7 +443,7 @@ export default function Home() {
       </div>
 
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
-        <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-1.5 sm:p-2 shadow-xs border border-[#e8e2d5] flex flex-col items-center">
+        <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white">
             <img 
               src="/logo.png" 
@@ -438,13 +452,22 @@ export default function Home() {
             />
           </div>
 
-          {/* 🟢 شريط حالة المتجر المرتبط بالشيت */}
-          <div className={`w-full mt-2 border text-[11px] font-bold py-1 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-2xs ${
-            storeStatus.isOpen ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            <span className={`w-2 h-2 rounded-full ${storeStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
-            <span>{storeStatus.text}</span>
-            <Clock className={`w-3 h-3 ml-1 ${storeStatus.isOpen ? 'text-emerald-600' : 'text-red-600'}`} />
+          {/* 🟢 شريط حالة المتجر المميز والفخم */}
+          <div 
+            style={{
+              background: storeStatus.isOpen 
+                ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' 
+                : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)',
+              border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.06)'
+            }}
+            className="w-full mt-2.5 py-2 px-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide"
+          >
+            <span className={`w-2.5 h-2.5 rounded-full ${storeStatus.isOpen ? 'bg-emerald-600 animate-ping' : 'bg-red-600'}`}></span>
+            <span className={storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-red-700'}>
+              {storeStatus.text}
+            </span>
+            <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
           </div>
 
           <div 
@@ -453,7 +476,7 @@ export default function Home() {
               border: '2px solid #d4af37',
               boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
             }}
-            className="w-full mt-2 mb-0.5 py-2 px-3 rounded-2xl flex items-center justify-center gap-2"
+            className="w-full mt-2.5 mb-0.5 py-2 px-3 rounded-2xl flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
             <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide drop-shadow-sm text-center leading-tight">
