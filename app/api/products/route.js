@@ -7,7 +7,6 @@ function formatImageUrl(url) {
   const trimmed = url.trim().replace(/^["']|["']$/g, '');
   if (!trimmed) return '';
 
-  // استخراج ID الصورة من أي رابط Google Drive وتحويله لمسار مباشر
   if (trimmed.includes('drive.google.com') || trimmed.includes('googleusercontent.com')) {
     const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
                   trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
@@ -17,12 +16,10 @@ function formatImageUrl(url) {
     }
   }
 
-  // إذا كان رابط HTTP أو HTTPS مباشر
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) {
     return trimmed;
   }
 
-  // إذا تم إدخال معرف الملف (File ID) مباشرة
   if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) {
     return `https://lh3.googleusercontent.com/d/${trimmed}`;
   }
@@ -58,7 +55,16 @@ function parseCSV(text) {
   const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف'));
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
-  const priceIdx = headers.findIndex(h => h.includes('سعر') || h.includes('ثمن'));
+  
+  // 🟢 تعديل 1: البحث عن عمود السعر القديم
+  const originalPriceIdx = headers.findIndex(h => h.includes('قديم') || h.includes('خصم') || h.includes('قبل'));
+  
+  // 🔴 تعديل 2: تأمين عمود السعر الحالي لكي لا يختلط مع السعر القديم
+  const priceIdx = headers.findIndex(h => 
+    (h.includes('سعر') || h.includes('ثمن')) && 
+    !(h.includes('قديم') || h.includes('خصم') || h.includes('قبل'))
+  );
+
   const imageIdx = headers.findIndex(h => 
     h.includes('صورة') || 
     h.includes('صوره') || 
@@ -118,11 +124,21 @@ function parseCSV(text) {
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
     const formattedImageUrl = formatImageUrl(rawImageUrl);
 
+    // 🟢 تعديل 3: استخراج السعر القديم إن وُجد وكان رقماً صحيحاً
+    let originalPrice = null;
+    if (originalPriceIdx !== -1 && values[originalPriceIdx]) {
+      const parsedOriginal = parseFloat(values[originalPriceIdx]);
+      if (!isNaN(parsedOriginal)) {
+        originalPrice = parsedOriginal;
+      }
+    }
+
     rows.push({
       category: values[categoryIdx] || 'أخرى',
       name: values[nameIdx],
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
       price: parseFloat(values[priceIdx]) || 0,
+      originalPrice: originalPrice, // 👈 تمرير السعر القديم للواجهة
       available: isAvailable,
       image: formattedImageUrl
     });
@@ -140,13 +156,15 @@ function parseCSV(text) {
         variants: []
       };
     }
-    // حفظ الرابط إذا وُجد في أي صف من صفوف نفس المنتج
     if (item.image && !productsMap[key].image) {
       productsMap[key].image = item.image;
     }
+    
+    // 🟢 تعديل 4: إضافة السعر القديم لبيانات الـ Variant
     productsMap[key].variants.push({
       weight: item.weight,
       price: item.price,
+      originalPrice: item.originalPrice, // 👈 متوفر الآن لكل وزن بشكل مستقل
       available: item.available
     });
   });
