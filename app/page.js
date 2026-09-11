@@ -51,6 +51,11 @@ const getCalculatedTotalWeight = (weightStr, qty) => {
   return str;
 };
 
+// --- دالة مساعدة جديدة للتحقق من وجود عرض حقيقي ---
+const isOfferValid = (price, originalPrice) => {
+  return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
+};
+
 export default function Home() {
   const [data, setData] = useState({ products: [], categories: [] });
   const [loading, setLoading] = useState(true);
@@ -76,7 +81,7 @@ export default function Home() {
   // Image Zoom Lightbox State
   const [zoomedImage, setZoomedImage] = useState(null);
 
-  // Toast Notification State (معدل)
+  // Toast Notification State
   const [toast, setToast] = useState({ visible: false, message: '' });
   const toastTimeoutRef = useRef(null);
 
@@ -90,7 +95,6 @@ export default function Home() {
   });
   const [formErrors, setFormErrors] = useState({});
 
-  // زر الرجوع في الهاتف
   useEffect(() => {
     const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm;
     
@@ -130,7 +134,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Load Cart from LocalStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('sedra_cart');
@@ -143,7 +146,6 @@ export default function Home() {
     setIsCartLoaded(true);
   }, []);
 
-  // Save Cart to LocalStorage
   useEffect(() => {
     if (isCartLoaded) {
       try {
@@ -154,7 +156,6 @@ export default function Home() {
     }
   }, [cart, isCartLoaded]);
 
-  // Load Customer Data from LocalStorage (معدل لتصفير الملاحظات)
   useEffect(() => {
     try {
       const savedCustomer = localStorage.getItem('sedra_customer');
@@ -162,7 +163,7 @@ export default function Home() {
         const parsedData = JSON.parse(savedCustomer);
         setCustomer({
           ...parsedData,
-          notes: '' // تصفير الملاحظات للطلب الجديد
+          notes: '' 
         });
       }
     } catch (e) {
@@ -192,8 +193,21 @@ export default function Home() {
     if (!isCustomWeight) return selectedVariant.price;
     
     const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
-    const basePrice = selectedVariant.price;
+    const basePrice = selectedVariant.price; // 🔴 يتم الحساب بناءً على السعر الحالي الفعلي
     const pricePerGram = basePrice / baseWeightGrams;
+    
+    const weightInput = parseFloat(customWeightValue) || 0;
+    return parseFloat((pricePerGram * weightInput).toFixed(2));
+  };
+
+  // --- دالة جديدة لحساب السعر القديم للوزن المخصص (للعرض فقط) ---
+  const getCalculatedOriginalPrice = () => {
+    if (!selectedVariant || !isOfferValid(selectedVariant.price, selectedVariant.originalPrice)) return null;
+    if (!isCustomWeight) return selectedVariant.originalPrice;
+    
+    const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
+    const baseOriginalPrice = selectedVariant.originalPrice;
+    const pricePerGram = baseOriginalPrice / baseWeightGrams;
     
     const weightInput = parseFloat(customWeightValue) || 0;
     return parseFloat((pricePerGram * weightInput).toFixed(2));
@@ -204,12 +218,14 @@ export default function Home() {
     
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
+    let finalOriginalPrice = isOfferValid(selectedVariant.price, selectedVariant.originalPrice) ? selectedVariant.originalPrice : null;
 
     if (isCustomWeight) {
       const parsedWeight = parseFloat(customWeightValue);
       if (!parsedWeight || parsedWeight <= 0) return;
       finalWeight = `${parsedWeight} جرام`;
       finalPrice = getCalculatedPrice();
+      finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
     const itemKey = `${activeModalProduct.id}_${finalWeight}`;
@@ -225,14 +241,14 @@ export default function Home() {
         name: activeModalProduct.name,
         category: activeModalProduct.category,
         weight: finalWeight,
-        price: finalPrice,
+        price: finalPrice, // السعر الفعلي
+        originalPrice: finalOriginalPrice, // السعر القديم إن وجد للعرض
         qty: modalQty
       }];
     });
     
     setActiveModalProduct(null);
     
-    // -- بداية تعديل الإشعار (Toast) لعدم التراكم --
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
@@ -242,7 +258,6 @@ export default function Home() {
     toastTimeoutRef.current = setTimeout(() => {
       setToast({ visible: false, message: '' });
     }, 2500);
-    // -- نهاية تعديل الإشعار --
   };
 
   const updateCartQty = (key, delta) => {
@@ -293,7 +308,6 @@ export default function Home() {
   const handleProceedToReview = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      // حفظ بيانات العميل للمرات القادمة
       try {
         localStorage.setItem('sedra_customer', JSON.stringify(customer));
       } catch (err) {
@@ -318,12 +332,20 @@ export default function Home() {
     
     cart.forEach((item, index) => {
       const itemTotal = (item.price * item.qty).toFixed(2);
+      // التحقق من وجود عرض في السلة للواتساب
+      const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
       const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
       if (index > 0) message += `\n`;
       message += `*${index + 1} ◄ ${item.name}*\n`;
       message += `   ⚖️ *الوزن: ${totalWeightStr}*\n`;
-      message += `   💵 *السعر: ${itemTotal} جنيه*\n`;
+      
+      // طباعة السعر مع توضيح الخصم إذا وجد
+      if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
+        message += `   💵 *السعر: ~${itemOriginalTotal}~ ⬅️ ${itemTotal} جنيه* 📌 (عرض)\n`;
+      } else {
+        message += `   💵 *السعر: ${itemTotal} جنيه*\n`;
+      }
     });
 
     message += `═══════════════════\n`;
@@ -333,7 +355,6 @@ export default function Home() {
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 
-    // -- بداية التعديل: تصفير السلة والملاحظات للطلب القادم --
     setCart([]);
     setCustomer(prev => {
       const newDataForNextOrder = { ...prev, notes: '' };
@@ -342,13 +363,11 @@ export default function Home() {
     });
     setIsCartOpen(false);
     setCurrentStep('cart');
-    // -- نهاية التعديل --
   };
 
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* Toast Notification المعدل (تصميم أبيض مميز، لا يحجب السلة، انسيابي الحركة) */}
       <div 
         className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw]
           ${toast.visible ? 'bottom-24 opacity-100' : 'bottom-16 opacity-0'}
@@ -360,10 +379,8 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      {/* Top Logo Banner */}
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
         <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-1.5 sm:p-2 shadow-xs border border-[#e8e2d5] flex flex-col items-center">
-          
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white">
             <img 
               src="/logo.png" 
@@ -371,7 +388,6 @@ export default function Home() {
               className="w-full h-full object-cover"
             />
           </div>
-          
           <div 
             style={{
               background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)',
@@ -386,16 +402,11 @@ export default function Home() {
             </span>
             <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
           </div>
-
         </div>
       </header>
 
-      {/* Main Container */}
       <main className="max-w-xl mx-auto px-4 mt-2">
-        
-        {/* Sticky Search & Icon Categories */}
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
-          {/* Search Bar */}
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
             <input
@@ -412,7 +423,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* Categories Grid */}
           {!loading && !error && data.categories.length > 0 && (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
               {data.categories.map(cat => {
@@ -446,11 +456,9 @@ export default function Home() {
                         className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white animate-ping"
                       ></span>
                     )}
-                    
                     <span className="text-base sm:text-lg mb-0.5 leading-none select-none">
                       {visual.icon}
                     </span>
-                    
                     <span className={`text-[10px] sm:text-[11px] font-black leading-tight truncate max-w-[95%] ${isSelected ? 'text-[#fff4d6]' : 'text-[#1e382b]'}`}>
                       {cat}
                     </span>
@@ -461,7 +469,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Loading / Error States */}
         {loading && (
           <div className="text-center py-16 text-[#2d533e] font-bold">
             <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-[#c89d56]" />
@@ -481,7 +488,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Products Grid */}
         {!loading && !error && (
           <div>
             <div className="flex justify-between items-center mb-2.5">
@@ -555,14 +561,29 @@ export default function Home() {
 
                   <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
                     <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
-                      {product.variants.map((v, i) => (
-                        <div key={i} className="flex justify-between items-center py-0.5 border-t border-slate-50">
-                          <span className={!v.available ? 'line-through text-slate-400' : ''}>{v.weight}</span>
-                          <span className={`font-bold ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
-                            {v.available ? `${v.price} ج.م` : 'غير متوفر'}
-                          </span>
-                        </div>
-                      ))}
+                      {product.variants.map((v, i) => {
+                        const hasOffer = isOfferValid(v.price, v.originalPrice);
+                        return (
+                          <div key={i} className="flex justify-between items-center py-0.5 border-t border-slate-50">
+                            <span className={!v.available ? 'line-through text-slate-400' : ''}>{v.weight}</span>
+                            <div className="flex items-center gap-1.5">
+                              {hasOffer && v.available && (
+                                <span className="text-[8px] bg-red-50 text-red-600 border border-red-100 px-1 py-0.5 rounded font-bold">عرض</span>
+                              )}
+                              <span className={`font-bold flex flex-col items-end ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
+                                {v.available ? (
+                                  <span className="flex items-center gap-1">
+                                    <span>{v.price} ج.م</span>
+                                    {hasOffer && (
+                                      <span className="text-slate-400 line-through text-[9px] font-normal">{v.originalPrice} ج.م</span>
+                                    )}
+                                  </span>
+                                ) : 'غير متوفر'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                     {product.isAvailable ? (
                       <button className="w-full bg-[#2d533e] text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center gap-1 shadow-2xs hover:bg-[#1e382b] transition">
@@ -621,12 +642,14 @@ export default function Home() {
             <div className="mb-3.5">
               <label className="text-xs font-bold text-slate-600 block mb-1.5">الأوزان المتاحة:</label>
               
-              {/* Preset Weights */}
               <div className="grid grid-cols-2 gap-2">
                 {activeModalProduct.variants.map((variant, idx) => {
                   const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
                   const displayWeight = isSelected ? getCalculatedTotalWeight(variant.weight, modalQty) : variant.weight;
                   const displayPrice = isSelected ? (variant.price * modalQty).toFixed(2) : variant.price;
+                  
+                  const hasOffer = isOfferValid(variant.price, variant.originalPrice);
+                  const displayOriginalPrice = isSelected && hasOffer ? (variant.originalPrice * modalQty).toFixed(2) : variant.originalPrice;
 
                   return (
                     <button
@@ -636,7 +659,7 @@ export default function Home() {
                         setSelectedVariant(variant);
                         setIsCustomWeight(false);
                       }}
-                      className={`p-2.5 rounded-xl border text-right transition ${
+                      className={`p-2.5 rounded-xl border text-right transition relative ${
                         !variant.available 
                           ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed'
                           : isSelected
@@ -644,19 +667,32 @@ export default function Home() {
                             : 'border-slate-200 text-slate-700 hover:border-slate-300'
                       }`}
                     >
+                      {/* شارة العرض في المودال */}
+                      {hasOffer && variant.available && (
+                        <span className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-md shadow-sm font-bold">
+                          عرض
+                        </span>
+                      )}
+                      
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold">{displayWeight}</span>
                         {!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}
                       </div>
-                      <div className="text-xs font-black text-[#2d533e] mt-0.5">
-                        {variant.available ? `${displayPrice} ج.م` : 'غير متوفر'}
+                      <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
+                        {variant.available ? (
+                          <div className="flex items-center gap-1.5">
+                            <span>{displayPrice} ج.م</span>
+                            {hasOffer && (
+                               <span className="text-slate-400 line-through text-[10px] font-normal">{displayOriginalPrice} ج.م</span>
+                            )}
+                          </div>
+                        ) : 'غير متوفر'}
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Custom Weight Toggle Box */}
               <div 
                 onClick={() => setIsCustomWeight(true)}
                 className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${
@@ -722,11 +758,27 @@ export default function Home() {
                 onClick={addToCart}
                 className="w-full bg-[#2d533e] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition"
               >
-                {(isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))
-                  ? 'أدخل الوزن المطلوب أولاً'
-                  : selectedVariant?.available 
-                    ? `إضافة للسلة ( ${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue || 0} جرام` : (selectedVariant?.weight || ''), modalQty)} ) — ${(getCalculatedPrice() * modalQty).toFixed(2)} ج.م` 
-                    : 'هذا الصنف غير متوفر حالياً'}
+                {(() => {
+                  if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) {
+                    return 'أدخل الوزن المطلوب أولاً';
+                  }
+                  if (!selectedVariant?.available) {
+                    return 'هذا الصنف غير متوفر حالياً';
+                  }
+
+                  const currentFinalPrice = getCalculatedPrice() * modalQty;
+                  const currentOriginalPrice = getCalculatedOriginalPrice() ? getCalculatedOriginalPrice() * modalQty : null;
+                  const displayWeightText = getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue || 0} جرام` : (selectedVariant?.weight || ''), modalQty);
+
+                  return (
+                    <div className="flex items-center justify-center gap-2">
+                      <span>إضافة للسلة ( {displayWeightText} ) — {currentFinalPrice.toFixed(2)} ج.م</span>
+                      {currentOriginalPrice && (
+                        <span className="line-through text-white/60 text-[10px] font-normal">{currentOriginalPrice.toFixed(2)} ج.م</span>
+                      )}
+                    </div>
+                  );
+                })()}
               </button>
               
               <button
@@ -740,7 +792,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Image Zoom Lightbox Modal */}
       {zoomedImage && (
         <div 
           style={{ zIndex: 99999 }}
@@ -770,7 +821,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating Bottom Cart Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
         <div className="max-w-xl mx-auto flex items-center gap-2">
           <button
@@ -796,12 +846,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Cart & Checkout Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md h-[88vh] rounded-t-[2rem] sm:rounded-2xl p-4 shadow-2xl flex flex-col justify-between">
             
-            {/* Header of Drawer */}
             <div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-1.5">
@@ -824,7 +872,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Step 1: Cart Items */}
               {currentStep === 'cart' && (
                 <div className="overflow-y-auto max-h-[56vh] py-2.5 divide-y divide-slate-100">
                   {cart.length === 0 ? (
@@ -839,8 +886,13 @@ export default function Home() {
                           <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
                             الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}
                           </div>
-                          <div className="text-[10px] text-[#2d533e] font-bold mt-0.5">
-                            الإجمالي: {(item.price * item.qty).toFixed(2)} ج.م
+                          <div className="text-[10px] text-[#2d533e] font-bold mt-0.5 flex items-center gap-1.5">
+                            <span>الإجمالي: {(item.price * item.qty).toFixed(2)} ج.م</span>
+                            {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
+                              <span className="text-slate-400 line-through font-normal">
+                                {(item.originalPrice * item.qty).toFixed(2)} ج.م
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -872,7 +924,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 2: Customer Checkout Form */}
               {currentStep === 'checkout' && (
                 <form id="checkout-form" onSubmit={handleProceedToReview} className="overflow-y-auto max-h-[58vh] py-2.5 space-y-3">
                   <div>
@@ -943,7 +994,6 @@ export default function Home() {
                 </form>
               )}
 
-              {/* Step 3: Order Review */}
               {currentStep === 'review' && (
                 <div className="overflow-y-auto max-h-[58vh] py-2.5 space-y-3">
                   <div className="bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
@@ -973,8 +1023,13 @@ export default function Home() {
                               {getCalculatedTotalWeight(item.weight, item.qty)}
                             </span>
                           </div>
-                          <span className="font-black text-[#2d533e]">
-                            {(item.price * item.qty).toFixed(2)} ج.م
+                          <span className="font-black text-[#2d533e] flex items-center gap-1.5">
+                             {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
+                              <span className="text-slate-400 line-through font-normal text-[9px]">
+                                {(item.originalPrice * item.qty).toFixed(2)} ج.م
+                              </span>
+                            )}
+                            <span>{(item.price * item.qty).toFixed(2)} ج.م</span>
                           </span>
                         </div>
                       ))}
@@ -984,7 +1039,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Bottom Actions with Continue Shopping */}
             <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
               <div className="flex justify-between items-center font-bold text-xs pb-0.5">
                 <span className="text-slate-600">الإجمالي النهائي:</span>
@@ -1002,7 +1056,6 @@ export default function Home() {
                     <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                   </button>
                   
-                  {/* زر الرجوع لمتابعة التسوق */}
                   <button
                     onClick={() => setIsCartOpen(false)}
                     className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-sm hover:bg-red-50 transition"
@@ -1067,7 +1120,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Clear Cart Confirmation Dialog */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
