@@ -56,32 +56,21 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
   
-  // البحث عن عمود "السعر الجديد" أو "الخصم"
+  // 🟢 دعم عمود نوع الطحن
+  const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('نوع') || h.includes('grind'));
+
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
-  
-  // تأمين عمود السعر الأساسي الأصلي
   const regularPriceIdx = headers.findIndex(h => 
     (h.includes('سعر') || h.includes('ثمن')) && 
     !(h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'))
   );
 
   const imageIdx = headers.findIndex(h => 
-    h.includes('صورة') || 
-    h.includes('صوره') || 
-    h.includes('image') || 
-    h.includes('img') || 
-    h.includes('رابط') || 
-    h.includes('الصور')
+    h.includes('صورة') || h.includes('صوره') || h.includes('image') || h.includes('img') || h.includes('رابط') || h.includes('الصور')
   );
   
   let statusIdx = headers.findIndex(h => 
-    h.includes('حالة') || 
-    h.includes('توفر') || 
-    h.includes('متوفر') || 
-    h.includes('متاح') || 
-    h.includes('status') || 
-    h.includes('المتاح') ||
-    h.includes('التوفر')
+    h.includes('حالة') || h.includes('توفر') || h.includes('متوفر') || h.includes('متاح') || h.includes('status') || h.includes('المتاح') || h.includes('التوفر')
   );
 
   if (statusIdx === -1) {
@@ -109,13 +98,8 @@ function parseCSV(text) {
     if (statusIdx !== -1 && values[statusIdx] !== undefined) {
       const statusVal = values[statusIdx].trim();
       if (
-        statusVal.includes('غير') || 
-        statusVal.includes('لا') || 
-        statusVal.includes('نفذ') || 
-        statusVal.includes('خلص') || 
-        statusVal.toLowerCase() === 'out' || 
-        statusVal.toLowerCase() === 'false' || 
-        statusVal === '0'
+        statusVal.includes('غير') || statusVal.includes('لا') || statusVal.includes('نفذ') || 
+        statusVal.includes('خلص') || statusVal.toLowerCase() === 'out' || statusVal.toLowerCase() === 'false' || statusVal === '0'
       ) {
         isAvailable = false;
       }
@@ -124,28 +108,27 @@ function parseCSV(text) {
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
     const formattedImageUrl = formatImageUrl(rawImageUrl);
 
-    // المنطق الجديد: 
-    // السعر الأساسي هو السعر العادي
     const parsedRegular = parseFloat(values[regularPriceIdx]);
     if (isNaN(parsedRegular)) continue;
 
     let finalPriceToPay = parsedRegular;
     let crossedOutPrice = null;
 
-    // التحقق من وجود سعر جديد مخفض
     if (newDiscountPriceIdx !== -1 && values[newDiscountPriceIdx]) {
       const parsedNew = parseFloat(values[newDiscountPriceIdx]);
-      // إذا كان السعر الجديد أقل من السعر الأساسي، يتم تفعيل العرض
       if (!isNaN(parsedNew) && parsedNew > 0 && parsedNew < parsedRegular) {
-        finalPriceToPay = parsedNew;      // السعر الذي سيدفعه العميل فعلياً
-        crossedOutPrice = parsedRegular;  // السعر الأصلي الذي سيظهر مشطوباً
+        finalPriceToPay = parsedNew;
+        crossedOutPrice = parsedRegular;
       }
     }
+
+    const grindType = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
 
     rows.push({
       category: values[categoryIdx] || 'أخرى',
       name: values[nameIdx],
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
+      grind: grindType, // 👈 تمرير نوع الطحن
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
       available: isAvailable,
@@ -171,6 +154,7 @@ function parseCSV(text) {
     
     productsMap[key].variants.push({
       weight: item.weight,
+      grind: item.grind, // 👈 حفظ نوع الطحن في الـ Variant
       price: item.price,
       originalPrice: item.originalPrice, 
       available: item.available
