@@ -451,7 +451,6 @@ export default function Home() {
             />
           </div>
 
-          {/* بانر الضمان ملاصق للوجو */}
           <div 
             style={{
               background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)',
@@ -469,28 +468,11 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 🟢 القسم المثبت: شريط البحث وتحته مباشرة شريط حالة المتجر */}
+      {/* 🟢 القسم المثبت: شريط حالة المتجر أولاً، وتحته مباشرة شريط البحث الفخم */}
       <main className="max-w-xl mx-auto px-4 mt-2">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط البحث */}
-          <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2">
-            <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث عن منتج بالاسم..."
-              className="w-full bg-transparent focus:outline-none text-xs sm:text-sm font-semibold text-[#1e382b]"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* شريط حالة المتجر تحت شريط البحث مباشرة */}
+          {/* شريط حالة المتجر المميز في الأعلى */}
           <div 
             style={{
               background: storeStatus.isOpen 
@@ -506,6 +488,23 @@ export default function Home() {
               {storeStatus.text}
             </span>
             <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
+          </div>
+
+          {/* شريط البحث تحت شريط حالة المتجر */}
+          <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
+            <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث عن منتج بالاسم..."
+              className="w-full bg-transparent focus:outline-none text-xs sm:text-sm font-semibold text-[#1e382b]"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* أزرار الفئات */}
