@@ -106,23 +106,20 @@ export default function Home() {
     const openH = settings.openHour ?? 9;
     const closeH = settings.closeHour ?? 23;
 
-    const openStr = formatHour12(openH);
-    const closeStr = formatHour12(closeH);
-
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
-      return { isOpen: false, text: 'المتجر مغلق حالياً' };
+      return { isOpen: false };
     }
     if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
-      return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
+      return { isOpen: true };
     }
 
     const now = new Date();
     const currentHour = now.getHours();
 
     if (currentHour >= openH && currentHour < closeH) {
-      return { isOpen: true, text: 'المتجر مفتوح الآن ويستقبل طلباتكم' };
+      return { isOpen: true };
     } else {
-      return { isOpen: false, text: `المتجر مغلق الآن (مواعيد العمل من ${openStr} إلى ${closeStr})` };
+      return { isOpen: false };
     }
   }, [data.storeSettings]);
 
@@ -429,29 +426,28 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* كود CSS المضاف للحركة وتظبيط المسافات بدون الحاجة لملفات خارجية */}
+      {/* تم تحديث كود الحركة ليصبح مستمراً وبدون أي فراغ */}
       <style dangerouslySetInnerHTML={{__html: `
         .status-marquee-container {
           width: 100%;
           overflow: hidden !important;
-          white-space: nowrap;
           position: relative;
           display: flex;
           align-items: center;
         }
         .status-marquee-text {
-          display: inline-block;
+          display: inline-flex;
           white-space: nowrap;
-          animation: scroll-arabic-marquee 18s linear infinite;
+          animation: scroll-arabic-marquee 25s linear infinite;
         }
         .status-marquee-container:active .status-marquee-text,
         .status-marquee-container:hover .status-marquee-text {
           animation-play-state: paused;
         }
-        /* الحركة تبدأ من يسار الشاشة لتدخل بأول جملة عربية بشكل منطقي */
+        /* الحركة المستمرة المترابطة */
         @keyframes scroll-arabic-marquee {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100vw); }
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(50%); }
         }
       `}} />
 
@@ -496,7 +492,7 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط حالة المتجر في الأعلى بعد تقليل المسافات ودمج الحركة */}
+          {/* شريط حالة المتجر المحدث (يعمل في الحالتين فتح وإغلاق، وبحركة مستمرة) */}
           <div 
             style={{
               background: storeStatus.isOpen 
@@ -505,28 +501,30 @@ export default function Home() {
               border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935',
               boxShadow: '0 3px 8px rgba(0,0,0,0.06)'
             }}
-            className={`w-full mb-2 py-1.5 px-3.5 rounded-2xl ${
-              storeStatus.isOpen 
-                ? 'status-marquee-container' 
-                : 'flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide'
-            }`}
+            className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container"
           >
-            {storeStatus.isOpen ? (
-              <div className="status-marquee-text text-[#1b3d2b] font-bold text-sm md:text-base">
+            <div className={`status-marquee-text font-bold text-sm md:text-base ${storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-[#991b1b]'}`}>
+              {/* النصف الأول من الحركة */}
+              <div className="flex items-center whitespace-nowrap px-6">
                 <span>
-                  🟢 المتجر مفتوح الآن ويستقبل طلباتكم &nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp; 🚚 التوصيل خلال 48 ساعة أو اليوم التالي للطلب
+                  {storeStatus.isOpen 
+                    ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى'
+                    : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'
+                  }
                 </span>
               </div>
-            ) : (
-              <>
-                <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
-                <span className="text-red-700">{storeStatus.text}</span>
-                <Clock className="w-4 h-4 mr-1 text-red-600" />
-              </>
-            )}
+              {/* النصف الثاني من الحركة (لمنع ظهور الفراغ) */}
+              <div className="flex items-center whitespace-nowrap px-6">
+                <span>
+                  {storeStatus.isOpen 
+                    ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى'
+                    : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'
+                  }
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* شريط البحث تحت شريط حالة المتجر مباشرة */}
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
             <input
