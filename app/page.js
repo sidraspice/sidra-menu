@@ -429,6 +429,32 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
+      {/* كود CSS المضاف للحركة وتظبيط المسافات بدون الحاجة لملفات خارجية */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .status-marquee-container {
+          width: 100%;
+          overflow: hidden !important;
+          white-space: nowrap;
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+        .status-marquee-text {
+          display: inline-block;
+          white-space: nowrap;
+          animation: scroll-arabic-marquee 18s linear infinite;
+        }
+        .status-marquee-container:active .status-marquee-text,
+        .status-marquee-container:hover .status-marquee-text {
+          animation-play-state: paused;
+        }
+        /* الحركة تبدأ من يسار الشاشة لتدخل بأول جملة عربية بشكل منطقي */
+        @keyframes scroll-arabic-marquee {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100vw); }
+        }
+      `}} />
+
       <div 
         className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw]
           ${toast.visible ? 'bottom-24 opacity-100' : 'bottom-16 opacity-0'}
@@ -456,7 +482,7 @@ export default function Home() {
               border: '2px solid #d4af37',
               boxShadow: '0 4px 10px rgba(0,0,0,0.15)'
             }}
-            className="w-full mt-2 mb-0.5 py-2 px-3 rounded-2xl flex items-center justify-center gap-2"
+            className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2"
           >
             <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
             <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide drop-shadow-sm text-center leading-tight">
@@ -467,10 +493,10 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 mt-2">
-        <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
+      <main className="max-w-xl mx-auto px-4 mt-0">
+        <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط حالة المتجر في الأعلى */}
+          {/* شريط حالة المتجر في الأعلى بعد تقليل المسافات ودمج الحركة */}
           <div 
             style={{
               background: storeStatus.isOpen 
@@ -479,13 +505,25 @@ export default function Home() {
               border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935',
               boxShadow: '0 3px 8px rgba(0,0,0,0.06)'
             }}
-            className="w-full mb-2.5 py-2 px-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide"
+            className={`w-full mb-2 py-1.5 px-3.5 rounded-2xl ${
+              storeStatus.isOpen 
+                ? 'status-marquee-container' 
+                : 'flex items-center justify-center gap-2 text-xs sm:text-sm font-black tracking-wide'
+            }`}
           >
-            <span className={`w-2.5 h-2.5 rounded-full ${storeStatus.isOpen ? 'bg-emerald-600 animate-ping' : 'bg-red-600'}`}></span>
-            <span className={storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-red-700'}>
-              {storeStatus.text}
-            </span>
-            <Clock className={`w-4 h-4 mr-1 ${storeStatus.isOpen ? 'text-emerald-700' : 'text-red-600'}`} />
+            {storeStatus.isOpen ? (
+              <div className="status-marquee-text text-[#1b3d2b] font-bold text-sm md:text-base">
+                <span>
+                  🟢 المتجر مفتوح الآن ويستقبل طلباتكم &nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp; 🚚 التوصيل خلال 48 ساعة أو اليوم التالي للطلب
+                </span>
+              </div>
+            ) : (
+              <>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+                <span className="text-red-700">{storeStatus.text}</span>
+                <Clock className="w-4 h-4 mr-1 text-red-600" />
+              </>
+            )}
           </div>
 
           {/* شريط البحث تحت شريط حالة المتجر مباشرة */}
