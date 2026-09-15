@@ -380,35 +380,63 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = () => {
-    let message = `🛒 *طلب جديد من متجر عطارة سدرة بدمنهور*\n`;
-    message += `**\n`;
-    message += `👤 *الاسم:* ${customer.name.trim()}\n`;
-    message += `📱 *الهاتف:* ${customer.phone.trim()}\n`;
-    message += `📍 *العنوان:* ${customer.address.trim()}\n`;
-    if (customer.notes.trim()) {
-      message += `📝 *ملاحظات:* ${customer.notes.trim()}\n`;
-    }
-    message += `**\n`;
-    message += `📦 *المنتجات المطلوبة:*\n`;
+    // 1. عنوان الرسالة
+    let message = `🛒 طلب جديد من متجر عطارة سدرة\n\n`;
     
+    // 2. بيانات العميل
+    message += `👤 الاسم: ${customer.name.trim()}\n`;
+    message += `📱 الهاتف: ${customer.phone.trim()}\n`;
+    message += `📍 العنوان: ${customer.address.trim()}\n`;
+    if (customer.notes.trim()) {
+      message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
+    }
+    message += `\n📦 المنتجات المطلوبة:\n\n`;
+    
+    let totalWeightGrams = 0;
+    
+    // 3. المنتجات
     cart.forEach((item, index) => {
+      // 6 & 7. حساب الوزن الصافي للمنتج بالجرام وضربه في الكمية
+      const itemBaseWeightInGrams = getWeightNumberInGrams(item.weight);
+      totalWeightGrams += (itemBaseWeightInGrams * item.qty);
+
       const itemTotal = (item.price * item.qty).toFixed(2);
       const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
-      const totalWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
+      
+      // التنسيق النصي للوزن لعرضه في الفاتورة للمنتج الواحد
+      const displayWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
-      message += `\n*${index + 1}. ${item.name}*\n`;
-      message += `   🔹 الوزن: ${totalWeightStr}\n`;
+      message += `${index + 1}. ${item.name}\n`;
+      message += `💎 الوزن: ${displayWeightStr}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `   🔹 السعر: ~${itemOriginalTotal} جنيه~ ⬅️ *${itemTotal} جنيه*\n`;
+        // عرض السعر القديم مشطوبًا في نفس السطر
+        message += `💎 السعر: ~${itemOriginalTotal}~ جنيه → ${itemTotal} جنيه\n\n`;
       } else {
-        message += `   🔹 السعر: *${itemTotal} جنيه*\n`;
+        message += `💎 السعر: ${itemTotal} جنيه\n\n`;
       }
     });
 
-    message += `**\n`;
-    message += `💰 *الإجمالي النهائي:* *${totalAmount} جنيه*\n`;
-    message += `✨ *الدفع عند الاستلام بعد المعاينة*`;
+    // 4. الخط الفاصل الأنيق والقصير
+    message += `────────────\n\n`;
+
+    // 5 & 8. إعداد إجمالي الوزن للعرض
+    let formattedTotalWeight = "";
+    if (totalWeightGrams < 1000) {
+      formattedTotalWeight = `${totalWeightGrams} جرام`;
+    } else {
+      const weightKg = totalWeightGrams / 1000;
+      formattedTotalWeight = `${weightKg} كجم (${totalWeightGrams} جرام)`;
+    }
+
+    // عرض إجمالي الوزن وإجمالي الفاتورة
+    message += `⚖️ إجمالي الوزن: ${formattedTotalWeight}\n`;
+    // 9. استخدام إجمالي الفاتورة المحسوب حالياً داخل المشروع
+    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+    
+    // 10. النص النهائي أسفل الفاتورة
+    message += `✨ الدفع عند الاستلام بعد المعاينة\n\n`;
+    message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
