@@ -205,7 +205,7 @@ export default function Home() {
 
   const handleShareProduct = (product, e) => {
     e.stopPropagation();
-    const shareText = `🌿 شاهد هذا المنتج الرائع من عطارة سدرة بدمنهور:\n*${product.name}*\nاطلبه الآن من المنيو الإلكتروني!`;
+    const shareText = `🌿 شاهد هذا المنتج الرائع من عطارة سدرة:\n*${product.name}*\nاطلبه الآن من المنيو الإلكتروني!`;
     if (navigator.share) {
       navigator.share({
         title: product.name,
@@ -380,10 +380,8 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = () => {
-    // 1. عنوان الرسالة
     let message = `🛒 طلب جديد من متجر عطارة سدرة\n\n`;
     
-    // 2. بيانات العميل
     message += `👤 الاسم: ${customer.name.trim()}\n`;
     message += `📱 الهاتف: ${customer.phone.trim()}\n`;
     message += `📍 العنوان: ${customer.address.trim()}\n`;
@@ -394,33 +392,27 @@ export default function Home() {
     
     let totalWeightGrams = 0;
     
-    // 3. المنتجات
     cart.forEach((item, index) => {
-      // 6 & 7. حساب الوزن الصافي للمنتج بالجرام وضربه في الكمية
       const itemBaseWeightInGrams = getWeightNumberInGrams(item.weight);
       totalWeightGrams += (itemBaseWeightInGrams * item.qty);
 
       const itemTotal = (item.price * item.qty).toFixed(2);
       const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
       
-      // التنسيق النصي للوزن لعرضه في الفاتورة للمنتج الواحد
       const displayWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
       message += `${index + 1}. ${item.name}\n`;
       message += `💎 الوزن: ${displayWeightStr}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        // عرض السعر القديم مشطوبًا في نفس السطر
         message += `💎 السعر: ~${itemOriginalTotal}~ جنيه → ${itemTotal} جنيه\n\n`;
       } else {
         message += `💎 السعر: ${itemTotal} جنيه\n\n`;
       }
     });
 
-    // 4. الخط الفاصل الأنيق والقصير
     message += `────────────\n\n`;
 
-    // 5 & 8. إعداد إجمالي الوزن للعرض
     let formattedTotalWeight = "";
     if (totalWeightGrams < 1000) {
       formattedTotalWeight = `${totalWeightGrams} جرام`;
@@ -429,12 +421,8 @@ export default function Home() {
       formattedTotalWeight = `${weightKg} كجم (${totalWeightGrams} جرام)`;
     }
 
-    // عرض إجمالي الوزن وإجمالي الفاتورة
     message += `⚖️ إجمالي الوزن: ${formattedTotalWeight}\n`;
-    // 9. استخدام إجمالي الفاتورة المحسوب حالياً داخل المشروع
     message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-    
-    // 10. النص النهائي أسفل الفاتورة
     message += `✨ الدفع عند الاستلام بعد المعاينة\n\n`;
     message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
@@ -454,7 +442,6 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
       
-      {/* تم تحديث كود الحركة ليصبح مستمراً وبدون أي فراغ */}
       <style dangerouslySetInnerHTML={{__html: `
         .status-marquee-container {
           width: 100%;
@@ -472,7 +459,6 @@ export default function Home() {
         .status-marquee-container:hover .status-marquee-text {
           animation-play-state: paused;
         }
-        /* الحركة المستمرة المترابطة */
         @keyframes scroll-arabic-marquee {
           0% { transform: translateX(0%); }
           100% { transform: translateX(50%); }
@@ -495,7 +481,7 @@ export default function Home() {
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white">
             <img 
               src="/logo.png" 
-              alt="عطارة سدرة بدمنهور" 
+              alt="عطارة سدرة" 
               className="w-full h-full object-cover"
             />
           </div>
@@ -520,7 +506,6 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط حالة المتجر المحدث (يعمل في الحالتين فتح وإغلاق، وبحركة مستمرة) */}
           <div 
             style={{
               background: storeStatus.isOpen 
@@ -532,7 +517,6 @@ export default function Home() {
             className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container"
           >
             <div className={`status-marquee-text font-bold text-sm md:text-base ${storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-[#991b1b]'}`}>
-              {/* النصف الأول من الحركة */}
               <div className="flex items-center whitespace-nowrap px-6">
                 <span>
                   {storeStatus.isOpen 
@@ -541,7 +525,6 @@ export default function Home() {
                   }
                 </span>
               </div>
-              {/* النصف الثاني من الحركة (لمنع ظهور الفراغ) */}
               <div className="flex items-center whitespace-nowrap px-6">
                 <span>
                   {storeStatus.isOpen 
