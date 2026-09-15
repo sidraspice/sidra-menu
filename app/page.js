@@ -401,16 +401,14 @@ export default function Home() {
       
       const displayWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
-      // --- الجزء الذي تم إرجاعه وتعديله ليطابق صورة المعين بدقة ---
-      message += `${index + 1}. ${item.name}\n`;
-      message += `🔷 الوزن: ${displayWeightStr}\n`;
+      message += `*${index + 1}. ${item.name}*\n`;
+      message += `   🔹 الوزن: ${displayWeightStr}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `🔷 السعر: ~${itemOriginalTotal}~ جنيه ${itemTotal} جنيه\n\n`;
+        message += `   🔹 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
       } else {
-        message += `🔷 السعر: ${itemTotal} جنيه\n\n`;
+        message += `   🔹 السعر: *${itemTotal} جنيه*\n\n`;
       }
-      // -------------------------------------------------------------
     });
 
     message += `────────────\n\n`;
