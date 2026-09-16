@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle, ChevronLeft
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -114,23 +114,24 @@ export default function Home() {
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
 
-  // 🧠 التحكم اليدوي والتلقائي الدقيق بناءً على ما تكتبه في جوجل شيت
   const storeStatus = useMemo(() => {
     const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
+    const openH = settings.openHour ?? 9;
+    const closeH = settings.closeHour ?? 23;
 
-    // 1. لو كتبت "مغلق" أو "off" في الشيت -> يظهر شريط أحمر (مغلق)
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
-      return { showBanner: true, isOpen: false, text: '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى', bg: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', color: '#991b1b' };
+      return { showBanner: true, isOpen: false };
     }
 
-    // 2. لو كتبت "مفتوح" أو "open" في الشيت -> يظهر شريط أخضر (مفتوح)
-    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
-      return { showBanner: true, isOpen: true, text: '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى', bg: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', border: '1.5px solid #4caf50', color: '#1b3d2b' };
-    }
+    const currentHour = new Date().getHours();
+    const isOpenNow = (currentHour >= openH && currentHour < closeH);
 
-    // 3. لو كتبت "تلقائي" أو تركتها فارغة -> يختفي الشريط تماماً وتنظف الواجهة (الوضع الطبيعي)
-    return { showBanner: false, isOpen: true };
+    if (isOpenNow) {
+      return { showBanner: false, isOpen: true };
+    } else {
+      return { showBanner: true, isOpen: false };
+    }
   }, [data.storeSettings]);
 
   useEffect(() => {
@@ -426,11 +427,18 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        @keyframes bounceRight {
-          0%, 100% { transform: translateX(0); opacity: 0.8; }
-          50% { transform: translateX(6px); opacity: 1; }
+        
+        /* ✨ حركة التموضع الذكية (Scroll Nudge): الشريط يتحرك ببطء ليلفت الانتباه لوجود تكملة ثم يعود */
+        @keyframes scrollNudge {
+          0% { transform: translateX(0); }
+          30% { transform: translateX(-60px); }
+          65% { transform: translateX(10px); }
+          100% { transform: translateX(0); }
         }
-        .animate-bounce-right { animation: bounceRight 1s infinite ease-in-out; }
+        .animate-scroll-nudge {
+          animation: scrollNudge 1.6s ease-in-out 1.2s 1;
+        }
+
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
@@ -474,12 +482,11 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* يظهر فقط لو كتبت "مغلق" أو "مفتوح" في الشيت، ويختفي تماماً لو تركتها فارغة أو "تلقائي" */}
           {storeStatus.showBanner && (
-            <div style={{ background: storeStatus.bg, border: storeStatus.border, boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
-              <div className="status-marquee-text font-bold text-sm md:text-base" style={{ color: storeStatus.color }}>
-                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.text}</span></div>
-                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.text}</span></div>
+            <div style={{ background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
+              <div className="status-marquee-text font-bold text-sm md:text-base text-[#991b1b]">
+                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
+                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
               </div>
             </div>
           )}
@@ -512,9 +519,10 @@ export default function Home() {
             )}
           </div>
 
+          {/* ✨ الشريط الأفقي مع حركة اللفة التلقائية (Scroll Nudge) لفت الانتباه */}
           {!loading && !error && displayCategories.length > 0 && (
-            <div className="relative flex items-center">
-              <div className="flex-1 overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x flex items-center">
+            <div className="overflow-hidden pb-1">
+              <div className="flex overflow-x-auto gap-2 hide-scrollbar snap-x animate-scroll-nudge py-1">
                 {displayCategories.map(cat => {
                   const isSelected = selectedCategory === cat;
                   const isOfferBtn = cat === 'عروض وخصومات';
@@ -553,10 +561,6 @@ export default function Home() {
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="shrink-0 pl-1.5 text-[#2d533e] pointer-events-none animate-bounce-right flex items-center bg-gradient-to-l from-[#fbf9f4] via-[#fbf9f4]/80 to-transparent py-2">
-                <ChevronLeft className="w-5 h-5 stroke-[3]" />
               </div>
             </div>
           )}
@@ -598,7 +602,7 @@ export default function Home() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-0.5">
-                          <span className="text-[9px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1 py-0.2 rounded border border-[#e8e2d5] truncate max-w-[70%]">{product.category}</span>
+                          <span className="text-[9px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1 py-0.2 rounded border border-[#e8e2d5] truncate max-w-[70%]" title={product.category}>{product.category}</span>
                           <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
                         </div>
                         <h3 onClick={() => product.isAvailable && openProductModal(product)} className="font-bold text-xs sm:text-sm text-[#1e382b] line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e]">{product.name}</h3>
@@ -657,7 +661,7 @@ export default function Home() {
                   </div>
                 )}
                 <div>
-                  <span className="text-[10px] font-bold text-[#c89d56]">{activeModalProduct.category}</span>
+                  <span className="text-[10px] font-bold text-[#c89d56]" title={activeModalProduct.category}>{activeModalProduct.category}</span>
                   <h2 className="text-base font-black text-[#1e382b]">{activeModalProduct.name}</h2>
                 </div>
               </div>
@@ -915,7 +919,7 @@ export default function Home() {
         </div>
       )}
 
-      {showRestoreConfirm && (
+      {showRestoreConfirm &&,
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl">
             <RotateCcw className="w-8 h-8 text-amber-500 mx-auto mb-1.5" />
