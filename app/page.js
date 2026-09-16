@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock 
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
+const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
 
 const formatHour12 = (hour24) => {
   if (hour24 == null || isNaN(hour24)) return '9:00 صباحاً';
@@ -79,6 +80,11 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // States for Last Order Edit Feature
+  const [lastOrder, setLastOrder] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+
   const [activeModalProduct, setActiveModalProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [modalQty, setModalQty] = useState(1);
@@ -123,14 +129,16 @@ export default function Home() {
     }
   }, [data.storeSettings]);
 
+  // Handle Browser Back Button for Modals
   useEffect(() => {
-    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm;
+    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm;
     
     const handlePopState = () => {
       if (isCartOpen) setIsCartOpen(false);
       if (activeModalProduct) setActiveModalProduct(null);
       if (zoomedImage) setZoomedImage(null);
       if (showClearConfirm) setShowClearConfirm(false);
+      if (showRestoreConfirm) setShowRestoreConfirm(false);
     };
 
     if (isAnyModalOpen) {
@@ -141,8 +149,9 @@ export default function Home() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm]);
+  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm, showRestoreConfirm]);
 
+  // Fetch Products Data
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -166,18 +175,42 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Load Cart & Last Order
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('sedra_cart');
-      if (saved) {
-        setCart(JSON.parse(saved));
-      }
+      const savedCart = localStorage.getItem('sedra_cart');
+      if (savedCart) setCart(JSON.parse(savedCart));
     } catch (e) {
       console.error('Error loading cart from storage', e);
     }
     setIsCartLoaded(true);
+
+    const checkLastOrder = () => {
+      try {
+        const savedOrder = localStorage.getItem('sedra_last_order');
+        if (savedOrder) {
+          const parsed = JSON.parse(savedOrder);
+          if (Date.now() < parsed.expiresAt) {
+            setLastOrder(parsed);
+          } else {
+            // Expired, clear editable copy only
+            localStorage.removeItem('sedra_last_order');
+            setLastOrder(null);
+            setIsEditing(false);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading last order', e);
+      }
+    };
+
+    checkLastOrder();
+    // Re-verify expiration every minute if app stays open
+    const interval = setInterval(checkLastOrder, 60000);
+    return () => clearInterval(interval);
   }, []);
 
+  // Auto Save Cart
   useEffect(() => {
     if (isCartLoaded) {
       try {
@@ -188,6 +221,7 @@ export default function Home() {
     }
   }, [cart, isCartLoaded]);
 
+  // Load Customer Data
   useEffect(() => {
     try {
       const savedCustomer = localStorage.getItem('sedra_customer');
@@ -338,6 +372,7 @@ export default function Home() {
 
   const clearEntireCart = () => {
     setCart([]);
+    setIsEditing(false); // Cancel edit mode if cart is manually cleared
     setShowClearConfirm(false);
   };
 
@@ -379,9 +414,37 @@ export default function Home() {
     }
   };
 
+  // Restoring Last Order Feature
+  const handleRestoreOrderRequest = () => {
+    if (cart.length > 0) {
+      setShowRestoreConfirm(true);
+    } else {
+      executeRestore();
+    }
+  };
+
+  const executeRestore = () => {
+    if (lastOrder && lastOrder.items) {
+      setCart(lastOrder.items);
+      setIsEditing(true);
+      setShowRestoreConfirm(false);
+      
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      setToast({ visible: true, message: 'تم استرجاع الطلب وتجهيزه للتعديل' });
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast({ visible: false, message: '' });
+      }, 2500);
+    }
+  };
+
   const handleSendWhatsAppOrder = () => {
-    let message = `🛒 طلب جديد من متجر عطارة سدرة\n\n`;
-    
+    const orderId = isEditing && lastOrder ? lastOrder.id : `SD-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    let message = isEditing 
+      ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n`
+      : `🛒 طلب جديد من متجر عطارة سدرة\n`;
+
+    message += `🏷️ رقم الطلب: ${orderId}\n\n`;
     message += `👤 الاسم: ${customer.name.trim()}\n`;
     message += `📱 الهاتف: ${customer.phone.trim()}\n`;
     message += `📍 العنوان: ${customer.address.trim()}\n`;
@@ -402,12 +465,12 @@ export default function Home() {
       const displayWeightStr = getCalculatedTotalWeight(item.weight, item.qty);
 
       message += `*${index + 1}. ${item.name}*\n`;
-      message += `   🔹 الوزن: ${displayWeightStr}\n`;
+      message += `   🔷 الوزن: ${displayWeightStr}\n`;
       
       if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `   🔹 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
+        message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
       } else {
-        message += `   🔹 السعر: *${itemTotal} جنيه*\n\n`;
+        message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
       }
     });
 
@@ -426,10 +489,24 @@ export default function Home() {
     message += `✨ الدفع عند الاستلام بعد المعاينة\n\n`;
     message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
+    // Save Editable Copy
+    const now = Date.now();
+    const orderData = {
+      id: orderId,
+      items: cart,
+      createdAt: isEditing ? lastOrder.createdAt : now,
+      expiresAt: isEditing ? lastOrder.expiresAt : now + EDIT_WINDOW_MS
+    };
+    
+    localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
+    setLastOrder(orderData);
+    
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 
+    // Clean up current cart and session
     setCart([]);
+    setIsEditing(false);
     setCustomer(prev => {
       const newDataForNextOrder = { ...prev, notes: '' };
       localStorage.setItem('sedra_customer', JSON.stringify(newDataForNextOrder));
@@ -535,6 +612,44 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* Edit Alert / Button Area */}
+          {lastOrder && !isEditing && (
+            <div className="bg-[#e8f5e9] border border-[#a5d6a7] rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
+              <div>
+                <h4 className="text-[#1b3d2b] text-xs font-black mb-0.5">لديك طلب سابق قابل للتعديل</h4>
+                <p className="text-[#2d533e] text-[10px] font-bold">يمكنك الإضافة أو الحذف وإعادة الإرسال.</p>
+              </div>
+              <button 
+                onClick={handleRestoreOrderRequest}
+                className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1.5 shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                استرجاع
+              </button>
+            </div>
+          )}
+
+          {isEditing && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" style={{ animationDuration: '3s' }} />
+                <div>
+                  <h4 className="text-amber-800 text-xs font-black">أنت الآن تقوم بتعديل طلبك السابق</h4>
+                  <p className="text-amber-700 text-[10px] font-bold tracking-tight">({lastOrder?.id})</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsEditing(false);
+                  setCart([]);
+                }}
+                className="text-red-600 hover:text-red-800 text-[10px] font-black underline shrink-0"
+              >
+                إلغاء التعديل
+              </button>
+            </div>
+          )}
 
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
@@ -1283,6 +1398,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* Confirmation Modals */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
@@ -1306,6 +1422,33 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl animate-in zoom-in-95">
+            <RotateCcw className="w-8 h-8 text-amber-500 mx-auto mb-1.5" />
+            <h3 className="font-black text-xs text-[#1e382b] mb-1">استبدال السلة الحالية</h3>
+            <p className="text-[11px] text-slate-500 mb-3">
+              لديك منتجات حالية في السلة. هل تريد استبدالها بآخر طلب وتعديله؟ سيتم مسح المنتجات الحالية.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRestoreConfirm(false)}
+                className="flex-1 py-2 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={executeRestore}
+                className="flex-1 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-2xs hover:bg-amber-600"
+              >
+                استرجاع آخر طلب
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
