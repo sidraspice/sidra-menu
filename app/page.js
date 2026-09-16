@@ -8,7 +8,7 @@ import {
 
 const WHATSAPP_NUMBER = "201044760160";
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
-const FREE_DELIVERY_THRESHOLD = 300; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
+const FREE_DELIVERY_THRESHOLD = 500; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
 
 // دالة لتشغيل اهتزاز خفيف في الموبايل عند التفاعل
 const triggerVibration = () => {
