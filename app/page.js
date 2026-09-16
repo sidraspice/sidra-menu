@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -80,7 +80,7 @@ const isOfferValid = (price, originalPrice) => {
 };
 
 export default function Home() {
-  const [data, setData] = useState({ products: [], categories: [], storeSettings: { openHour: 9, closeHour: 23, mode: 'تلقائي' } });
+  const [data, setData] = useState({ products: [], categories: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -93,7 +93,7 @@ export default function Home() {
 
   const [flyingItems, setFlyingItems] = useState([]);
   const cartIconRef = useRef(null);
-  const categoriesScrollRef = useRef(null); // مرجع للشريط الأفقي لتحريكه برمجياً بالكامل
+  const categoriesScrollRef = useRef(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
 
@@ -115,32 +115,11 @@ export default function Home() {
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
 
-  const storeStatus = useMemo(() => {
-    const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
-    const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
-    const openH = settings.openHour ?? 9;
-    const closeH = settings.closeHour ?? 23;
-
-    if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
-      return { showBanner: true, isOpen: false };
-    }
-
-    const currentHour = new Date().getHours();
-    const isOpenNow = (currentHour >= openH && currentHour < closeH);
-
-    if (isOpenNow) {
-      return { showBanner: false, isOpen: true };
-    } else {
-      return { showBanner: true, isOpen: false };
-    }
-  }, [data.storeSettings]);
-
-  // 🚀 تحريك الشريط برمجياً بمسافة واسعة ليرى العميل كل العناصر ثم يعود
+  // حركة السحب الاستعراضية عند تحميل الصفحة لفت الانتباه لوجود تصنيفات أفقية
   useEffect(() => {
     const timer = setTimeout(() => {
       if (categoriesScrollRef.current) {
         const el = categoriesScrollRef.current;
-        // التمرير لمسافة كافية لإظهار معظم العناصر الجانبية
         el.scrollTo({ left: 280, behavior: 'smooth' });
         setTimeout(() => {
           el.scrollTo({ left: 0, behavior: 'smooth' });
@@ -181,7 +160,7 @@ export default function Home() {
       const res = await fetch('/api/products');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setData({ products: json.products, categories: json.categories, storeSettings: json.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' } });
+      setData({ products: json.products, categories: json.categories });
     } catch (err) {
       setError(err.message || 'حدث خطأ في تحميل البيانات');
     } finally {
@@ -387,10 +366,6 @@ export default function Home() {
     }
   };
 
-  const handleVoiceOrderWhatsApp = () => {
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('مرحباً متجر عطارة سدرة 🌿\nأريد إرسال طلبي في رسالة صوتية وسأقوم بتسجيلها الآن 👇')}`, '_blank');
-  };
-
   const handleSendWhatsAppOrder = () => {
     const orderId = isEditing && lastOrder ? lastOrder.id : `SD-${Math.floor(1000 + Math.random() * 9000)}`;
     let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
@@ -435,9 +410,6 @@ export default function Home() {
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       <style dangerouslySetInnerHTML={{__html: `
-        .status-marquee-container { width: 100%; overflow: hidden !important; position: relative; display: flex; align-items: center; }
-        .status-marquee-text { display: inline-flex; white-space: nowrap; animation: scroll-arabic-marquee 25s linear infinite; }
-        @keyframes scroll-arabic-marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(50%); } }
         @keyframes flyToCart {
           0% { top: var(--startY); left: var(--startX); transform: scale(1) rotate(0deg); opacity: 1; }
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
@@ -462,11 +434,6 @@ export default function Home() {
         </div>
       )}
 
-      <button onClick={handleVoiceOrderWhatsApp} className="fixed bottom-20 left-4 z-40 bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-3.5 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-black hover:scale-105 active:scale-95 transition border border-white/20 animate-bounce" style={{ animationDuration: '3s' }} title="اطلب برسالة صوتية">
-        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center"><Mic className="w-3.5 h-3.5 text-white animate-pulse" /></div>
-        <span>اطلب برسالة صوتية 🎤</span>
-      </button>
-
       <div className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw] ${toast.visible ? 'bottom-24 opacity-100' : 'bottom-16 opacity-0'}`}>
         <div className="bg-emerald-100 rounded-full p-1"><Check className="w-4 h-4 text-emerald-600 stroke-[3]" /></div>
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
@@ -486,15 +453,6 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {storeStatus.showBanner && (
-            <div style={{ background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
-              <div className="status-marquee-text font-bold text-sm md:text-base text-[#991b1b]">
-                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
-                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
-              </div>
-            </div>
-          )}
-
           {isEditing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
@@ -523,7 +481,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* ✨ الشريط الأفقي المزود بالتحريك التلقائي عبر الـ Ref ليرى العميل كل العناصر */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="overflow-hidden pb-1">
               <div 
