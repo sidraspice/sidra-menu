@@ -8,7 +8,7 @@ import {
 
 const WHATSAPP_NUMBER = "201044760160";
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000;
-const FREE_DELIVERY_THRESHOLD = 300;
+const FREE_DELIVERY_THRESHOLD = 500;
 
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
