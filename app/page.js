@@ -119,10 +119,18 @@ export default function Home() {
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
     const openH = settings.openHour ?? 9;
     const closeH = settings.closeHour ?? 23;
-    if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') return { isOpen: false };
-    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') return { isOpen: true };
+
+    if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
+      return { isOpen: false, forceShow: true };
+    }
+    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
+      return { isOpen: true, forceShow: false };
+    }
+
     const currentHour = new Date().getHours();
-    return (currentHour >= openH && currentHour < closeH) ? { isOpen: true } : { isOpen: false };
+    const isOpenNow = (currentHour >= openH && currentHour < closeH);
+    // إذا كان مغلقاً في غير ساعات العمل، نظهره. وإذا كان مفتوحاً، نخفيه تماماً لتنظيف الواجهة.
+    return { isOpen: isOpenNow, forceShow: !isOpenNow };
   }, [data.storeSettings]);
 
   useEffect(() => {
@@ -418,16 +426,11 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        
-        /* ✨ حركة سهم التوجيه المتحرك (Bounce Horizontal) */
         @keyframes bounceRight {
           0%, 100% { transform: translateX(0); opacity: 0.8; }
           50% { transform: translateX(6px); opacity: 1; }
         }
-        .animate-bounce-right {
-          animation: bounceRight 1s infinite ease-in-out;
-        }
-
+        .animate-bounce-right { animation: bounceRight 1s infinite ease-in-out; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
@@ -471,12 +474,15 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          <div style={{ background: storeStatus.isOpen ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
-            <div className={`status-marquee-text font-bold text-sm md:text-base ${storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-[#991b1b]'}`}>
-              <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
-              <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
+          {/* شريط حالة المتجر: يختفي تماماً أثناء ساعات العمل الطبيعية في وضع "تلقائي" لراحة العين ونظافة الواجهة، ولا يظهر إلا إذا كان مغلقاً أو أردت أنت إظهاره من جوجل شيت */}
+          {storeStatus.forceShow && (
+            <div style={{ background: storeStatus.isOpen ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
+              <div className={`status-marquee-text font-bold text-sm md:text-base ${storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-[#991b1b]'}`}>
+                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
+                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
+              </div>
             </div>
-          </div>
+          )}
 
           {isEditing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
@@ -506,7 +512,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* ✨ الشريط الأفقي مع سهم تلميح متحرك (يُلفت الانتباه تماماً لوجود أقسام أخرى بالسحب) */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="relative flex items-center">
               <div className="flex-1 overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x flex items-center">
@@ -550,7 +555,6 @@ export default function Home() {
                 })}
               </div>
 
-              {/* سهم تلميح بصري متحرك يمين الشريط لضمان لفت الانتباه */}
               <div className="shrink-0 pl-1.5 text-[#2d533e] pointer-events-none animate-bounce-right flex items-center bg-gradient-to-l from-[#fbf9f4] via-[#fbf9f4]/80 to-transparent py-2">
                 <ChevronLeft className="w-5 h-5 stroke-[3]" />
               </div>
@@ -904,7 +908,7 @@ export default function Home() {
             <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
             <p className="text-[11px] text-slate-500 mb-3">هل أنت متأكد من مسح السلة؟</p>
             <div className="flex gap-2">
-              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء</button>
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء`</button>
               <button onClick={clearEntireCart} className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs">نعم، امسح</button>
             </div>
           </div>
