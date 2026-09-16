@@ -93,7 +93,6 @@ export default function Home() {
 
   const [flyingItems, setFlyingItems] = useState([]);
   const cartIconRef = useRef(null);
-  const categoriesScrollRef = useRef(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
 
@@ -114,20 +113,6 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
-
-  // حركة السحب الاستعراضية عند تحميل الصفحة لفت الانتباه لوجود تصنيفات أفقية
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (categoriesScrollRef.current) {
-        const el = categoriesScrollRef.current;
-        el.scrollTo({ left: 280, behavior: 'smooth' });
-        setTimeout(() => {
-          el.scrollTo({ left: 0, behavior: 'smooth' });
-        }, 1200);
-      }
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [data.categories]);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -415,8 +400,6 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
       {flyingItems.map(item => (
@@ -481,52 +464,47 @@ export default function Home() {
             )}
           </div>
 
+          {/* ✨ شبكة الأقسام الملتفة (Flex-wrap): تظهر جميع الأقسام دفعة واحدة أمام العميل بوضوح تام بدون إخفاء وبشكل مضغوط أنيق */}
           {!loading && !error && displayCategories.length > 0 && (
-            <div className="overflow-hidden pb-1">
-              <div 
-                ref={categoriesScrollRef}
-                className="flex overflow-x-auto gap-2 hide-scrollbar snap-x py-1"
-                style={{ scrollBehavior: 'smooth' }}
-              >
-                {displayCategories.map(cat => {
-                  const isSelected = selectedCategory === cat;
-                  const isOfferBtn = cat === 'عروض وخصومات';
-                  const visual = getCategoryVisual(cat);
-                  
-                  let btnStyle = {};
-                  let textClass = '';
+            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
+              {displayCategories.map(cat => {
+                const isSelected = selectedCategory === cat;
+                const isOfferBtn = cat === 'عروض وخصومات';
+                const visual = getCategoryVisual(cat);
+                
+                let btnStyle = {};
+                let textClass = '';
 
-                  if (isOfferBtn) {
-                    if (isSelected) {
-                      btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
-                      textClass = 'text-white';
-                    } else {
-                      btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
-                      textClass = 'text-[#d63031]';
-                    }
+                if (isOfferBtn) {
+                  if (isSelected) {
+                    btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
+                    textClass = 'text-white';
                   } else {
-                    if (isSelected) {
-                      btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
-                      textClass = 'text-[#fff4d6]';
-                    } else {
-                      btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
-                      textClass = 'text-[#1e382b]';
-                    }
+                    btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
+                    textClass = 'text-[#d63031]';
                   }
+                } else {
+                  if (isSelected) {
+                    btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
+                    textClass = 'text-[#fff4d6]';
+                  } else {
+                    btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
+                    textClass = 'text-[#1e382b]';
+                  }
+                }
 
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      style={btnStyle}
-                      className="relative px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shrink-0 snap-start active:scale-95 group shadow-2xs"
-                    >
-                      <span className="text-sm leading-none">{visual.icon}</span>
-                      <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    style={btnStyle}
+                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group"
+                  >
+                    <span className="text-sm leading-none">{visual.icon}</span>
+                    <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -851,7 +829,7 @@ export default function Home() {
               {currentStep === 'checkout' && (
                 <div className="flex flex-col gap-2.5">
                   <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</li></button>
                 </div>
               )}
 
