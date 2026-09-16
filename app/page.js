@@ -114,23 +114,16 @@ export default function Home() {
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
 
+  // تحكم صارم: لا يظهر الشريط أبداً إلا إذا كتبت "مغلق" أو "off" في جوجل شيت صراحة
   const storeStatus = useMemo(() => {
     const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
-    const openH = settings.openHour ?? 9;
-    const closeH = settings.closeHour ?? 23;
 
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
-      return { isOpen: false, forceShow: true };
+      return { isOpen: false, showBanner: true };
     }
-    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
-      return { isOpen: true, forceShow: false };
-    }
-
-    const currentHour = new Date().getHours();
-    const isOpenNow = (currentHour >= openH && currentHour < closeH);
-    // إذا كان مغلقاً في غير ساعات العمل، نظهره. وإذا كان مفتوحاً، نخفيه تماماً لتنظيف الواجهة.
-    return { isOpen: isOpenNow, forceShow: !isOpenNow };
+    // في أي حالة أخرى (تلقائي، مفتوح، أو فارغ)، الشريط مخفي تماماً لتنظيف الواجهة
+    return { isOpen: true, showBanner: false };
   }, [data.storeSettings]);
 
   useEffect(() => {
@@ -474,12 +467,12 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* شريط حالة المتجر: يختفي تماماً أثناء ساعات العمل الطبيعية في وضع "تلقائي" لراحة العين ونظافة الواجهة، ولا يظهر إلا إذا كان مغلقاً أو أردت أنت إظهاره من جوجل شيت */}
-          {storeStatus.forceShow && (
-            <div style={{ background: storeStatus.isOpen ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: storeStatus.isOpen ? '1.5px solid #4caf50' : '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
-              <div className={`status-marquee-text font-bold text-sm md:text-base ${storeStatus.isOpen ? 'text-[#1b3d2b]' : 'text-[#991b1b]'}`}>
-                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
-                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.isOpen ? '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى' : '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى'}</span></div>
+          {/* يظهر فقط إذا كتبتك "مغلق" يدوياً في شيت الإعدادات */}
+          {storeStatus.showBanner && (
+            <div style={{ background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
+              <div className="status-marquee-text font-bold text-sm md:text-base text-[#991b1b]">
+                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
+                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
               </div>
             </div>
           )}
@@ -908,7 +901,7 @@ export default function Home() {
             <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
             <p className="text-[11px] text-slate-500 mb-3">هل أنت متأكد من مسح السلة؟</p>
             <div className="flex gap-2">
-              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء`</button>
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء</button>
               <button onClick={clearEntireCart} className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs">نعم، امسح</button>
             </div>
           </div>
