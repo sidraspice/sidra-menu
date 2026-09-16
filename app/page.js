@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle, ChevronLeft
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -419,23 +419,17 @@ export default function Home() {
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
         
-        /* ✨ نبضة حركة خفيفة لفتت الانتباه لوجود تكملة في الشريط الأفقي */
-        @keyframes peekScroll {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(-15px); }
+        /* ✨ حركة سهم التوجيه المتحرك (Bounce Horizontal) */
+        @keyframes bounceRight {
+          0%, 100% { transform: translateX(0); opacity: 0.8; }
+          50% { transform: translateX(6px); opacity: 1; }
         }
-        .animate-peek {
-          animation: peekScroll 1.2s ease-in-out 1.5s 1;
+        .animate-bounce-right {
+          animation: bounceRight 1s infinite ease-in-out;
         }
 
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* تدرج ظلي خفيف يوحي بوجود عناصر إضافية على اليمين/اليسار */
-        .scroll-fade-mask {
-          mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
-          -webkit-mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
-        }
       `}} />
 
       {flyingItems.map(item => (
@@ -512,50 +506,53 @@ export default function Home() {
             )}
           </div>
 
-          {/* ✨ الشريط الأفقي المطور مع حركة "النبضة الترحيبية (Peek)" للإشارة لوجود تكملة */}
+          {/* ✨ الشريط الأفقي مع سهم تلميح متحرك (يُلفت الانتباه تماماً لوجود أقسام أخرى بالسحب) */}
           {!loading && !error && displayCategories.length > 0 && (
-            <div className="relative">
-              <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x scroll-fade-mask">
-                <div className="flex gap-2 animate-peek">
-                  {displayCategories.map(cat => {
-                    const isSelected = selectedCategory === cat;
-                    const isOfferBtn = cat === 'عروض وخصومات';
-                    const visual = getCategoryVisual(cat);
-                    
-                    let btnStyle = {};
-                    let textClass = '';
+            <div className="relative flex items-center">
+              <div className="flex-1 overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x flex items-center">
+                {displayCategories.map(cat => {
+                  const isSelected = selectedCategory === cat;
+                  const isOfferBtn = cat === 'عروض وخصومات';
+                  const visual = getCategoryVisual(cat);
+                  
+                  let btnStyle = {};
+                  let textClass = '';
 
-                    if (isOfferBtn) {
-                      if (isSelected) {
-                        btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
-                        textClass = 'text-white';
-                      } else {
-                        btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
-                        textClass = 'text-[#d63031]';
-                      }
+                  if (isOfferBtn) {
+                    if (isSelected) {
+                      btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
+                      textClass = 'text-white';
                     } else {
-                      if (isSelected) {
-                        btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
-                        textClass = 'text-[#fff4d6]';
-                      } else {
-                        btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
-                        textClass = 'text-[#1e382b]';
-                      }
+                      btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
+                      textClass = 'text-[#d63031]';
                     }
+                  } else {
+                    if (isSelected) {
+                      btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
+                      textClass = 'text-[#fff4d6]';
+                    } else {
+                      btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
+                      textClass = 'text-[#1e382b]';
+                    }
+                  }
 
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        style={btnStyle}
-                        className="relative px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shrink-0 snap-start active:scale-95 group shadow-2xs"
-                      >
-                        <span className="text-sm leading-none">{visual.icon}</span>
-                        <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      style={btnStyle}
+                      className="relative px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shrink-0 snap-start active:scale-95 group shadow-2xs"
+                    >
+                      <span className="text-sm leading-none">{visual.icon}</span>
+                      <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* سهم تلميح بصري متحرك يمين الشريط لضمان لفت الانتباه */}
+              <div className="shrink-0 pl-1.5 text-[#2d533e] pointer-events-none animate-bounce-right flex items-center bg-gradient-to-l from-[#fbf9f4] via-[#fbf9f4]/80 to-transparent py-2">
+                <ChevronLeft className="w-5 h-5 stroke-[3]" />
               </div>
             </div>
           )}
