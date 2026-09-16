@@ -93,6 +93,7 @@ export default function Home() {
 
   const [flyingItems, setFlyingItems] = useState([]);
   const cartIconRef = useRef(null);
+  const categoriesScrollRef = useRef(null); // مرجع للشريط الأفقي لتحريكه برمجياً بالكامل
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
 
@@ -133,6 +134,21 @@ export default function Home() {
       return { showBanner: true, isOpen: false };
     }
   }, [data.storeSettings]);
+
+  // 🚀 تحريك الشريط برمجياً بمسافة واسعة ليرى العميل كل العناصر ثم يعود
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (categoriesScrollRef.current) {
+        const el = categoriesScrollRef.current;
+        // التمرير لمسافة كافية لإظهار معظم العناصر الجانبية
+        el.scrollTo({ left: 280, behavior: 'smooth' });
+        setTimeout(() => {
+          el.scrollTo({ left: 0, behavior: 'smooth' });
+        }, 1200);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [data.categories]);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -427,18 +443,6 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        
-        /* ✨ حركة التموضع الذكية (Scroll Nudge): الشريط يتحرك ببطء ليلفت الانتباه لوجود تكملة ثم يعود */
-        @keyframes scrollNudge {
-          0% { transform: translateX(0); }
-          30% { transform: translateX(-60px); }
-          65% { transform: translateX(10px); }
-          100% { transform: translateX(0); }
-        }
-        .animate-scroll-nudge {
-          animation: scrollNudge 1.6s ease-in-out 1.2s 1;
-        }
-
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
@@ -519,10 +523,14 @@ export default function Home() {
             )}
           </div>
 
-          {/* ✨ الشريط الأفقي مع حركة اللفة التلقائية (Scroll Nudge) لفت الانتباه */}
+          {/* ✨ الشريط الأفقي المزود بالتحريك التلقائي عبر الـ Ref ليرى العميل كل العناصر */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="overflow-hidden pb-1">
-              <div className="flex overflow-x-auto gap-2 hide-scrollbar snap-x animate-scroll-nudge py-1">
+              <div 
+                ref={categoriesScrollRef}
+                className="flex overflow-x-auto gap-2 hide-scrollbar snap-x py-1"
+                style={{ scrollBehavior: 'smooth' }}
+              >
                 {displayCategories.map(cat => {
                   const isSelected = selectedCategory === cat;
                   const isOfferBtn = cat === 'عروض وخصومات';
@@ -919,7 +927,7 @@ export default function Home() {
         </div>
       )}
 
-      {showRestoreConfirm &&,
+      {showRestoreConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl">
             <RotateCcw className="w-8 h-8 text-amber-500 mx-auto mb-1.5" />
