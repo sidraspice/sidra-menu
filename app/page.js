@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -56,6 +56,26 @@ const getWeightNumberInGrams = (weightStr) => {
     num = num * 1000;
   }
   return num;
+};
+
+// حاسبة الكفاية الذكية
+const getSufficiencyInsight = (productName, category, weightStr) => {
+  const name = (productName || '').toLowerCase();
+  const cat = (category || '').toLowerCase();
+  const grams = getWeightNumberInGrams(weightStr);
+
+  const isHerbOrFlower = name.includes('اعشاب') || name.includes('أعشاب') || name.includes('بابونج') || name.includes('نعناع') || name.includes('يانسون') || name.includes('كركديه') || name.includes('شاي') || name.includes('ميرمية') || name.includes('حلفابر') || cat.includes('اعشاب') || cat.includes('مشروبات');
+
+  if (isHerbOrFlower) {
+    if (grams <= 50) return `💡 حجم كبير ومرتفع (خفيف جداً)، يكفي تقريباً لـ 20 إلى 30 كوب مشروب دافئ.`;
+    if (grams <= 100) return `🔥 عبوة وفيرة من الأعشاب الخفيفة، تكفي للاستخدام المنتظم لمدة شهر.`;
+    return `🌟 كمية ضخمة ومخزون ممتاز للاستخدام طويل الأمد.`;
+  } else {
+    if (grams <= 50) return `💡 عبوة استهلاك خفيف أو تجريبي (تكفي لـ 5 إلى 8 أكلات منزلية).`;
+    if (grams <= 100) return `🔥 العبوة الأكثر طلباً للاستهلاك المنزلي، تكفي أسرة متوسطة لمدة أسبوعين.`;
+    if (grams <= 250) return `⭐ عبوة اقتصادية ممتازة، تكفي استهلاك شهر كامل للطبخ اليومي.`;
+    return `📦 حجم عائلي كبير وموفر للاستهلاك المكثف والمطاعم.`;
+  }
 };
 
 const getCalculatedTotalWeight = (weightStr, qty) => {
@@ -333,7 +353,7 @@ export default function Home() {
     return parseFloat((pricePerGram * weightInput).toFixed(2));
   };
 
-  // 🪄 تأثير الطيران السحري للسلة
+  // تأثير الطيران السحري للسلة
   const triggerFlyingAnimation = (e, imgUrl) => {
     if (!e || !cartIconRef.current) return;
     const rect = cartIconRef.current.getBoundingClientRect();
@@ -500,9 +520,9 @@ export default function Home() {
     }
   };
 
-  // 🎙️ دالة الطلب السريع بالصوت (فويس نوت)
+  // 🎙️ دالة الطلب السريع بالرسالة الصوتية
   const handleVoiceOrderWhatsApp = () => {
-    const voiceMsg = `مرحباً متجر عطارة سدرة 🌿\nأريد تسجيل طلبي عبر رسالة صوتية (فويس نوت).. سأقوم بتسجيله الآن 👇`;
+    const voiceMsg = `مرحباً متجر عطارة سدرة 🌿\nأريد إرسال طلبي في رسالة صوتية وسأقوم بتسجيلها الآن 👇`;
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(voiceMsg)}`;
     window.open(url, '_blank');
   };
@@ -641,17 +661,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎙️ زر الطلب السريع بالصوت (عائم أنيق) */}
+      {/* 🎙️ زر الطلب السريع بالرسالة الصوتية (تم تعديل النص) */}
       <button
         onClick={handleVoiceOrderWhatsApp}
         className="fixed bottom-20 left-4 z-40 bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-3.5 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-black hover:scale-105 active:scale-95 transition border border-white/20 animate-bounce"
         style={{ animationDuration: '3s' }}
-        title="اطلب سريعاً بفويس نوت"
+        title="اطلب سريعاً برسالة صوتية"
       >
         <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
           <Mic className="w-3.5 h-3.5 text-white animate-pulse" />
         </div>
-        <span>اطلب بفويس نوت 🎤</span>
+        <span>اطلب برسالة صوتية 🎤</span>
       </button>
 
       <div 
@@ -1084,6 +1104,15 @@ export default function Home() {
                 })}
               </div>
 
+              {selectedVariant && !isCustomWeight && (
+                <div className="mt-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5 flex items-start gap-2">
+                  <HelpCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[11px] font-bold text-amber-900 leading-tight">
+                    {getSufficiencyInsight(activeModalProduct.name, activeModalProduct.category, getCalculatedTotalWeight(selectedVariant.weight, modalQty))}
+                  </p>
+                </div>
+              )}
+
               <div 
                 onClick={() => {
                   triggerVibration();
@@ -1122,6 +1151,14 @@ export default function Home() {
                       />
                       <span className="text-sm font-black text-red-600 shrink-0">جرام</span>
                     </div>
+                    {customWeightValue && parseInt(customWeightValue) > 0 && (
+                      <div className="mt-2 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2 flex items-start gap-1.5">
+                        <HelpCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-bold text-amber-900 leading-tight">
+                          {getSufficiencyInsight(activeModalProduct.name, activeModalProduct.category, `${parseInt(customWeightValue) * modalQty} جرام`)}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1277,7 +1314,6 @@ export default function Home() {
               {currentStep === 'cart' && (
                 <div className="overflow-y-auto max-h-[56vh] py-2.5">
                   
-                  {/* شريط التحفيز الذكي للتوصيل المجاني داخل دمنهور */}
                   {cart.length > 0 && (
                     <div className="mb-3 bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
                       <div className="flex justify-between items-center mb-2">
