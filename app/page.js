@@ -10,13 +10,6 @@ const WHATSAPP_NUMBER = "201044760160";
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
 const FREE_DELIVERY_THRESHOLD = 300; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
 
-// 🥘 الباقات الذكية (يمكنك تعديل أسمائها وأسعارها هنا بسهولة)
-const SMART_BUNDLES = [
-  { id: 'b1', name: 'باقة الكبسة الملوكي', description: 'حبهان، فلفل أسود، قرنفل، قرفة، لومي', weight: '250 جرام', price: 150, originalPrice: 175, icon: '🍛' },
-  { id: 'b2', name: 'توليفة مزاج القهوة', description: 'بن برازيلي، محوج، مستكة، حبهان ممتاز', weight: '500 جرام', price: 280, originalPrice: 310, icon: '☕' },
-  { id: 'b3', name: 'أساسيات المطبخ', description: 'كمون بلدي، كزبرة، فلفل أسود، بابريكا', weight: '400 جرام', price: 190, originalPrice: null, icon: '🥘' }
-];
-
 // دالة لتشغيل اهتزاز خفيف في الموبايل عند التفاعل
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
@@ -397,34 +390,6 @@ export default function Home() {
     toastTimeoutRef.current = setTimeout(() => { setToast({ visible: false, message: '' }); }, 2500);
   };
 
-  // 🥘 دالة إضافة الباقة الذكية
-  const addBundleToCart = (bundle, e) => {
-    triggerVibration();
-    triggerFlyingAnimation(e, '/logo.png'); // صورة افتراضية للباقة أثناء الطيران
-    
-    const itemKey = `bundle_${bundle.id}`;
-    
-    setCart(prev => {
-      const exists = prev.find(i => i.key === itemKey);
-      if (exists) {
-        return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + 1 } : i);
-      }
-      return [...prev, {
-        key: itemKey,
-        name: bundle.name,
-        category: 'باقات سدرة',
-        weight: bundle.weight,
-        price: bundle.price,
-        originalPrice: bundle.originalPrice,
-        qty: 1
-      }];
-    });
-
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ visible: true, message: `تمت إضافة "${bundle.name}" بنجاح 🎁` });
-    toastTimeoutRef.current = setTimeout(() => { setToast({ visible: false, message: '' }); }, 2500);
-  };
-
   const updateCartQty = (key, delta) => {
     triggerVibration();
     setCart(prev => prev.map(item => {
@@ -610,10 +575,6 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        
-        /* شريط التمرير المخفي للباقات */
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
       {/* 🪄 عرض العناصر الطائرة */}
@@ -760,42 +721,6 @@ export default function Home() {
               </button>
             </div>
           )}
-
-          {/* 🥘 الباقات الذكية (One-Click Bundles) */}
-          <div className="mb-3">
-            <div className="flex justify-between items-center px-1 mb-2">
-              <h2 className="text-[#1e382b] font-black text-xs flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-[#d4af37]" /> باقات سدرة للتوفير
-              </h2>
-              <span className="text-[9px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">خصومات خاصة</span>
-            </div>
-            <div className="flex overflow-x-auto gap-2.5 pb-2 snap-x hide-scrollbar">
-              {SMART_BUNDLES.map(bundle => (
-                <div key={bundle.id} className="min-w-[220px] bg-gradient-to-br from-[#1e382b] to-[#2d533e] rounded-2xl p-3 shadow-md snap-start shrink-0 relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-10 text-6xl">{bundle.icon}</div>
-                  <div className="relative z-10">
-                    <h3 className="text-white font-black text-sm mb-1">{bundle.icon} {bundle.name}</h3>
-                    <p className="text-[#e8e2d5] text-[10px] font-semibold mb-2 leading-snug line-clamp-2">{bundle.description}</p>
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <span className="block text-[#c89d56] text-[10px] font-bold mb-0.5">الوزن: {bundle.weight}</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-white font-black text-sm">{bundle.price} ج</span>
-                          {bundle.originalPrice && <span className="text-white/60 line-through text-[10px]">{bundle.originalPrice} ج</span>}
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => addBundleToCart(bundle, e)}
-                        className="bg-[#d4af37] text-[#1e382b] hover:bg-[#c89d56] text-xs font-black px-3 py-1.5 rounded-lg transition shadow-sm"
-                      >
-                        أضف للسلة
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
