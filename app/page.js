@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, Mic
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -92,6 +92,7 @@ export default function Home() {
   const [flyingItems, setFlyingItems] = useState([]);
   const cartIconRef = useRef(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [confettiFired, setConfettiFired] = useState(false);
 
   // States for Last Order Edit Feature
   const [lastOrder, setLastOrder] = useState(null);
@@ -141,6 +142,14 @@ export default function Home() {
       return { isOpen: false };
     }
   }, [data.storeSettings]);
+
+  // Load Confetti Script dynamically
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   useEffect(() => {
     const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack;
@@ -194,7 +203,6 @@ export default function Home() {
       if (savedCart) {
         const parsedCart = JSON.parse(savedCart);
         setCart(parsedCart);
-        // Smart Greeting if Cart has items
         if (parsedCart.length > 0 && !sessionStorage.getItem('sedra_greeted')) {
           setShowWelcomeBack(true);
           sessionStorage.setItem('sedra_greeted', 'true');
@@ -325,7 +333,7 @@ export default function Home() {
     return parseFloat((pricePerGram * weightInput).toFixed(2));
   };
 
-  // 🪄 دالة الطيران السحري للسلة
+  // 🪄 تأثير الطيران السحري للسلة
   const triggerFlyingAnimation = (e, imgUrl) => {
     if (!e || !cartIconRef.current) return;
     const rect = cartIconRef.current.getBoundingClientRect();
@@ -339,7 +347,6 @@ export default function Home() {
     
     setTimeout(() => {
       setFlyingItems(prev => prev.filter(item => item.id !== id));
-      // اهتزاز إضافي عند وصول المنتج للسلة
       triggerVibration();
     }, 800);
   };
@@ -410,6 +417,7 @@ export default function Home() {
     setCart([]);
     setIsEditing(false);
     setShowClearConfirm(false);
+    setConfettiFired(false);
   };
 
   const totalAmount = useMemo(() => {
@@ -420,10 +428,25 @@ export default function Home() {
     return cart.reduce((sum, item) => sum + item.qty, 0);
   }, [cart]);
 
-  // حساب النسبة المئوية لشريط التوصيل المجاني
+  // حساب النسبة المئوية لشريط التوصيل المجاني + تفعيل الاحتفال (Confetti)
   const currentTotalNumber = parseFloat(totalAmount) || 0;
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
+
+  useEffect(() => {
+    if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+      if (!confettiFired && window.confetti) {
+        window.confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+        setConfettiFired(true);
+      }
+    } else {
+      setConfettiFired(false);
+    }
+  }, [currentTotalNumber, confettiFired]);
 
   const validateForm = () => {
     const errors = {};
@@ -477,6 +500,13 @@ export default function Home() {
     }
   };
 
+  // 🎙️ دالة الطلب السريع بالصوت (فويس نوت)
+  const handleVoiceOrderWhatsApp = () => {
+    const voiceMsg = `مرحباً متجر عطارة سدرة 🌿\nأريد تسجيل طلبي عبر رسالة صوتية (فويس نوت).. سأقوم بتسجيله الآن 👇`;
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(voiceMsg)}`;
+    window.open(url, '_blank');
+  };
+
   const handleSendWhatsAppOrder = () => {
     const orderId = isEditing && lastOrder ? lastOrder.id : `SD-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -526,7 +556,6 @@ export default function Home() {
 
     message += `⚖️ إجمالي الوزن: ${formattedTotalWeight}\n`;
     
-    // 🎁 التعديل المطلوب: رسالة التوصيل المجاني تظهر بين إجمالي الوزن وإجمالي الفاتورة بدقة
     if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
       message += `🎁 مستحق لعرض: توصيل مجاني داخل دمنهور\n`;
     }
@@ -569,7 +598,6 @@ export default function Home() {
         .status-marquee-container:active .status-marquee-text, .status-marquee-container:hover .status-marquee-text { animation-play-state: paused; }
         @keyframes scroll-arabic-marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(50%); } }
         
-        /* 🪄 تأثير طيران السلة */
         @keyframes flyToCart {
           0% { top: var(--startY); left: var(--startX); transform: scale(1) rotate(0deg); opacity: 1; }
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
@@ -577,7 +605,7 @@ export default function Home() {
         }
       `}} />
 
-      {/* 🪄 عرض العناصر الطائرة */}
+      {/* عناصر طيران السلة */}
       {flyingItems.map(item => (
         <img
           key={item.id}
@@ -587,14 +615,14 @@ export default function Home() {
           style={{
             '--startX': `${item.startX}px`,
             '--startY': `${item.startY}px`,
-            '--endX': `${item.endX - 24}px`, // توسيط العنصر الطائر مع السلة
+            '--endX': `${item.endX - 24}px`,
             '--endY': `${item.endY - 24}px`,
             animation: 'flyToCart 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards'
           }}
         />
       ))}
 
-      {/* 🧲 الترحيب الذكي للسلة المتروكة */}
+      {/* الترحيب الذكي للسلة المتروكة */}
       {showWelcomeBack && (
         <div className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95">
@@ -612,6 +640,19 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* 🎙️ زر الطلب السريع بالصوت (عائم أنيق) */}
+      <button
+        onClick={handleVoiceOrderWhatsApp}
+        className="fixed bottom-20 left-4 z-40 bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-3.5 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-black hover:scale-105 active:scale-95 transition border border-white/20 animate-bounce"
+        style={{ animationDuration: '3s' }}
+        title="اطلب سريعاً بفويس نوت"
+      >
+        <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+          <Mic className="w-3.5 h-3.5 text-white animate-pulse" />
+        </div>
+        <span>اطلب بفويس نوت 🎤</span>
+      </button>
 
       <div 
         className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw]
