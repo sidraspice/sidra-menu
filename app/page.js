@@ -464,7 +464,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* ✨ شبكة الأقسام الملتفة (Flex-wrap): تظهر جميع الأقسام دفعة واحدة أمام العميل بوضوح تام بدون إخفاء وبشكل مضغوط أنيق */}
           {!loading && !error && displayCategories.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
@@ -829,7 +828,7 @@ export default function Home() {
               {currentStep === 'checkout' && (
                 <div className="flex flex-col gap-2.5">
                   <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</li></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
