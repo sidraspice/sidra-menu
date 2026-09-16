@@ -3,17 +3,24 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
-const FREE_DELIVERY_THRESHOLD = 500; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
+const FREE_DELIVERY_THRESHOLD = 300; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
+
+// 🥘 الباقات الذكية (يمكنك تعديل أسمائها وأسعارها هنا بسهولة)
+const SMART_BUNDLES = [
+  { id: 'b1', name: 'باقة الكبسة الملوكي', description: 'حبهان، فلفل أسود، قرنفل، قرفة، لومي', weight: '250 جرام', price: 150, originalPrice: 175, icon: '🍛' },
+  { id: 'b2', name: 'توليفة مزاج القهوة', description: 'بن برازيلي، محوج، مستكة، حبهان ممتاز', weight: '500 جرام', price: 280, originalPrice: 310, icon: '☕' },
+  { id: 'b3', name: 'أساسيات المطبخ', description: 'كمون بلدي، كزبرة، فلفل أسود، بابريكا', weight: '400 جرام', price: 190, originalPrice: null, icon: '🥘' }
+];
 
 // دالة لتشغيل اهتزاز خفيف في الموبايل عند التفاعل
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-    window.navigator.vibrate(50); // اهتزاز لمدة 50 ملي ثانية
+    window.navigator.vibrate(50);
   }
 };
 
@@ -88,6 +95,11 @@ export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // States for Smart Features
+  const [flyingItems, setFlyingItems] = useState([]);
+  const cartIconRef = useRef(null);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+
   // States for Last Order Edit Feature
   const [lastOrder, setLastOrder] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -138,7 +150,7 @@ export default function Home() {
   }, [data.storeSettings]);
 
   useEffect(() => {
-    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm;
+    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack;
     
     const handlePopState = () => {
       if (isCartOpen) setIsCartOpen(false);
@@ -146,6 +158,7 @@ export default function Home() {
       if (zoomedImage) setZoomedImage(null);
       if (showClearConfirm) setShowClearConfirm(false);
       if (showRestoreConfirm) setShowRestoreConfirm(false);
+      if (showWelcomeBack) setShowWelcomeBack(false);
     };
 
     if (isAnyModalOpen) {
@@ -156,7 +169,7 @@ export default function Home() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm, showRestoreConfirm]);
+  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -181,10 +194,19 @@ export default function Home() {
     fetchData();
   }, []);
 
+  // Load Cart & Smart Greeting
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('sedra_cart');
-      if (savedCart) setCart(JSON.parse(savedCart));
+      if (savedCart) {
+        const parsedCart = JSON.parse(savedCart);
+        setCart(parsedCart);
+        // Smart Greeting if Cart has items
+        if (parsedCart.length > 0 && !sessionStorage.getItem('sedra_greeted')) {
+          setShowWelcomeBack(true);
+          sessionStorage.setItem('sedra_greeted', 'true');
+        }
+      }
     } catch (e) {
       console.error('Error loading cart from storage', e);
     }
@@ -310,10 +332,30 @@ export default function Home() {
     return parseFloat((pricePerGram * weightInput).toFixed(2));
   };
 
-  const addToCart = () => {
+  // 🪄 دالة الطيران السحري للسلة
+  const triggerFlyingAnimation = (e, imgUrl) => {
+    if (!e || !cartIconRef.current) return;
+    const rect = cartIconRef.current.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const endX = rect.left + rect.width / 2;
+    const endY = rect.top + rect.height / 2;
+    
+    const id = Date.now() + Math.random();
+    setFlyingItems(prev => [...prev, { id, startX, startY, endX, endY, img: imgUrl }]);
+    
+    setTimeout(() => {
+      setFlyingItems(prev => prev.filter(item => item.id !== id));
+      // اهتزاز إضافي عند وصول المنتج للسلة
+      triggerVibration();
+    }, 800);
+  };
+
+  const addToCart = (e) => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
     
-    triggerVibration(); // اهتزاز الموبايل عند الإضافة
+    triggerVibration(); 
+    triggerFlyingAnimation(e, activeModalProduct.image || '/logo.png');
 
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
@@ -351,16 +393,40 @@ export default function Home() {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
-    
     setToast({ visible: true, message: `تمت إضافة "${productName}" بنجاح` });
+    toastTimeoutRef.current = setTimeout(() => { setToast({ visible: false, message: '' }); }, 2500);
+  };
+
+  // 🥘 دالة إضافة الباقة الذكية
+  const addBundleToCart = (bundle, e) => {
+    triggerVibration();
+    triggerFlyingAnimation(e, '/logo.png'); // صورة افتراضية للباقة أثناء الطيران
     
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast({ visible: false, message: '' });
-    }, 2500);
+    const itemKey = `bundle_${bundle.id}`;
+    
+    setCart(prev => {
+      const exists = prev.find(i => i.key === itemKey);
+      if (exists) {
+        return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + 1 } : i);
+      }
+      return [...prev, {
+        key: itemKey,
+        name: bundle.name,
+        category: 'باقات سدرة',
+        weight: bundle.weight,
+        price: bundle.price,
+        originalPrice: bundle.originalPrice,
+        qty: 1
+      }];
+    });
+
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ visible: true, message: `تمت إضافة "${bundle.name}" بنجاح 🎁` });
+    toastTimeoutRef.current = setTimeout(() => { setToast({ visible: false, message: '' }); }, 2500);
   };
 
   const updateCartQty = (key, delta) => {
-    triggerVibration(); // اهتزاز عند زيادة أو تقليل الكمية
+    triggerVibration();
     setCart(prev => prev.map(item => {
       if (item.key === key) {
         const newQty = item.qty + delta;
@@ -495,7 +561,7 @@ export default function Home() {
 
     message += `⚖️ إجمالي الوزن: ${formattedTotalWeight}\n`;
     
-    // إضافة ملاحظة التوصيل المجاني داخل دمنهور في حال تخطي الحد المطلوب
+    // 🎁 التعديل المطلوب: رسالة التوصيل المجاني تظهر بين إجمالي الوزن وإجمالي الفاتورة بدقة
     if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
       message += `🎁 مستحق لعرض: توصيل مجاني داخل دمنهور\n`;
     }
@@ -530,30 +596,61 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4]">
+    <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       
       <style dangerouslySetInnerHTML={{__html: `
-        .status-marquee-container {
-          width: 100%;
-          overflow: hidden !important;
-          position: relative;
-          display: flex;
-          align-items: center;
+        .status-marquee-container { width: 100%; overflow: hidden !important; position: relative; display: flex; align-items: center; }
+        .status-marquee-text { display: inline-flex; white-space: nowrap; animation: scroll-arabic-marquee 25s linear infinite; }
+        .status-marquee-container:active .status-marquee-text, .status-marquee-container:hover .status-marquee-text { animation-play-state: paused; }
+        @keyframes scroll-arabic-marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(50%); } }
+        
+        /* 🪄 تأثير طيران السلة */
+        @keyframes flyToCart {
+          0% { top: var(--startY); left: var(--startX); transform: scale(1) rotate(0deg); opacity: 1; }
+          40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
+          100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        .status-marquee-text {
-          display: inline-flex;
-          white-space: nowrap;
-          animation: scroll-arabic-marquee 25s linear infinite;
-        }
-        .status-marquee-container:active .status-marquee-text,
-        .status-marquee-container:hover .status-marquee-text {
-          animation-play-state: paused;
-        }
-        @keyframes scroll-arabic-marquee {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(50%); }
-        }
+        
+        /* شريط التمرير المخفي للباقات */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
+
+      {/* 🪄 عرض العناصر الطائرة */}
+      {flyingItems.map(item => (
+        <img
+          key={item.id}
+          src={item.img}
+          alt="flying"
+          className="fixed z-[100000] w-12 h-12 rounded-full border-2 border-[#d4af37] shadow-xl object-cover pointer-events-none"
+          style={{
+            '--startX': `${item.startX}px`,
+            '--startY': `${item.startY}px`,
+            '--endX': `${item.endX - 24}px`, // توسيط العنصر الطائر مع السلة
+            '--endY': `${item.endY - 24}px`,
+            animation: 'flyToCart 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards'
+          }}
+        />
+      ))}
+
+      {/* 🧲 الترحيب الذكي للسلة المتروكة */}
+      {showWelcomeBack && (
+        <div className="fixed inset-0 bg-black/70 z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-[#e8f5e9] rounded-full flex items-center justify-center mx-auto mb-3">
+              <ShoppingBag className="w-8 h-8 text-[#2d533e]" />
+            </div>
+            <h3 className="font-black text-lg text-[#1e382b] mb-2">أهلاً بك مرة تانية! 🌿</h3>
+            <p className="text-sm text-slate-500 mb-5 font-semibold">منتجاتك في السلة في أمان ومستنية تأكيدك.. كمّل طلبك دلوقتي قبل نفاذ الكمية.</p>
+            <button
+              onClick={() => setShowWelcomeBack(false)}
+              className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-[#1e382b] transition"
+            >
+              متابعة التسوق
+            </button>
+          </div>
+        </div>
+      )}
 
       <div 
         className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw]
@@ -663,6 +760,42 @@ export default function Home() {
               </button>
             </div>
           )}
+
+          {/* 🥘 الباقات الذكية (One-Click Bundles) */}
+          <div className="mb-3">
+            <div className="flex justify-between items-center px-1 mb-2">
+              <h2 className="text-[#1e382b] font-black text-xs flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#d4af37]" /> باقات سدرة للتوفير
+              </h2>
+              <span className="text-[9px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold animate-pulse">خصومات خاصة</span>
+            </div>
+            <div className="flex overflow-x-auto gap-2.5 pb-2 snap-x hide-scrollbar">
+              {SMART_BUNDLES.map(bundle => (
+                <div key={bundle.id} className="min-w-[220px] bg-gradient-to-br from-[#1e382b] to-[#2d533e] rounded-2xl p-3 shadow-md snap-start shrink-0 relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 opacity-10 text-6xl">{bundle.icon}</div>
+                  <div className="relative z-10">
+                    <h3 className="text-white font-black text-sm mb-1">{bundle.icon} {bundle.name}</h3>
+                    <p className="text-[#e8e2d5] text-[10px] font-semibold mb-2 leading-snug line-clamp-2">{bundle.description}</p>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <span className="block text-[#c89d56] text-[10px] font-bold mb-0.5">الوزن: {bundle.weight}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-white font-black text-sm">{bundle.price} ج</span>
+                          {bundle.originalPrice && <span className="text-white/60 line-through text-[10px]">{bundle.originalPrice} ج</span>}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={(e) => addBundleToCart(bundle, e)}
+                        className="bg-[#d4af37] text-[#1e382b] hover:bg-[#c89d56] text-xs font-black px-3 py-1.5 rounded-lg transition shadow-sm"
+                      >
+                        أضف للسلة
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5] mb-2.5">
             <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
@@ -948,7 +1081,7 @@ export default function Home() {
                       key={idx}
                       disabled={!variant.available}
                       onClick={() => {
-                        triggerVibration(); // اهتزاز عند اختيار الوزن
+                        triggerVibration(); 
                         setSelectedVariant(variant);
                         setIsCustomWeight(false);
                       }}
@@ -1056,7 +1189,7 @@ export default function Home() {
             <div className="flex flex-col gap-2.5">
               <button
                 disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))}
-                onClick={addToCart}
+                onClick={(e) => addToCart(e)}
                 className="w-full bg-[#2d533e] disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition"
               >
                 {(() => {
@@ -1125,6 +1258,7 @@ export default function Home() {
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
         <div className="max-w-xl mx-auto flex items-center gap-2">
           <button
+            ref={cartIconRef}
             onClick={() => {
               triggerVibration();
               setCurrentStep('cart');
@@ -1181,7 +1315,7 @@ export default function Home() {
                   {cart.length > 0 && (
                     <div className="mb-3 bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-[11px] font-bold text-slate-700">توصيل مجاني داخل دمنهور 🚚</span>
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
                         <span className="text-[11px] font-black text-[#2d533e]">
                           {currentTotalNumber >= FREE_DELIVERY_THRESHOLD 
                             ? 'مؤهل للتوصيل المجاني 🎉' 
