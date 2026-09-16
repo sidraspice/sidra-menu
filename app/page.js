@@ -8,6 +8,14 @@ import {
 
 const WHATSAPP_NUMBER = "201044760160";
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours in milliseconds
+const FREE_DELIVERY_THRESHOLD = 300; // حد التوصيل المجاني داخل دمنهور (يمكنك تغييره)
+
+// دالة لتشغيل اهتزاز خفيف في الموبايل عند التفاعل
+const triggerVibration = () => {
+  if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(50); // اهتزاز لمدة 50 ملي ثانية
+  }
+};
 
 const formatHour12 = (hour24) => {
   if (hour24 == null || isNaN(hour24)) return '9:00 صباحاً';
@@ -129,7 +137,6 @@ export default function Home() {
     }
   }, [data.storeSettings]);
 
-  // Handle Browser Back Button for Modals
   useEffect(() => {
     const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm;
     
@@ -151,7 +158,6 @@ export default function Home() {
     };
   }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm, showRestoreConfirm]);
 
-  // Fetch Products Data
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -175,7 +181,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Load Cart & Last Order
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('sedra_cart');
@@ -193,7 +198,6 @@ export default function Home() {
           if (Date.now() < parsed.expiresAt) {
             setLastOrder(parsed);
           } else {
-            // Expired, clear editable copy only
             localStorage.removeItem('sedra_last_order');
             setLastOrder(null);
             setIsEditing(false);
@@ -205,12 +209,10 @@ export default function Home() {
     };
 
     checkLastOrder();
-    // Re-verify expiration every minute if app stays open
     const interval = setInterval(checkLastOrder, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // Auto Save Cart
   useEffect(() => {
     if (isCartLoaded) {
       try {
@@ -221,7 +223,6 @@ export default function Home() {
     }
   }, [cart, isCartLoaded]);
 
-  // Load Customer Data
   useEffect(() => {
     try {
       const savedCustomer = localStorage.getItem('sedra_customer');
@@ -312,6 +313,8 @@ export default function Home() {
   const addToCart = () => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
     
+    triggerVibration(); // اهتزاز الموبايل عند الإضافة
+
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
     let finalOriginalPrice = isOfferValid(selectedVariant.price, selectedVariant.originalPrice) ? selectedVariant.originalPrice : null;
@@ -357,6 +360,7 @@ export default function Home() {
   };
 
   const updateCartQty = (key, delta) => {
+    triggerVibration(); // اهتزاز عند زيادة أو تقليل الكمية
     setCart(prev => prev.map(item => {
       if (item.key === key) {
         const newQty = item.qty + delta;
@@ -367,12 +371,13 @@ export default function Home() {
   };
 
   const removeCartItem = (key) => {
+    triggerVibration();
     setCart(prev => prev.filter(item => item.key !== key));
   };
 
   const clearEntireCart = () => {
     setCart([]);
-    setIsEditing(false); // Cancel edit mode if cart is manually cleared
+    setIsEditing(false);
     setShowClearConfirm(false);
   };
 
@@ -383,6 +388,11 @@ export default function Home() {
   const totalItemsCount = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.qty, 0);
   }, [cart]);
+
+  // حساب النسبة المئوية لشريط التوصيل المجاني
+  const currentTotalNumber = parseFloat(totalAmount) || 0;
+  const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
+  const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
 
   const validateForm = () => {
     const errors = {};
@@ -414,7 +424,6 @@ export default function Home() {
     }
   };
 
-  // Restoring Last Order Feature
   const handleRestoreOrderRequest = () => {
     if (cart.length > 0) {
       setShowRestoreConfirm(true);
@@ -485,11 +494,16 @@ export default function Home() {
     }
 
     message += `⚖️ إجمالي الوزن: ${formattedTotalWeight}\n`;
+    
+    // إضافة ملاحظة التوصيل المجاني داخل دمنهور في حال تخطي الحد المطلوب
+    if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+      message += `🎁 مستحق لعرض: توصيل مجاني داخل دمنهور\n`;
+    }
+
     message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
     message += `✨ الدفع عند الاستلام بعد المعاينة\n\n`;
     message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
-    // Save Editable Copy
     const now = Date.now();
     const orderData = {
       id: orderId,
@@ -504,7 +518,6 @@ export default function Home() {
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 
-    // Clean up current cart and session
     setCart([]);
     setIsEditing(false);
     setCustomer(prev => {
@@ -935,6 +948,7 @@ export default function Home() {
                       key={idx}
                       disabled={!variant.available}
                       onClick={() => {
+                        triggerVibration(); // اهتزاز عند اختيار الوزن
                         setSelectedVariant(variant);
                         setIsCustomWeight(false);
                       }}
@@ -972,7 +986,10 @@ export default function Home() {
               </div>
 
               <div 
-                onClick={() => setIsCustomWeight(true)}
+                onClick={() => {
+                  triggerVibration();
+                  setIsCustomWeight(true);
+                }}
                 className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${
                   isCustomWeight 
                     ? 'border-red-600 bg-red-50 shadow-md' 
@@ -1015,14 +1032,20 @@ export default function Home() {
               <span className="text-xs font-bold text-slate-700">الكمية المطلوبة:</span>
               <div className="flex items-center gap-2.5">
                 <button
-                  onClick={() => setModalQty(Math.max(1, modalQty - 1))}
+                  onClick={() => {
+                    triggerVibration();
+                    setModalQty(Math.max(1, modalQty - 1));
+                  }}
                   className="w-7 h-7 rounded-lg bg-white border border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-2xs"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
                 <span className="font-bold text-sm text-[#1e382b] w-5 text-center">{modalQty}</span>
                 <button
-                  onClick={() => setModalQty(modalQty + 1)}
+                  onClick={() => {
+                    triggerVibration();
+                    setModalQty(modalQty + 1);
+                  }}
                   className="w-7 h-7 rounded-lg bg-white border border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -1103,6 +1126,7 @@ export default function Home() {
         <div className="max-w-xl mx-auto flex items-center gap-2">
           <button
             onClick={() => {
+              triggerVibration();
               setCurrentStep('cart');
               setIsCartOpen(true);
             }}
@@ -1151,54 +1175,80 @@ export default function Home() {
               </div>
 
               {currentStep === 'cart' && (
-                <div className="overflow-y-auto max-h-[56vh] py-2.5 divide-y divide-slate-100">
-                  {cart.length === 0 ? (
-                    <div className="text-center py-14 text-slate-400 font-bold text-xs">
-                      السلة فارغة حالياً
-                    </div>
-                  ) : (
-                    cart.map(item => (
-                      <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
-                        <div className="flex-1">
-                          <h4 className="font-bold text-xs text-[#1e382b] leading-snug">{item.name}</h4>
-                          <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
-                            الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}
-                          </div>
-                          <div className="text-[10px] text-[#2d533e] font-bold mt-0.5 flex items-center gap-1.5">
-                            <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
-                            {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
-                              <span className="text-slate-600 line-through decoration-slate-500 font-semibold">
-                                {(item.originalPrice * item.qty).toFixed(2)} جنيه
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => updateCartQty(item.key, -1)}
-                            className="w-6.5 h-6.5 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-700 font-bold"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="text-xs font-black w-4 text-center text-[#1e382b]">{item.qty}</span>
-                          <button
-                            onClick={() => updateCartQty(item.key, 1)}
-                            className="w-6.5 h-6.5 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-700 font-bold"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => removeCartItem(item.key)}
-                            className="w-6.5 h-6.5 bg-red-50 hover:bg-red-100 rounded-lg flex items-center justify-center text-red-500 mr-1"
-                            title="حذف"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                <div className="overflow-y-auto max-h-[56vh] py-2.5">
+                  
+                  {/* شريط التحفيز الذكي للتوصيل المجاني داخل دمنهور */}
+                  {cart.length > 0 && (
+                    <div className="mb-3 bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[11px] font-bold text-slate-700">توصيل مجاني داخل دمنهور 🚚</span>
+                        <span className="text-[11px] font-black text-[#2d533e]">
+                          {currentTotalNumber >= FREE_DELIVERY_THRESHOLD 
+                            ? 'مؤهل للتوصيل المجاني 🎉' 
+                            : `باقي ${remainingForFreeDelivery} جنيه`}
+                        </span>
                       </div>
-                    ))
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-500 ease-out ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                          style={{ width: `${deliveryProgressPercent}%` }}
+                        />
+                      </div>
+                      {currentTotalNumber < FREE_DELIVERY_THRESHOLD && currentTotalNumber > 0 && (
+                        <p className="text-[9px] text-slate-500 mt-1.5 font-semibold text-center">أضف المزيد من المنتجات لتوفير رسوم التوصيل داخل دمنهور!</p>
+                      )}
+                    </div>
                   )}
+
+                  <div className="divide-y divide-slate-100">
+                    {cart.length === 0 ? (
+                      <div className="text-center py-14 text-slate-400 font-bold text-xs">
+                        السلة فارغة حالياً
+                      </div>
+                    ) : (
+                      cart.map(item => (
+                        <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-xs text-[#1e382b] leading-snug">{item.name}</h4>
+                            <div className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                              الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}
+                            </div>
+                            <div className="text-[10px] text-[#2d533e] font-bold mt-0.5 flex items-center gap-1.5">
+                              <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
+                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && (
+                                <span className="text-slate-600 line-through decoration-slate-500 font-semibold">
+                                  {(item.originalPrice * item.qty).toFixed(2)} جنيه
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => updateCartQty(item.key, -1)}
+                              className="w-6.5 h-6.5 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-700 font-bold"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-xs font-black w-4 text-center text-[#1e382b]">{item.qty}</span>
+                            <button
+                              onClick={() => updateCartQty(item.key, 1)}
+                              className="w-6.5 h-6.5 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-700 font-bold"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => removeCartItem(item.key)}
+                              className="w-6.5 h-6.5 bg-red-50 hover:bg-red-100 rounded-lg flex items-center justify-center text-red-500 mr-1"
+                              title="حذف"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
 
