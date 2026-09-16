@@ -114,16 +114,23 @@ export default function Home() {
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
 
-  // تحكم صارم: لا يظهر الشريط أبداً إلا إذا كتبت "مغلق" أو "off" في جوجل شيت صراحة
+  // 🧠 التحكم اليدوي والتلقائي الدقيق بناءً على ما تكتبه في جوجل شيت
   const storeStatus = useMemo(() => {
     const settings = data.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' };
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
 
+    // 1. لو كتبت "مغلق" أو "off" في الشيت -> يظهر شريط أحمر (مغلق)
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') {
-      return { isOpen: false, showBanner: true };
+      return { showBanner: true, isOpen: false, text: '🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى', bg: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', color: '#991b1b' };
     }
-    // في أي حالة أخرى (تلقائي، مفتوح، أو فارغ)، الشريط مخفي تماماً لتنظيف الواجهة
-    return { isOpen: true, showBanner: false };
+
+    // 2. لو كتبت "مفتوح" أو "open" في الشيت -> يظهر شريط أخضر (مفتوح)
+    if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') {
+      return { showBanner: true, isOpen: true, text: '🟢 المتجر مفتوح الآن ونسعد بتلقي طلباتكم   |   🚚 توصيل فوري ومضمون غداً أو خلال 48 ساعة كحد أقصى', bg: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', border: '1.5px solid #4caf50', color: '#1b3d2b' };
+    }
+
+    // 3. لو كتبت "تلقائي" أو تركتها فارغة -> يختفي الشريط تماماً وتنظف الواجهة (الوضع الطبيعي)
+    return { showBanner: false, isOpen: true };
   }, [data.storeSettings]);
 
   useEffect(() => {
@@ -467,12 +474,12 @@ export default function Home() {
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
           
-          {/* يظهر فقط إذا كتبتك "مغلق" يدوياً في شيت الإعدادات */}
+          {/* يظهر فقط لو كتبت "مغلق" أو "مفتوح" في الشيت، ويختفي تماماً لو تركتها فارغة أو "تلقائي" */}
           {storeStatus.showBanner && (
-            <div style={{ background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)', border: '1.5px solid #e53935', boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
-              <div className="status-marquee-text font-bold text-sm md:text-base text-[#991b1b]">
-                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
-                <div className="flex items-center whitespace-nowrap px-6"><span>🔴 المتجر مغلق الآن لكن يمكننا تلقي طلباتكم والتوصيل خلال ٢٤ ساعة إلى ٤٨ ساعة كحد أقصى</span></div>
+            <div style={{ background: storeStatus.bg, border: storeStatus.border, boxShadow: '0 3px 8px rgba(0,0,0,0.06)' }} className="w-full mb-2 py-1.5 rounded-2xl status-marquee-container">
+              <div className="status-marquee-text font-bold text-sm md:text-base" style={{ color: storeStatus.color }}>
+                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.text}</span></div>
+                <div className="flex items-center whitespace-nowrap px-6"><span>{storeStatus.text}</span></div>
               </div>
             </div>
           )}
