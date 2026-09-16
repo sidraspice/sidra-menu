@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
-const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours
-const FREE_DELIVERY_THRESHOLD = 300; // حد التوصيل المجاني داخل دمنهور
+const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000;
+const FREE_DELIVERY_THRESHOLD = 300;
 
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
@@ -40,9 +40,7 @@ const getWeightNumberInGrams = (weightStr) => {
   const str = weightStr.toString().toLowerCase();
   const match = str.match(/\d+(\.\d+)?/);
   let num = match ? parseFloat(match[0]) : 1;
-  if (str.includes('كيلو') || str.includes('كجم') || str.includes('kg')) {
-    num = num * 1000;
-  }
+  if (str.includes('كيلو') || str.includes('كجم') || str.includes('kg')) num = num * 1000;
   return num;
 };
 
@@ -50,7 +48,6 @@ const getSufficiencyInsight = (productName, category, weightStr) => {
   const name = (productName || '').toLowerCase();
   const cat = (category || '').toLowerCase();
   const grams = getWeightNumberInGrams(weightStr);
-
   const isHerbOrFlower = name.includes('اعشاب') || name.includes('أعشاب') || name.includes('بابونج') || name.includes('نعناع') || name.includes('يانسون') || name.includes('كركديه') || name.includes('شاي') || name.includes('ميرمية') || cat.includes('اعشاب') || cat.includes('مشروبات');
 
   if (isHerbOrFlower) {
@@ -71,8 +68,7 @@ const getCalculatedTotalWeight = (weightStr, qty) => {
   const numMatch = str.match(/\d+(\.\d+)?/);
   if (numMatch) {
     const unitWeight = parseFloat(numMatch[0]);
-    const calculatedTotalWeight = unitWeight * qty;
-    return str.replace(numMatch[0], calculatedTotalWeight.toString());
+    return str.replace(numMatch[0], (unitWeight * qty).toString());
   } else if (qty > 1) {
     return `${str} (عدد ${qty})`;
   }
@@ -107,7 +103,6 @@ export default function Home() {
   const [activeModalProduct, setActiveModalProduct] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [modalQty, setModalQty] = useState(1);
-  
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
 
@@ -124,10 +119,8 @@ export default function Home() {
     const mode = settings.mode ? settings.mode.trim().toLowerCase() : 'تلقائي';
     const openH = settings.openHour ?? 9;
     const closeH = settings.closeHour ?? 23;
-
     if (mode.includes('مغلق') || mode.includes('false') || mode === 'off') return { isOpen: false };
     if (mode.includes('مفتوح') || mode.includes('true') || mode === 'on') return { isOpen: true };
-
     const currentHour = new Date().getHours();
     return (currentHour >= openH && currentHour < closeH) ? { isOpen: true } : { isOpen: false };
   }, [data.storeSettings]);
@@ -149,7 +142,6 @@ export default function Home() {
       if (showRestoreConfirm) setShowRestoreConfirm(false);
       if (showWelcomeBack) setShowWelcomeBack(false);
     };
-
     if (isAnyModalOpen) {
       window.history.pushState({ modal: true }, '');
       window.addEventListener('popstate', handlePopState);
@@ -164,11 +156,7 @@ export default function Home() {
       const res = await fetch('/api/products');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setData({ 
-        products: json.products, 
-        categories: json.categories, 
-        storeSettings: json.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' } 
-      });
+      setData({ products: json.products, categories: json.categories, storeSettings: json.storeSettings || { openHour: 9, closeHour: 23, mode: 'تلقائي' } });
     } catch (err) {
       setError(err.message || 'حدث خطأ في تحميل البيانات');
     } finally {
@@ -197,13 +185,8 @@ export default function Home() {
         const savedOrder = localStorage.getItem('sedra_last_order');
         if (savedOrder) {
           const parsed = JSON.parse(savedOrder);
-          if (Date.now() < parsed.expiresAt) {
-            setLastOrder(parsed);
-          } else {
-            localStorage.removeItem('sedra_last_order');
-            setLastOrder(null);
-            setIsEditing(false);
-          }
+          if (Date.now() < parsed.expiresAt) setLastOrder(parsed);
+          else { localStorage.removeItem('sedra_last_order'); setLastOrder(null); setIsEditing(false); }
         }
       } catch (e) { console.error(e); }
     };
@@ -435,8 +418,24 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
+        
+        /* ✨ نبضة حركة خفيفة لفتت الانتباه لوجود تكملة في الشريط الأفقي */
+        @keyframes peekScroll {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(-15px); }
+        }
+        .animate-peek {
+          animation: peekScroll 1.2s ease-in-out 1.5s 1;
+        }
+
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* تدرج ظلي خفيف يوحي بوجود عناصر إضافية على اليمين/اليسار */
+        .scroll-fade-mask {
+          mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
+          -webkit-mask-image: linear-gradient(to left, transparent 0%, black 15%, black 85%, transparent 100%);
+        }
       `}} />
 
       {flyingItems.map(item => (
@@ -454,7 +453,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎙️ زر الطلب السريع بالرسالة الصوتية (تم تعديل العبارة بناءً على رغبتك) */}
       <button onClick={handleVoiceOrderWhatsApp} className="fixed bottom-20 left-4 z-40 bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-3.5 py-2.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-black hover:scale-105 active:scale-95 transition border border-white/20 animate-bounce" style={{ animationDuration: '3s' }} title="اطلب برسالة صوتية">
         <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center"><Mic className="w-3.5 h-3.5 text-white animate-pulse" /></div>
         <span>اطلب برسالة صوتية 🎤</span>
@@ -486,7 +484,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* تنبيه وضع التعديل */}
           {isEditing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
@@ -500,7 +497,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 🧹 تنظيف الواجهة: شريط البحث مع زر استرجاع الطلب المدمج بذكاء */}
           <div className="flex items-center gap-2 mb-2.5">
             <div className="flex-1 bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5]">
               <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
@@ -508,60 +504,59 @@ export default function Home() {
               {search && <button onClick={() => setSearch('')} className="p-1 text-slate-400"><X className="w-3.5 h-3.5" /></button>}
             </div>
 
-            {/* زر استرجاع الطلب المدمج بأناقة بجوار البحث */}
             {lastOrder && !isEditing && (
-              <button 
-                onClick={handleRestoreOrderRequest}
-                className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0"
-                title="استرجاع وتعديل طلبك السابق"
-              >
+              <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
                 <RotateCcw className="w-4 h-4 text-[#c89d56]" />
                 <span>تعديل آخر طلب</span>
               </button>
             )}
           </div>
 
-          {/* 🚀 إزالة الزحمة: تحويل التصنيفات لـ شريط أفقـي متحرك (Horizontal Chips) بدلاً من المربعات الضخمة */}
+          {/* ✨ الشريط الأفقي المطور مع حركة "النبضة الترحيبية (Peek)" للإشارة لوجود تكملة */}
           {!loading && !error && displayCategories.length > 0 && (
-            <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x">
-              {displayCategories.map(cat => {
-                const isSelected = selectedCategory === cat;
-                const isOfferBtn = cat === 'عروض وخصومات';
-                const visual = getCategoryVisual(cat);
-                
-                let btnStyle = {};
-                let textClass = '';
+            <div className="relative">
+              <div className="flex overflow-x-auto gap-2 pb-1 hide-scrollbar snap-x scroll-fade-mask">
+                <div className="flex gap-2 animate-peek">
+                  {displayCategories.map(cat => {
+                    const isSelected = selectedCategory === cat;
+                    const isOfferBtn = cat === 'عروض وخصومات';
+                    const visual = getCategoryVisual(cat);
+                    
+                    let btnStyle = {};
+                    let textClass = '';
 
-                if (isOfferBtn) {
-                  if (isSelected) {
-                    btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
-                    textClass = 'text-white';
-                  } else {
-                    btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
-                    textClass = 'text-[#d63031]';
-                  }
-                } else {
-                  if (isSelected) {
-                    btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
-                    textClass = 'text-[#fff4d6]';
-                  } else {
-                    btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
-                    textClass = 'text-[#1e382b]';
-                  }
-                }
+                    if (isOfferBtn) {
+                      if (isSelected) {
+                        btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
+                        textClass = 'text-white';
+                      } else {
+                        btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
+                        textClass = 'text-[#d63031]';
+                      }
+                    } else {
+                      if (isSelected) {
+                        btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
+                        textClass = 'text-[#fff4d6]';
+                      } else {
+                        btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
+                        textClass = 'text-[#1e382b]';
+                      }
+                    }
 
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    style={btnStyle}
-                    className="relative px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shrink-0 snap-start active:scale-95 group shadow-2xs"
-                  >
-                    <span className="text-sm leading-none">{visual.icon}</span>
-                    <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
-                  </button>
-                );
-              })}
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        style={btnStyle}
+                        className="relative px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 shrink-0 snap-start active:scale-95 group shadow-2xs"
+                      >
+                        <span className="text-sm leading-none">{visual.icon}</span>
+                        <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
