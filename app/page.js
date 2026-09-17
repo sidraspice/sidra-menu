@@ -426,7 +426,6 @@ export default function Home() {
 
     message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
     
-    // منطق الواتساب المبني على منطقة التوصيل
     if (customer.deliveryZone === 'damanhour') {
       if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
         message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
@@ -435,7 +434,12 @@ export default function Home() {
       message += `\n🚚 شحن خارج دمنهور\nسيتم شحن الطلب عبر البريد السريع، وسنبلغ حضراتكم بمصاريف الشحن قبل الشحن.\nويمكن التسليم على العنوان أو الاستلام من أقرب مكتب بريد للعنوان.\n\n`;
     }
     
-    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
+    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n✨ الدفع عند الاستلام بعد المعاينة`;
+
+    // إخفاء رسالة التوصيل اليومي لعملاء الشحن، وإظهارها فقط لعملاء دمنهور
+    if (customer.deliveryZone === 'damanhour') {
+      message += `\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
+    }
 
     const nowTs = Date.now();
     const orderData = { 
