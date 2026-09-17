@@ -51,12 +51,13 @@ function parseCSV(text) {
   if (lines.length < 2) return { products: [], storeSettings: { openHour: 9, closeHour: 23, mode: 'تلقائي' } };
 
   const headers = parseCSVLine(lines[0]);
-  
+
   const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف'));
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
-  // البحث عن عمود حالة الطحن
-  const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('نوع') || h.includes('grind'));
+  
+  // 1️⃣ إصلاح حالة الطحن: البحث بكلمة "طحن" بوضوح لعدم التداخل
+  const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('grind'));
 
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
   const regularPriceIdx = headers.findIndex(h => 
@@ -67,10 +68,13 @@ function parseCSV(text) {
   const imageIdx = headers.findIndex(h => 
     h.includes('صورة') || h.includes('صوره') || h.includes('image') || h.includes('img') || h.includes('رابط') || h.includes('الصور')
   );
-  
-  let statusIdx = headers.findIndex(h => 
-    h.includes('حالة') || h.includes('توفر') || h.includes('متوفر') || h.includes('متاح') || h.includes('status') || h.includes('المتاح') || h.includes('التوفر')
-  );
+
+  // 2️⃣ إصلاح المشكلة الكبرى: منع التداخل بين "الحالة" و "حالة الطحن"
+  let statusIdx = headers.findIndex(h => {
+    const clean = h.trim();
+    // نبحث عن كلمة الحالة فقط ولا نقبل "حالة الطحن"
+    return clean === 'الحالة' || clean === 'حالة' || clean === 'حالة الصنف' || clean.includes('توفر') || clean.includes('متوفر') || clean.includes('متاح');
+  });
 
   if (statusIdx === -1) {
     for (let r = 1; r < Math.min(lines.length, 10); r++) {
@@ -92,7 +96,7 @@ function parseCSV(text) {
 
     const rowName = values[nameIdx].trim();
     const rowCat = categoryIdx !== -1 && values[categoryIdx] ? values[categoryIdx].trim() : '';
-    
+
     if (rowName.includes('حالة المتجر') || rowName.includes('مواعيد العمل') || rowCat.includes('إعدادات')) {
       const openVal = parseInt(values[weightIdx]);
       const closeVal = parseInt(values[regularPriceIdx]);
@@ -101,7 +105,7 @@ function parseCSV(text) {
       if (!isNaN(openVal)) storeSettings.openHour = openVal;
       if (!isNaN(closeVal)) storeSettings.closeHour = closeVal;
       if (modeVal) storeSettings.mode = modeVal;
-      
+
       continue;
     }
 
@@ -140,14 +144,20 @@ function parseCSV(text) {
       }
     }
 
-    // استخراج حالة الطحن
+    // استخراج حالة الطحن بشكل صحيح الآن
     const grindOptionsVal = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
+    
+    // تحسين تنسيق الوزن
+    let finalWeightStr = 'حسب الطلب';
+    if (rawWeight) {
+      finalWeightStr = (rawWeight.includes('جرام') || rawWeight.includes('g') || rawWeight.includes('ك')) ? rawWeight : `${rawWeight} جرام`;
+    }
 
     rows.push({
       category: rowCat || 'أخرى',
       name: rowName,
-      weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
-      grindOptions: grindOptionsVal, // تم الإضافة هنا
+      weight: finalWeightStr,
+      grindOptions: grindOptionsVal, // تم الإضافة هنا بشكل سليم
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
       available: isAvailable,
@@ -168,16 +178,16 @@ function parseCSV(text) {
         variants: []
       };
     }
-    
+
     if (item.image && !productsMap[key].image) {
       productsMap[key].image = item.image;
     }
-    
+
     // تأكيد إضافة خيار الطحن لو كان موجود في صف تاني لنفس المنتج
     if (item.grindOptions && !productsMap[key].grindOptions) {
       productsMap[key].grindOptions = item.grindOptions;
     }
-    
+
     productsMap[key].variants.push({
       weight: item.weight,
       price: item.price,
@@ -198,7 +208,7 @@ export async function GET() {
   try {
     const sheetUrl = process.env.GOOGLE_SHEET_CSV_URL || "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0KMamBEhCgLLWA4TEsYLz9uvxBE-EShQ0kBON0tYut-dZrBm4BDfuDgf23rD4KlWTt_PgCf--4vQz/pub?output=csv";
     const urlWithCacheBust = sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now();
-    
+
     const res = await fetch(urlWithCacheBust, {
       cache: 'no-store',
       headers: {
