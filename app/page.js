@@ -19,7 +19,7 @@ const triggerVibration = () => {
 const getCategoryVisual = (catName) => {
   const name = catName.trim().toLowerCase();
   if (name.includes('كل')) return { icon: '✨', label: 'الكل' };
-  if (name.includes('عروض') || name.includes('خصم')) return { icon: '🔥', label: 'عروض وخصومات' };
+  if (name.includes('فرص') || name.includes('خاصة') || name.includes('عروض') || name.includes('خصم')) return { icon: '🔥', label: 'فرص خاصة' };
   if (name.includes('اعشاب') || name.includes('أعشاب')) return { icon: '🌿', label: 'أعشاب' };
   if (name.includes('خلطات') || name.includes('توابل')) return { icon: '🌶️', label: 'خلطات وتوابل' };
   if (name.includes('مشروبات') || name.includes('شاي') || name.includes('قهوة')) return { icon: '☕', label: 'مشروبات' };
@@ -44,34 +44,26 @@ const getWeightNumberInGrams = (weightStr) => {
   return num;
 };
 
-const getSufficiencyInsight = (productName, category, weightStr) => {
-  const name = (productName || '').toLowerCase();
-  const cat = (category || '').toLowerCase();
-  const grams = getWeightNumberInGrams(weightStr);
-  const isHerbOrFlower = name.includes('اعشاب') || name.includes('أعشاب') || name.includes('بابونج') || name.includes('نعناع') || name.includes('يانسون') || name.includes('كركديه') || name.includes('شاي') || name.includes('ميرمية') || cat.includes('اعشاب') || cat.includes('مشروبات');
-
-  if (isHerbOrFlower) {
-    if (grams <= 50) return `💡 حجم مرتفع وخفيف، يكفي تقريباً لـ 20 إلى 30 كوب مشروب دافئ.`;
-    if (grams <= 100) return `🔥 عبوة وفيرة من الأعشاب الخفيفة، تكفي لمدة شهر.`;
-    return `🌟 كمية ضخمة ومخزون ممتاز للاستخدام طويل الأمد.`;
-  } else {
-    if (grams <= 50) return `💡 عبوة تجريبية (تكفي لـ 5 إلى 8 أكلات منزلية).`;
-    if (grams <= 100) return `🔥 العبوة الأكثر طلباً، تكفي أسرة متوسطة لمدة أسبوعين.`;
-    if (grams <= 250) return `⭐ عبوة اقتصادية ممتازة، تكفي استهلاك شهر كامل.`;
-    return `📦 حجم عائلي كبير وموفر للاستهلاك المكثف.`;
-  }
-};
-
+// دالة منظمة لحساب إجمالي الوزن رقمياً وتحويله لنص مقروء بشكل رياضي صحيح
 const getCalculatedTotalWeight = (weightStr, qty) => {
   if (!weightStr) return '';
   const str = weightStr.toString();
   const numMatch = str.match(/\d+(\.\d+)?/);
+  
   if (numMatch) {
-    const unitWeight = parseFloat(numMatch[0]);
-    return str.replace(numMatch[0], (unitWeight * qty).toString());
+    const isKilo = str.includes('كيلو') || str.includes('كجم') || str.includes('kg');
+    let unitWeight = parseFloat(numMatch[0]);
+    if (isKilo) unitWeight *= 1000;
+    
+    const totalGrams = unitWeight * qty;
+    
+    if (totalGrams >= 1000 && totalGrams % 1000 === 0) return `${totalGrams / 1000} كيلو`;
+    if (totalGrams >= 1000) return `${(totalGrams / 1000).toFixed(2).replace(/\.00$/, '')} كيلو`;
+    return `${totalGrams} جرام`;
   } else if (qty > 1) {
     return `${str} (عدد ${qty})`;
   }
+  
   return str;
 };
 
@@ -105,6 +97,7 @@ export default function Home() {
   const [modalQty, setModalQty] = useState(1);
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
+  const [grindOption, setGrindOption] = useState('بدون تحديد');
 
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
@@ -209,14 +202,14 @@ export default function Home() {
 
   const displayCategories = useMemo(() => {
     if (!data.categories || data.categories.length === 0) return [];
-    const originalCats = data.categories.filter(c => c !== 'كل المنتجات' && !c.includes('خصم') && !c.includes('عروض'));
-    return ['كل المنتجات', 'عروض وخصومات', ...originalCats];
+    const originalCats = data.categories.filter(c => c !== 'كل المنتجات' && !c.includes('خصم') && !c.includes('عروض') && !c.includes('فرص'));
+    return ['كل المنتجات', 'فرص خاصة', ...originalCats];
   }, [data.categories]);
 
   const filteredProducts = useMemo(() => {
     return data.products.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(search.trim().toLowerCase());
-      if (selectedCategory === 'عروض وخصومات') {
+      if (selectedCategory === 'فرص خاصة') {
         return item.variants.some(v => isOfferValid(v.price, v.originalPrice)) && matchesSearch;
       }
       return (selectedCategory === 'كل المنتجات' || item.category === selectedCategory) && matchesSearch;
@@ -229,6 +222,7 @@ export default function Home() {
     setModalQty(1);
     setIsCustomWeight(false);
     setCustomWeightValue('');
+    setGrindOption('بدون تحديد');
   };
 
   const getCalculatedPrice = () => {
@@ -273,15 +267,17 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    const itemKey = `${activeModalProduct.id}_${finalWeight}`;
+    const finalName = grindOption !== 'بدون تحديد' ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
+    const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption}`;
+    
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
-      return [...prev, { key: itemKey, name: activeModalProduct.name, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
+      return [...prev, { key: itemKey, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
     });
     
     setActiveModalProduct(null);
-    setToast({ visible: true, message: `تمت إضافة "${activeModalProduct.name}" بنجاح` });
+    setToast({ visible: true, message: `تمت إضافة "${finalName}" بنجاح` });
     setTimeout(() => setToast({ visible: false, message: '' }), 2500);
   };
 
@@ -322,7 +318,12 @@ export default function Home() {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
     const cleanPhone = customer.phone.replace(/\s+/g, '');
-    if (!cleanPhone || (!/^01[0125][0-9]{8}$/.test(cleanPhone) && cleanPhone.length < 10)) errors.phone = 'رقم هاتف غير صحيح';
+    
+    // التحقق الصارم من رقم الهاتف المصري
+    if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
+      errors.phone = 'رقم هاتف غير صحيح';
+    }
+    
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -352,9 +353,31 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = () => {
-    const orderId = isEditing && lastOrder ? lastOrder.id : `SD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    
+    let orderId = `SD-${dd}${mm}-${hh}${mins}`;
+
+    // منع تكرار نفس رقم الطلب إذا حدث طلبان في نفس الدقيقة
+    if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
+      orderId = `${orderId}-${randomChar}`;
+    }
+
     let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-    message += `🏷️ رقم الطلب: ${orderId}\n\n👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 العنوان: ${customer.address.trim()}\n`;
+    message += `🏷️ رقم الطلب: ${orderId}\n`;
+    
+    if (isEditing && lastOrder) {
+      message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
+    } else {
+      message += `\n`;
+    }
+
+    message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 العنوان: ${customer.address.trim()}\n`;
     if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
     message += `\n📦 المنتجات المطلوبة:\n\n`;
     
@@ -375,8 +398,14 @@ export default function Home() {
     if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) message += `🎁 مستحق لعرض: توصيل مجاني داخل دمنهور\n`;
     message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
-    const now = Date.now();
-    const orderData = { id: orderId, items: cart, createdAt: isEditing ? lastOrder.createdAt : now, expiresAt: isEditing ? lastOrder.expiresAt : now + EDIT_WINDOW_MS };
+    const nowTs = Date.now();
+    const orderData = { 
+      id: orderId, 
+      items: cart, 
+      createdAt: isEditing ? lastOrder.createdAt : nowTs, 
+      expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
+    };
+    
     localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
     setLastOrder(orderData);
     
@@ -468,7 +497,7 @@ export default function Home() {
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
-                const isOfferBtn = cat === 'عروض وخصومات';
+                const isOfferBtn = cat === 'فرص خاصة';
                 const visual = getCategoryVisual(cat);
                 
                 let btnStyle = {};
@@ -560,7 +589,7 @@ export default function Home() {
                           <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
                             <div className="flex items-center gap-1.5">
                               <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>{v.weight}</span>
-                              {hasOffer && v.available && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">خصم</span>}
+                              {hasOffer && v.available && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
                             </div>
                             <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
                               {v.available ? (
@@ -622,7 +651,7 @@ export default function Home() {
 
                   return (
                     <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] font-bold ring-2 ring-[#2d533e]/20' : 'border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-                      {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">خصم خاص</span>}
+                      {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
                       <div className="flex justify-between items-center"><span className="text-xs font-bold">{displayWeight}</span>{!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}</div>
                       <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
                         {variant.available ? (
@@ -633,13 +662,6 @@ export default function Home() {
                   );
                 })}
               </div>
-
-              {selectedVariant && !isCustomWeight && (
-                <div className="mt-2.5 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2.5 flex items-start gap-2">
-                  <HelpCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-[11px] font-bold text-amber-900 leading-tight">{getSufficiencyInsight(activeModalProduct.name, activeModalProduct.category, getCalculatedTotalWeight(selectedVariant.weight, modalQty))}</p>
-                </div>
-              )}
 
               <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-md' : 'border-red-200 bg-white hover:border-red-300'}`}>
                 <div className="flex items-center gap-2">
@@ -652,15 +674,18 @@ export default function Home() {
                       <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="أدخل الوزن بالجرام (مثال: 300)" className="flex-1 p-2.5 text-center text-sm font-black border-2 border-red-200 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300" />
                       <span className="text-sm font-black text-red-600 shrink-0">جرام</span>
                     </div>
-                    {customWeightValue && parseInt(customWeightValue) > 0 && (
-                      <div className="mt-2 bg-amber-50/80 border border-amber-200/80 rounded-xl p-2 flex items-start gap-1.5">
-                        <HelpCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <p className="text-[10px] font-bold text-amber-900 leading-tight">{getSufficiencyInsight(activeModalProduct.name, activeModalProduct.category, `${parseInt(customWeightValue) * modalQty} جرام`)}</p>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-3 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
+              <span className="text-xs font-bold text-slate-700">حالة المنتج:</span>
+              <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="p-1.5 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e]">
+                <option value="بدون تحديد">الافتراضي (حسب الصورة)</option>
+                <option value="حصى">حصى (سليم)</option>
+                <option value="مطحون">مطحون</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between mb-5 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
