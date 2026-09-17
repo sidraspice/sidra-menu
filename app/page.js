@@ -596,14 +596,14 @@ export default function Home() {
                               <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
                               {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
                             </div>
-                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-600 text-xs'}`}>
+                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
                               {v.available ? (
                                 <>
                                   {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
                                   <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
                                 </>
                               ) : (
-                                <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100 font-black text-[10px]">غير متوفر</span>
+                                <span className="text-xs sm:text-sm font-bold leading-none">0</span>
                               )}
                             </div>
                           </div>
@@ -659,11 +659,13 @@ export default function Home() {
                   return (
                     <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-3 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
                       {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
-                      <div className="flex justify-between items-center"><span className="text-sm font-black">{displayWeight}</span>{!variant.available && <span className="text-xs text-red-600 font-black">غير متوفر</span>}</div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-black">{displayWeight}</span>
+                      </div>
                       <div className="text-sm font-black text-[#2d533e] mt-1 flex flex-col">
                         {variant.available ? (
                           <div className="flex items-center gap-1.5"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[11px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
-                        ) : <span className="text-red-500">نفذت الكمية</span>}
+                        ) : <span className="text-slate-400">0</span>}
                       </div>
                     </button>
                   );
