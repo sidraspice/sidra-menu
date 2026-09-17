@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -689,27 +689,49 @@ export default function Home() {
             </div>
 
             {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
-              <div className="flex items-center justify-between mb-4 bg-[#fbf9f4] p-4 rounded-xl border-2 border-[#e8e2d5]">
+              <div className="mb-6 bg-[#fbf9f4] p-4 rounded-xl border-2 border-[#e8e2d5] flex flex-col gap-3">
                 <span className="text-sm font-black text-slate-800">حالة المنتج:</span>
+                
                 {activeModalProduct.parsedGrindOptions.length === 1 ? (
-                  // تصميم الحالة الثابتة (Badge) - لا يشبه زر الإدخال
-                  <div className="flex justify-end w-[55%]">
-                    <div className="inline-flex items-center justify-center gap-1.5 py-2 px-4 bg-[#f0f0f0] border-2 border-[#e2e2e2] text-[#555] text-sm font-black rounded-xl cursor-default select-none shadow-none">
-                      <span className="w-2 h-2 rounded-full bg-[#aaa]"></span>
-                      <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[11px] font-bold text-[#888]">(فقط)</span></span>
+                  // الحالة الثابتة الواضحة لخيار واحد فقط (Badge)
+                  <div className="w-full">
+                    <div className="flex items-center justify-center gap-2 py-3.5 px-4 bg-[#f0f0f0] border-2 border-[#e2e2e2] text-slate-500 text-sm sm:text-base font-black rounded-xl cursor-default select-none shadow-none w-full">
+                      <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+                      <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[11px] sm:text-xs font-bold text-slate-400">(فقط)</span></span>
                     </div>
                   </div>
                 ) : (
-                  // تصميم القائمة المنسدلة (Dropdown) - واضح وتفاعلي
-                  <div className="relative w-[55%]">
-                    <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="w-full py-2.5 pl-10 pr-4 text-sm font-black border-2 border-[#c89d56] rounded-xl bg-white text-[#1e382b] focus:outline-none focus:ring-4 focus:ring-[#2d533e]/10 focus:border-[#2d533e] shadow-sm cursor-pointer appearance-none transition-all">
-                      {activeModalProduct.parsedGrindOptions.map((opt, i) => (
-                        <option key={i} value={opt} className="font-bold text-base">{opt}</option>
-                      ))}
-                    </select>
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <ChevronDown className="w-5 h-5 text-[#2d533e]" />
-                    </div>
+                  // نظام Segmented Choice Buttons الاحترافي المتجاوب
+                  <div 
+                    className="flex items-center gap-2 w-full" 
+                    role="radiogroup" 
+                    aria-label="حالة المنتج"
+                  >
+                    {activeModalProduct.parsedGrindOptions.map((opt, i) => {
+                      const isSelected = grindOption === opt;
+                      return (
+                        <button
+                          key={i}
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => { triggerVibration(); setGrindOption(opt); }}
+                          className={`relative flex-1 py-3.5 px-3 rounded-xl border-2 transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${
+                            isSelected 
+                              ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md z-10' 
+                              : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-center w-full relative">
+                            <span className="font-black text-sm sm:text-base">{opt}</span>
+                            {isSelected && (
+                              <div className="absolute right-0 flex items-center justify-center animate-in zoom-in duration-200">
+                                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
