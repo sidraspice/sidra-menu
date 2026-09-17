@@ -97,7 +97,6 @@ export default function Home() {
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
   
-  // حالة الطحن
   const [grindOption, setGrindOption] = useState('');
 
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -218,7 +217,6 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    // معالجة خيارات الطحن من الشيت، مع دعم كل الأسماء (حالة المنتج، حالة الطحن، grindOptions)
     const rawGrindData = product.grindOptions || product['حالة المنتج'] || product['حالة المنتج '] || product['حالة الطحن'] || product['حالة الطحن '] || '';
     let parsedOptions = [];
     if (rawGrindData && typeof rawGrindData === 'string') {
@@ -231,7 +229,6 @@ export default function Home() {
     setIsCustomWeight(false);
     setCustomWeightValue('');
     
-    // التحديد التلقائي إذا كان هناك خيارات
     setGrindOption(parsedOptions.length > 0 ? parsedOptions[0] : '');
   };
 
@@ -277,7 +274,6 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    // إضافة خيار الطحن إلى الاسم فقط إذا كان موجوداً
     const finalName = grindOption ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
     const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption || 'default'}`;
     
@@ -369,7 +365,6 @@ export default function Home() {
     const hh = String(now.getHours()).padStart(2, '0');
     const mins = String(now.getMinutes()).padStart(2, '0');
     
-    // الصيغة الجديدة لرقم الطلب: SD-DD/MM-HH:MM
     let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
 
     if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
@@ -491,8 +486,8 @@ export default function Home() {
           <div className="flex items-center gap-2 mb-2.5">
             <div className="flex-1 bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5]">
               <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث عن منتج بالاسم..." className="w-full bg-transparent focus:outline-none text-xs sm:text-sm font-semibold text-[#1e382b]" />
-              {search && <button onClick={() => setSearch('')} className="p-1 text-slate-400"><X className="w-3.5 h-3.5" /></button>}
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث عن منتج بالاسم..." className="w-full bg-transparent focus:outline-none text-sm font-semibold text-[#1e382b]" />
+              {search && <button onClick={() => setSearch('')} className="p-1 text-slate-400"><X className="w-4 h-4" /></button>}
             </div>
 
             {lastOrder && !isEditing && (
@@ -556,23 +551,23 @@ export default function Home() {
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-center my-6 shadow-xs">
-            <p className="text-xs font-bold mb-2.5">{error}</p>
-            <button onClick={fetchData} className="bg-[#2d533e] text-white text-xs px-3.5 py-1.5 rounded-lg font-bold inline-flex items-center gap-1 shadow"><RefreshCw className="w-3 h-3" /> إعادة المحاولة</button>
+            <p className="text-sm font-bold mb-2.5">{error}</p>
+            <button onClick={fetchData} className="bg-[#2d533e] text-white text-sm px-4 py-2 rounded-lg font-bold inline-flex items-center gap-1 shadow"><RefreshCw className="w-4 h-4" /> إعادة المحاولة</button>
           </div>
         )}
 
         {!loading && !error && (
           <div>
             <div className="flex justify-between items-center mb-2.5">
-              <span className="text-[11px] font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
+              <span className="text-xs font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               {filteredProducts.map(product => (
-                <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-slate-200 opacity-65 bg-slate-50/70'}`}>
+                <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
                   <div>
                     <div className="flex items-start gap-2 mb-2">
-                      <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 relative group cursor-pointer" title="انقر لتكبير الصورة">
+                      <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
                         {product.image ? (
                           <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                         ) : (
@@ -583,10 +578,10 @@ export default function Home() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-center mb-0.5">
-                          <span className="text-[9px] text-[#c89d56] font-bold bg-[#fbf9f4] px-1 py-0.2 rounded border border-[#e8e2d5] truncate max-w-[70%]" title={product.category}>{product.category}</span>
+                          <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
                           <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
                         </div>
-                        <h3 onClick={() => product.isAvailable && openProductModal(product)} className="font-bold text-xs sm:text-sm text-[#1e382b] line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e]">{product.name}</h3>
+                        <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
                       </div>
                     </div>
                   </div>
@@ -598,25 +593,27 @@ export default function Home() {
                         return (
                           <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-[10px] sm:text-[11px] ${!v.available ? 'line-through text-slate-400' : 'text-slate-600'}`}>{v.weight}</span>
-                              {hasOffer && v.available && <span className="text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
+                              <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
+                              {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
                             </div>
-                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-500 text-[10px]'}`}>
+                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-red-600 text-xs'}`}>
                               {v.available ? (
                                 <>
-                                  {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[9px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
-                                  <span className="text-[10px] sm:text-[11px] leading-none">{v.price} جنيه</span>
+                                  {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
+                                  <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
                                 </>
-                              ) : 'غير متوفر'}
+                              ) : (
+                                <span className="px-1.5 py-0.5 bg-red-50 text-red-600 rounded border border-red-100 font-black text-[10px]">غير متوفر</span>
+                              )}
                             </div>
                           </div>
                         );
                       })}
                     </div>
                     {product.isAvailable ? (
-                      <button className="w-full bg-[#2d533e] text-white text-xs py-2 rounded-xl font-bold flex items-center justify-center gap-1 shadow-2xs hover:bg-[#1e382b] transition"><Plus className="w-3.5 h-3.5" /> اختيار</button>
+                      <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
                     ) : (
-                      <button disabled className="w-full bg-slate-200 text-slate-500 text-xs py-2 rounded-xl font-bold flex items-center justify-center gap-1 cursor-not-allowed"><Ban className="w-3 h-3" /> غير متوفر</button>
+                      <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
                     )}
                   </div>
                 </div>
@@ -626,32 +623,32 @@ export default function Home() {
         )}
 
         {!loading && !error && filteredProducts.length === 0 && (
-          <div className="text-center py-14 text-slate-400 font-bold text-xs">لا توجد منتجات مطابقة لعملية البحث</div>
+          <div className="text-center py-14 text-slate-400 font-bold text-sm">لا توجد منتجات مطابقة لعملية البحث</div>
         )}
       </main>
 
       {activeModalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-start mb-4">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-3xl p-5 sm:p-6 shadow-2xl animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-start mb-5">
               <div className="flex items-center gap-3">
                 {activeModalProduct.image && (
-                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
+                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-16 h-16 rounded-2xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
                     <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
-                    <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[8px] font-bold">تكبير</span>
+                    <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
                   </div>
                 )}
                 <div>
-                  <span className="text-[10px] font-bold text-[#c89d56]" title={activeModalProduct.category}>{activeModalProduct.category}</span>
-                  <h2 className="text-base font-black text-[#1e382b]">{activeModalProduct.name}</h2>
+                  <span className="text-xs font-bold text-[#c89d56]" title={activeModalProduct.category}>{activeModalProduct.category}</span>
+                  <h2 className="text-lg sm:text-xl font-black text-[#1e382b] leading-tight">{activeModalProduct.name}</h2>
                 </div>
               </div>
             </div>
 
-            <div className="mb-3.5">
-              <label className="text-xs font-bold text-slate-600 block mb-1.5">الأوزان المتاحة:</label>
+            <div className="mb-4">
+              <label className="text-sm font-black text-slate-800 block mb-2">الأوزان المتاحة:</label>
               
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 {activeModalProduct.variants.map((variant, idx) => {
                   const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
                   const displayWeight = isSelected ? getCalculatedTotalWeight(variant.weight, modalQty) : variant.weight;
@@ -660,71 +657,70 @@ export default function Home() {
                   const displayOriginalPrice = isSelected && hasOffer ? (variant.originalPrice * modalQty).toFixed(2) : variant.originalPrice;
 
                   return (
-                    <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] font-bold ring-2 ring-[#2d533e]/20' : 'border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-                      {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
-                      <div className="flex justify-between items-center"><span className="text-xs font-bold">{displayWeight}</span>{!variant.available && <span className="text-[9px] text-red-500 font-bold">غير متوفر</span>}</div>
-                      <div className="text-xs font-black text-[#2d533e] mt-0.5 flex flex-col">
+                    <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-3 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
+                      {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
+                      <div className="flex justify-between items-center"><span className="text-sm font-black">{displayWeight}</span>{!variant.available && <span className="text-xs text-red-600 font-black">غير متوفر</span>}</div>
+                      <div className="text-sm font-black text-[#2d533e] mt-1 flex flex-col">
                         {variant.available ? (
-                          <div className="flex items-center gap-1.5"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-semibold">{displayOriginalPrice} جنيه</span>}</div>
-                        ) : 'غير متوفر'}
+                          <div className="flex items-center gap-1.5"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[11px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
+                        ) : <span className="text-red-500">نفذت الكمية</span>}
                       </div>
                     </button>
                   );
                 })}
               </div>
 
-              <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`mt-3 p-3.5 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-md' : 'border-red-200 bg-white hover:border-red-300'}`}>
-                <div className="flex items-center gap-2">
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-red-300 bg-white'}`}>{isCustomWeight && <div className="w-2 h-2 rounded-full bg-white" />}</div>
-                  <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-red-500'}`}>وزن مخصص بالجرام</span>
+              <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`mt-3 p-4 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-md' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-slate-300 bg-white'}`}>{isCustomWeight && <div className="w-2.5 h-2.5 rounded-full bg-white" />}</div>
+                  <span className={`text-base font-black ${isCustomWeight ? 'text-red-700' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
                 </div>
                 {isCustomWeight && (
-                  <div className="mt-3 pl-7" onClick={e => e.stopPropagation()}>
+                  <div className="mt-3.5 pl-7" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
-                      <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="أدخل الوزن بالجرام (مثال: 300)" className="flex-1 p-2.5 text-center text-sm font-black border-2 border-red-200 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300" />
-                      <span className="text-sm font-black text-red-600 shrink-0">جرام</span>
+                      <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="مثال: 300" className="flex-1 p-3 text-center text-base font-black border-2 border-red-300 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" />
+                      <span className="text-base font-black text-red-700 shrink-0">جرام</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* تم ربط حالة الطحن ديناميكياً ببيانات المنتج، ولا تظهر إذا لم توجد خيارات */}
             {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
-              <div className="flex items-center justify-between mb-3 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
-                <span className="text-xs font-bold text-slate-700">حالة المنتج:</span>
+              <div className="flex items-center justify-between mb-4 bg-[#fbf9f4] p-4 rounded-xl border-2 border-[#e8e2d5]">
+                <span className="text-sm font-black text-slate-800">حالة المنتج:</span>
                 {activeModalProduct.parsedGrindOptions.length === 1 ? (
-                  <div className="p-1.5 px-3 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b]">
+                  <div className="py-2 px-5 text-sm font-black border-2 border-[#d4af37]/40 rounded-xl bg-white text-[#1e382b] shadow-sm w-[55%] text-center">
                     {activeModalProduct.parsedGrindOptions[0]}
                   </div>
                 ) : (
-                  <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="p-1.5 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e]">
+                  <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="py-2 px-4 text-sm font-black border-2 border-[#d4af37]/40 rounded-xl bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e] shadow-sm w-[55%] cursor-pointer appearance-auto">
                     {activeModalProduct.parsedGrindOptions.map((opt, i) => (
-                      <option key={i} value={opt}>{opt}</option>
+                      <option key={i} value={opt} className="font-bold">{opt}</option>
                     ))}
                   </select>
                 )}
               </div>
             )}
 
-            <div className="flex items-center justify-between mb-5 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
-              <span className="text-xs font-bold text-slate-700">الكمية المطلوبة:</span>
-              <div className="flex items-center gap-2.5">
-                <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-7 h-7 rounded-lg bg-white border border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-2xs"><Minus className="w-3 h-3" /></button>
-                <span className="font-bold text-sm text-[#1e382b] w-5 text-center">{modalQty}</span>
-                <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-7 h-7 rounded-lg bg-white border border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-2xs"><Plus className="w-3.5 h-3.5" /></button>
+            <div className="flex items-center justify-between mb-6 bg-[#fbf9f4] p-4 rounded-xl border-2 border-[#e8e2d5]">
+              <span className="text-sm font-black text-slate-800">الكمية المطلوبة:</span>
+              <div className="flex items-center gap-3">
+                <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-9 h-9 rounded-xl bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-50"><Minus className="w-4 h-4" /></button>
+                <span className="font-black text-base text-[#1e382b] w-6 text-center">{modalQty}</span>
+                <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-9 h-9 rounded-xl bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-50"><Plus className="w-4 h-4" /></button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-bold text-xs shadow-md hover:bg-[#1e382b] transition">
+            <div className="flex flex-col gap-3">
+              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
                   return `إضافة للسلة (${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue} جرام` : selectedVariant.weight, modalQty)}) — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
                 })()}
               </button>
-              <button onClick={() => setActiveModalProduct(null)} className="w-full bg-white text-red-700 border-2 border-red-600 py-3 rounded-xl font-black text-sm">العودة إلى المنيو</button>
+              <button onClick={() => setActiveModalProduct(null)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50 transition">العودة إلى المنيو</button>
             </div>
           </div>
         </div>
@@ -735,72 +731,72 @@ export default function Home() {
           <div className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setZoomedImage(null)} className="absolute top-4 left-4 z-20 p-2 bg-black/60 text-white rounded-full"><X className="w-5 h-5" /></button>
             <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center"><img src={zoomedImage} alt="صورة المنتج" referrerPolicy="no-referrer" className="w-full h-full object-contain" /></div>
-            <p className="text-xs font-bold text-slate-500 mt-2.5">انقر في أي مكان للإغلاق</p>
+            <p className="text-sm font-bold text-slate-300 mt-3">انقر في أي مكان للإغلاق</p>
           </div>
         </div>
       )}
 
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
         <div className="max-w-xl mx-auto flex items-center gap-2">
-          <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3 rounded-2xl font-bold flex items-center justify-between shadow-md active:scale-[0.99] transition">
-            <div className="flex items-center gap-2">
+          <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3.5 rounded-2xl font-bold flex items-center justify-between shadow-lg active:scale-[0.99] transition">
+            <div className="flex items-center gap-2.5">
               <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-[#c89d56]" />
-                {totalItemsCount > 0 && <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-black">{totalItemsCount}</span>}
+                <ShoppingBag className="w-6 h-6 text-[#c89d56]" />
+                {totalItemsCount > 0 && <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">{totalItemsCount}</span>}
               </div>
-              <span className="text-xs font-bold">سلة الطلبات</span>
+              <span className="text-sm font-black">سلة الطلبات</span>
             </div>
-            <span className="text-xs text-[#c89d56] font-black">{totalAmount} جنيه</span>
+            <span className="text-sm text-[#c89d56] font-black">{totalAmount} جنيه</span>
           </button>
         </div>
       </div>
 
       {isCartOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md h-[88vh] rounded-t-[2rem] sm:rounded-2xl p-4 shadow-2xl flex flex-col justify-between">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md h-[88vh] rounded-t-[2rem] sm:rounded-3xl p-5 shadow-2xl flex flex-col justify-between">
             <div>
-              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                <h2 className="text-sm font-black text-[#1e382b]">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-200">
+                <h2 className="text-base font-black text-[#1e382b]">
                   {currentStep === 'cart' && 'سلة المشتريات'}
                   {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
                   {currentStep === 'review' && 'مراجعة الطلب قبل الإرسال'}
                 </h2>
                 {currentStep === 'cart' && cart.length > 0 && (
-                  <button onClick={() => setShowClearConfirm(true)} className="text-xs font-black text-red-600 px-3 py-1.5 bg-red-50 rounded-xl border border-red-200">مسح السلة</button>
+                  <button onClick={() => setShowClearConfirm(true)} className="text-xs font-black text-red-600 px-3 py-1.5 bg-red-50 rounded-xl border border-red-200 hover:bg-red-100">مسح السلة</button>
                 )}
               </div>
 
               {currentStep === 'cart' && (
-                <div className="overflow-y-auto max-h-[56vh] py-2.5">
+                <div className="overflow-y-auto max-h-[56vh] py-3">
                   {cart.length > 0 && (
-                    <div className="mb-3 bg-white rounded-xl p-3 border border-slate-200 shadow-xs">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
-                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
+                    <div className="mb-4 bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+                      <div className="flex justify-between items-center mb-2.5">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-4 h-4 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
+                        <span className="text-xs font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
                       </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-500 ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${deliveryProgressPercent}%` }} />
                       </div>
                     </div>
                   )}
 
                   <div className="divide-y divide-slate-100">
-                    {cart.length === 0 ? <div className="text-center py-14 text-slate-400 font-bold text-xs">السلة فارغة حالياً</div> : (
+                    {cart.length === 0 ? <div className="text-center py-16 text-slate-400 font-bold text-sm">السلة فارغة حالياً</div> : (
                       cart.map(item => (
-                        <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
+                        <div key={item.key} className="py-3 flex justify-between items-center gap-3">
                           <div className="flex-1">
-                            <h4 className="font-bold text-xs text-[#1e382b] leading-snug">{item.name}</h4>
-                            <div className="text-[10px] text-slate-500 font-semibold mt-0.5">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
-                            <div className="text-[10px] text-[#2d533e] font-bold mt-0.5 flex items-center gap-1.5">
+                            <h4 className="font-black text-sm text-[#1e382b] leading-snug">{item.name}</h4>
+                            <div className="text-xs text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
+                            <div className="text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
                               <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
-                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && <span className="text-slate-600 line-through">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>}
+                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>}
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <button onClick={() => updateCartQty(item.key, -1)} className="w-6.5 h-6.5 bg-slate-100 rounded-lg flex items-center justify-center font-bold"><Minus className="w-3 h-3" /></button>
-                            <span className="text-xs font-black w-4 text-center">{item.qty}</span>
-                            <button onClick={() => updateCartQty(item.key, 1)} className="w-6.5 h-6.5 bg-slate-100 rounded-lg flex items-center justify-center font-bold"><Plus className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => removeCartItem(item.key)} className="w-6.5 h-6.5 bg-red-50 rounded-lg flex items-center justify-center text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => updateCartQty(item.key, -1)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-4 h-4" /></button>
+                            <span className="text-sm font-black w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.key, 1)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-4 h-4" /></button>
+                            <button onClick={() => removeCartItem(item.key)} className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-100 ml-1"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
                       ))
@@ -810,43 +806,43 @@ export default function Home() {
               )}
 
               {currentStep === 'checkout' && (
-                <form id="checkout-form" onSubmit={handleProceedToReview} className="overflow-y-auto max-h-[58vh] py-2.5 space-y-3">
+                <form id="checkout-form" onSubmit={handleProceedToReview} className="overflow-y-auto max-h-[58vh] py-3 space-y-4">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1"><User className="w-3 h-3 text-[#2d533e]" /> الاسم الكامل <span className="text-red-500">*</span></label>
-                    <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full p-2 text-xs font-semibold rounded-xl border ${formErrors.name ? 'border-red-500 bg-red-50' : 'border-slate-200'}`} />
+                    <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><User className="w-4 h-4 text-[#2d533e]" /> الاسم الكامل <span className="text-red-500">*</span></label>
+                    <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full p-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1"><Phone className="w-3 h-3 text-[#2d533e]" /> رقم الهاتف <span className="text-red-500">*</span></label>
-                    <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full p-2 text-xs font-semibold rounded-xl border text-right ${formErrors.phone ? 'border-red-500 bg-red-50' : 'border-slate-200'}`} />
+                    <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><Phone className="w-4 h-4 text-[#2d533e]" /> رقم الهاتف <span className="text-red-500">*</span></label>
+                    <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full p-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1"><MapPin className="w-3 h-3 text-[#2d533e]" /> العنوان بالتفصيل <span className="text-red-500">*</span></label>
-                    <textarea rows={3} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full p-2 text-xs font-semibold rounded-xl border ${formErrors.address ? 'border-red-500 bg-red-50' : 'border-slate-200'} resize-none`} />
+                    <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#2d533e]" /> العنوان بالتفصيل <span className="text-red-500">*</span></label>
+                    <textarea rows={3} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full p-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none`} />
                   </div>
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1 flex items-center gap-1"><FileText className="w-3 h-3 text-[#2d533e]" /> ملاحظات على الطلب (اختياري)</label>
-                    <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: اتصل بي قبل التوصيل..." className="w-full p-2 text-xs font-semibold rounded-xl border border-slate-200 resize-none" />
+                    <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#2d533e]" /> ملاحظات على الطلب (اختياري)</label>
+                    <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: اتصل بي قبل التوصيل..." className="w-full p-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none" />
                   </div>
                 </form>
               )}
 
               {currentStep === 'review' && (
-                <div className="overflow-y-auto max-h-[58vh] py-2.5 space-y-3">
-                  <div className="bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
-                    <h4 className="text-xs font-black text-[#1e382b] mb-1.5 pb-1 border-b">بيانات العميل والتوصيل:</h4>
-                    <div className="text-[11px] space-y-1 text-slate-700">
-                      <div><strong>الاسم:</strong> {customer.name}</div>
-                      <div><strong>الهاتف:</strong> {customer.phone}</div>
-                      <div><strong>العنوان:</strong> {customer.address}</div>
-                      {customer.notes && <div><strong>الملاحظات:</strong> {customer.notes}</div>}
+                <div className="overflow-y-auto max-h-[58vh] py-3 space-y-4">
+                  <div className="bg-[#fbf9f4] p-4 rounded-2xl border-2 border-[#e8e2d5]">
+                    <h4 className="text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-[#e8e2d5]">بيانات العميل والتوصيل:</h4>
+                    <div className="text-xs space-y-1.5 text-slate-700 font-semibold">
+                      <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
+                      <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
+                      <div><strong className="font-black text-slate-800">العنوان:</strong> {customer.address}</div>
+                      {customer.notes && <div><strong className="font-black text-slate-800">الملاحظات:</strong> {customer.notes}</div>}
                     </div>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-200">
-                    <h4 className="text-xs font-black text-[#1e382b] mb-1.5 pb-1 border-b">المنتجات المطلوبة:</h4>
-                    <div className="space-y-1.5 divide-y divide-slate-50">
+                  <div className="bg-white p-4 rounded-2xl border-2 border-slate-100">
+                    <h4 className="text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-slate-100">المنتجات المطلوبة:</h4>
+                    <div className="space-y-2 divide-y divide-slate-50">
                       {cart.map((item, idx) => (
-                        <div key={idx} className="pt-1.5 first:pt-0 flex justify-between items-center text-xs">
-                          <div><span className="font-bold text-[#1e382b]">{item.name}</span><span className="text-[10px] text-slate-500 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
+                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-sm">
+                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[11px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
                           <span className="font-black text-[#2d533e]">{(item.price * item.qty).toFixed(2)} جنيه</span>
                         </div>
                       ))}
@@ -856,33 +852,33 @@ export default function Home() {
               )}
             </div>
 
-            <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
-              <div className="flex justify-between items-center font-bold text-xs pb-0.5">
-                <span className="text-slate-600">الإجمالي النهائي:</span>
-                <span className="text-[#2d533e] text-base font-black">{totalAmount} جنيه</span>
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <div className="flex justify-between items-center font-black text-sm pb-1">
+                <span className="text-slate-700">الإجمالي النهائي:</span>
+                <span className="text-[#2d533e] text-xl">{totalAmount} جنيه</span>
               </div>
 
               {currentStep === 'cart' && (
                 <div className="flex flex-col gap-2.5">
-                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</button>
+                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3.5 rounded-xl font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg"><span>متابعة إتمام الطلب</span><ChevronRight className="w-4 h-4 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'checkout' && (
                 <div className="flex flex-col gap-2.5">
-                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</button>
+                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3.5 rounded-xl font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-4 h-4 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'review' && (
                 <div className="flex flex-col gap-2.5">
-                  <div className="flex gap-2">
-                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border py-3 rounded-xl font-bold text-xs">تعديل البيانات</button>
-                    <button onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال الطلب عبر واتساب</span></button>
+                  <div className="flex gap-2.5">
+                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3.5 rounded-xl font-black text-sm">تعديل البيانات</button>
+                    <button onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] text-white py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg"><Phone className="w-4 h-4 fill-white" /><span>إرسال عبر واتساب</span></button>
                   </div>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-sm">رجوع لمتابعة التسوق</button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50">رجوع لمتابعة التسوق</button>
                 </div>
               )}
             </div>
@@ -892,28 +888,28 @@ export default function Home() {
       )}
 
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl">
-            <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-1.5" />
-            <h3 className="font-black text-xs text-[#1e382b] mb-1">تأكيد مسح السلة</h3>
-            <p className="text-[11px] text-slate-500 mb-3">هل أنت متأكد من مسح السلة؟</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء</button>
-              <button onClick={clearEntireCart} className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-xs">نعم، امسح</button>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
+            <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
+            <h3 className="font-black text-base text-[#1e382b] mb-1.5">تأكيد مسح السلة</h3>
+            <p className="text-xs font-bold text-slate-500 mb-4">هل أنت متأكد من مسح السلة بالكامل؟</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm text-slate-700">إلغاء</button>
+              <button onClick={clearEntireCart} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-sm shadow-md">نعم، امسح</button>
             </div>
           </div>
         </div>
       )}
 
       {showRestoreConfirm && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-4 max-w-xs w-full text-center shadow-2xl">
-            <RotateCcw className="w-8 h-8 text-amber-500 mx-auto mb-1.5" />
-            <h3 className="font-black text-xs text-[#1e382b] mb-1">استبدال السلة الحالية</h3>
-            <p className="text-[11px] text-slate-500 mb-3">هل تريد استبدال سلتك الحالية بآخر طلب وتعديله؟</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowRestoreConfirm(false)} className="flex-1 py-2 rounded-xl bg-slate-100 text-xs">إلغاء</button>
-              <button onClick={executeRestore} className="flex-1 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs">استرجاع آخر طلب</button>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
+            <RotateCcw className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+            <h3 className="font-black text-base text-[#1e382b] mb-1.5">استبدال السلة الحالية</h3>
+            <p className="text-xs font-bold text-slate-500 mb-4">هل تريد استبدال سلتك الحالية بآخر طلب وتعديله؟</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setShowRestoreConfirm(false)} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm text-slate-700">إلغاء</button>
+              <button onClick={executeRestore} className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm shadow-md">استرجاع الطلب</button>
             </div>
           </div>
         </div>
