@@ -44,7 +44,6 @@ const getWeightNumberInGrams = (weightStr) => {
   return num;
 };
 
-// دالة منظمة لحساب إجمالي الوزن رقمياً وتحويله لنص مقروء بشكل رياضي صحيح
 const getCalculatedTotalWeight = (weightStr, qty) => {
   if (!weightStr) return '';
   const str = weightStr.toString();
@@ -97,7 +96,9 @@ export default function Home() {
   const [modalQty, setModalQty] = useState(1);
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
-  const [grindOption, setGrindOption] = useState('بدون تحديد');
+  
+  // حالة الطحن أصبحت متغيرة ولا توجد بها قيمة ثابتة مسبقة
+  const [grindOption, setGrindOption] = useState('');
 
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
@@ -217,12 +218,20 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    setActiveModalProduct(product);
+    // معالجة خيارات الطحن من Google Sheet
+    let parsedOptions = [];
+    if (product.grindOptions) {
+      parsedOptions = product.grindOptions.split('|').map(s => s.trim()).filter(Boolean);
+    }
+
+    setActiveModalProduct({ ...product, parsedGrindOptions: parsedOptions });
     setSelectedVariant(product.variants.find(v => v.available) || product.variants[0] || null);
     setModalQty(1);
     setIsCustomWeight(false);
     setCustomWeightValue('');
-    setGrindOption('بدون تحديد');
+    
+    // التحديد التلقائي إذا كان هناك خيارات
+    setGrindOption(parsedOptions.length > 0 ? parsedOptions[0] : '');
   };
 
   const getCalculatedPrice = () => {
@@ -267,8 +276,9 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    const finalName = grindOption !== 'بدون تحديد' ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
-    const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption}`;
+    // إضافة خيار الطحن إلى الاسم فقط إذا كان موجوداً
+    const finalName = grindOption ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
+    const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption || 'default'}`;
     
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
@@ -319,7 +329,6 @@ export default function Home() {
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
     const cleanPhone = customer.phone.replace(/\s+/g, '');
     
-    // التحقق الصارم من رقم الهاتف المصري
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
       errors.phone = 'رقم هاتف غير صحيح';
     }
@@ -359,9 +368,9 @@ export default function Home() {
     const hh = String(now.getHours()).padStart(2, '0');
     const mins = String(now.getMinutes()).padStart(2, '0');
     
-    let orderId = `SD-${dd}${mm}-${hh}${mins}`;
+    // الصيغة الجديدة لرقم الطلب: SD-DD/MM-HH:MM
+    let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
 
-    // منع تكرار نفس رقم الطلب إذا حدث طلبان في نفس الدقيقة
     if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
       const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
@@ -679,14 +688,23 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between mb-3 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
-              <span className="text-xs font-bold text-slate-700">حالة المنتج:</span>
-              <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="p-1.5 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e]">
-                <option value="بدون تحديد">الافتراضي (حسب الصورة)</option>
-                <option value="حصى">حصى (سليم)</option>
-                <option value="مطحون">مطحون</option>
-              </select>
-            </div>
+            {/* تم ربط حالة الطحن ديناميكياً ببيانات المنتج، ولا تظهر إذا لم توجد خيارات */}
+            {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
+              <div className="flex items-center justify-between mb-3 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
+                <span className="text-xs font-bold text-slate-700">حالة المنتج:</span>
+                {activeModalProduct.parsedGrindOptions.length === 1 ? (
+                  <div className="p-1.5 px-3 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b]">
+                    {activeModalProduct.parsedGrindOptions[0]}
+                  </div>
+                ) : (
+                  <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="p-1.5 text-xs font-bold border border-[#e8e2d5] rounded-lg bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e]">
+                    {activeModalProduct.parsedGrindOptions.map((opt, i) => (
+                      <option key={i} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center justify-between mb-5 bg-[#fbf9f4] p-3 rounded-xl border border-[#e8e2d5]">
               <span className="text-xs font-bold text-slate-700">الكمية المطلوبة:</span>
