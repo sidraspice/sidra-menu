@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -665,7 +665,7 @@ export default function Home() {
                       <div className="text-sm font-black text-[#2d533e] mt-1 flex flex-col">
                         {variant.available ? (
                           <div className="flex items-center gap-1.5"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[11px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
-                        ) : <span className="text-slate-400">0</span>}
+                        ) : <span className="text-slate-400 text-sm">0</span>}
                       </div>
                     </button>
                   );
@@ -692,15 +692,25 @@ export default function Home() {
               <div className="flex items-center justify-between mb-4 bg-[#fbf9f4] p-4 rounded-xl border-2 border-[#e8e2d5]">
                 <span className="text-sm font-black text-slate-800">حالة المنتج:</span>
                 {activeModalProduct.parsedGrindOptions.length === 1 ? (
-                  <div className="py-2 px-5 text-sm font-black border-2 border-[#d4af37]/40 rounded-xl bg-white text-[#1e382b] shadow-sm w-[55%] text-center">
-                    {activeModalProduct.parsedGrindOptions[0]}
+                  // تصميم الحالة الثابتة (Badge) - لا يشبه زر الإدخال
+                  <div className="flex justify-end w-[55%]">
+                    <div className="inline-flex items-center justify-center gap-1.5 py-2 px-4 bg-[#f0f0f0] border-2 border-[#e2e2e2] text-[#555] text-sm font-black rounded-xl cursor-default select-none shadow-none">
+                      <span className="w-2 h-2 rounded-full bg-[#aaa]"></span>
+                      <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[11px] font-bold text-[#888]">(فقط)</span></span>
+                    </div>
                   </div>
                 ) : (
-                  <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="py-2 px-4 text-sm font-black border-2 border-[#d4af37]/40 rounded-xl bg-white text-[#1e382b] focus:outline-none focus:border-[#2d533e] shadow-sm w-[55%] cursor-pointer appearance-auto">
-                    {activeModalProduct.parsedGrindOptions.map((opt, i) => (
-                      <option key={i} value={opt} className="font-bold">{opt}</option>
-                    ))}
-                  </select>
+                  // تصميم القائمة المنسدلة (Dropdown) - واضح وتفاعلي
+                  <div className="relative w-[55%]">
+                    <select value={grindOption} onChange={(e) => setGrindOption(e.target.value)} className="w-full py-2.5 pl-10 pr-4 text-sm font-black border-2 border-[#c89d56] rounded-xl bg-white text-[#1e382b] focus:outline-none focus:ring-4 focus:ring-[#2d533e]/10 focus:border-[#2d533e] shadow-sm cursor-pointer appearance-none transition-all">
+                      {activeModalProduct.parsedGrindOptions.map((opt, i) => (
+                        <option key={i} value={opt} className="font-bold text-base">{opt}</option>
+                      ))}
+                    </select>
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ChevronDown className="w-5 h-5 text-[#2d533e]" />
+                    </div>
+                  </div>
                 )}
               </div>
             )}
