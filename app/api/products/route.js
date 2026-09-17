@@ -55,6 +55,7 @@ function parseCSV(text) {
   const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف'));
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
+  // البحث عن عمود حالة الطحن
   const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('نوع') || h.includes('grind'));
 
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
@@ -89,7 +90,6 @@ function parseCSV(text) {
     const values = parseCSVLine(lines[i]);
     if (!values[nameIdx]) continue;
 
-    // 🟢 قراءة إعدادات المتجر من الشيت إذا وجد صف باسم "حالة المتجر" أو قسم "إعدادات"
     const rowName = values[nameIdx].trim();
     const rowCat = categoryIdx !== -1 && values[categoryIdx] ? values[categoryIdx].trim() : '';
     
@@ -102,7 +102,7 @@ function parseCSV(text) {
       if (!isNaN(closeVal)) storeSettings.closeHour = closeVal;
       if (modeVal) storeSettings.mode = modeVal;
       
-      continue; // تخطي هذا الصف حتى لا يُعامل كمنتج
+      continue;
     }
 
     if (!values[regularPriceIdx]) continue;
@@ -140,13 +140,14 @@ function parseCSV(text) {
       }
     }
 
-    const grindType = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
+    // استخراج حالة الطحن
+    const grindOptionsVal = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
 
     rows.push({
       category: rowCat || 'أخرى',
       name: rowName,
       weight: rawWeight ? `${rawWeight} جرام` : 'حسب الطلب',
-      grind: grindType,
+      grindOptions: grindOptionsVal, // تم الإضافة هنا
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
       available: isAvailable,
@@ -163,16 +164,22 @@ function parseCSV(text) {
         name: item.name,
         category: item.category,
         image: item.image || '',
+        grindOptions: item.grindOptions || '', // ربط حالة الطحن بالمنتج
         variants: []
       };
     }
+    
     if (item.image && !productsMap[key].image) {
       productsMap[key].image = item.image;
     }
     
+    // تأكيد إضافة خيار الطحن لو كان موجود في صف تاني لنفس المنتج
+    if (item.grindOptions && !productsMap[key].grindOptions) {
+      productsMap[key].grindOptions = item.grindOptions;
+    }
+    
     productsMap[key].variants.push({
       weight: item.weight,
-      grind: item.grind,
       price: item.price,
       originalPrice: item.originalPrice, 
       available: item.available
