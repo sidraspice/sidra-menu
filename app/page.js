@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
+  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -104,7 +104,7 @@ export default function Home() {
   const toastTimeoutRef = useRef(null);
 
   const [currentStep, setCurrentStep] = useState('shop');
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '', notes: '' });
+  const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
@@ -184,7 +184,16 @@ export default function Home() {
   useEffect(() => {
     try {
       const savedCustomer = localStorage.getItem('sedra_customer');
-      if (savedCustomer) setCustomer({ ...JSON.parse(savedCustomer), notes: '' });
+      if (savedCustomer) {
+        const parsed = JSON.parse(savedCustomer);
+        setCustomer({ 
+          name: parsed.name || '', 
+          phone: parsed.phone || '', 
+          deliveryZone: parsed.deliveryZone || '', 
+          address: parsed.address || '', 
+          notes: '' 
+        });
+      }
     } catch (e) { console.error(e); }
   }, []);
 
@@ -307,30 +316,46 @@ export default function Home() {
 
   const totalAmount = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.qty), 0).toFixed(2), [cart]);
   const totalItemsCount = useMemo(() => cart.reduce((sum, item) => sum + item.qty, 0), [cart]);
-
   const currentTotalNumber = parseFloat(totalAmount) || 0;
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
 
+  const addressWarning = useMemo(() => {
+    if (!customer.deliveryZone || !customer.address) return null;
+    const addr = customer.address.trim();
+    const isDamanhour = /^دمنهور/i.test(addr) || addr.includes('دمنهور');
+    const isOutsideCities = /^(الاسكندرية|الإسكندرية|كفر الدوار|أبو حمص|ابو حمص|القاهرة|طنطا|دسوق|دسووق|رشيد|ايتاى|إيتاي|شبراخيت|الرحمانية|المحمودية|ادكو|إدكو|كوم حمادة|وادي النطرون|حوش عيسى)/i.test(addr);
+
+    if (customer.deliveryZone === 'damanhour' && isOutsideCities && !isDamanhour) {
+      return "⚠️ العنوان يبدو خارج دمنهور. من فضلك راجع مكان التوصيل.";
+    }
+    if (customer.deliveryZone === 'outside' && /^دمنهور/i.test(addr)) {
+      return "⚠️ العنوان يبدو داخل دمنهور. من فضلك راجع مكان التوصيل.";
+    }
+    return null;
+  }, [customer.address, customer.deliveryZone]);
+
   useEffect(() => {
-    if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD && !confettiFired && window.confetti) {
+    if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD && !confettiFired && window.confetti) {
       window.confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
       setConfettiFired(true);
-    } else if (currentTotalNumber < FREE_DELIVERY_THRESHOLD) {
+    } else if (currentTotalNumber < FREE_DELIVERY_THRESHOLD || customer.deliveryZone === 'outside') {
       setConfettiFired(false);
     }
-  }, [currentTotalNumber, confettiFired]);
+  }, [currentTotalNumber, customer.deliveryZone, confettiFired]);
 
   const validateForm = () => {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
-    const cleanPhone = customer.phone.replace(/\s+/g, '');
     
+    const cleanPhone = customer.phone.replace(/\s+/g, '');
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
       errors.phone = 'رقم هاتف غير صحيح';
     }
     
+    if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -382,7 +407,7 @@ export default function Home() {
       message += `\n`;
     }
 
-    message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 العنوان: ${customer.address.trim()}\n`;
+    message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
     if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
     message += `\n📦 المنتجات المطلوبة:\n\n`;
     
@@ -400,7 +425,16 @@ export default function Home() {
     });
 
     message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
-    if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) message += `🎁 مستحق لعرض: توصيل مجاني داخل دمنهور\n`;
+    
+    // منطق الواتساب المبني على منطقة التوصيل
+    if (customer.deliveryZone === 'damanhour') {
+      if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+        message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
+      }
+    } else if (customer.deliveryZone === 'outside') {
+      message += `\n🚚 شحن خارج دمنهور\nسيتم شحن الطلب عبر البريد السريع، وسنبلغ حضراتكم بمصاريف الشحن قبل الشحن.\nويمكن التسليم على العنوان أو الاستلام من أقرب مكتب بريد للعنوان.\n\n`;
+    }
+    
     message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
 
     const nowTs = Date.now();
@@ -693,7 +727,6 @@ export default function Home() {
                 <span className="text-sm font-black text-slate-800">حالة المنتج:</span>
                 
                 {activeModalProduct.parsedGrindOptions.length === 1 ? (
-                  // الحالة الثابتة الواضحة لخيار واحد فقط (Badge)
                   <div className="w-full">
                     <div className="flex items-center justify-center gap-2 py-3.5 px-4 bg-[#f0f0f0] border-2 border-[#e2e2e2] text-slate-500 text-sm sm:text-base font-black rounded-xl cursor-default select-none shadow-none w-full">
                       <span className="w-2 h-2 rounded-full bg-slate-400"></span>
@@ -701,7 +734,6 @@ export default function Home() {
                     </div>
                   </div>
                 ) : (
-                  // نظام Segmented Choice Buttons الاحترافي المتجاوب
                   <div 
                     className="flex items-center gap-2 w-full" 
                     role="radiogroup" 
@@ -802,7 +834,7 @@ export default function Home() {
 
               {currentStep === 'cart' && (
                 <div className="overflow-y-auto max-h-[56vh] py-3">
-                  {cart.length > 0 && (
+                  {cart.length > 0 && customer.deliveryZone !== 'outside' && (
                     <div className="mb-4 bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center mb-2.5">
                         <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-4 h-4 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
@@ -849,9 +881,43 @@ export default function Home() {
                     <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><Phone className="w-4 h-4 text-[#2d533e]" /> رقم الهاتف <span className="text-red-500">*</span></label>
                     <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full p-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
+                  
+                  <div>
+                    <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#2d533e]" /> مكان التوصيل <span className="text-red-500">*</span></label>
+                    <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={customer.deliveryZone === 'damanhour'}
+                        onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); }}
+                        className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8]'}`}
+                      >
+                        {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />}
+                        داخل دمنهور
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={customer.deliveryZone === 'outside'}
+                        onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); }}
+                        className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8]'}`}
+                      >
+                        {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />}
+                        خارج دمنهور
+                      </button>
+                    </div>
+                    {formErrors.deliveryZone && <p className="text-red-500 text-xs font-bold mt-1.5">{formErrors.deliveryZone}</p>}
+                  </div>
+
                   <div>
                     <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#2d533e]" /> العنوان بالتفصيل <span className="text-red-500">*</span></label>
                     <textarea rows={3} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full p-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none`} />
+                    {addressWarning && (
+                      <div className="mt-2 bg-amber-50 border border-amber-200 p-2.5 rounded-xl flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <span className="text-xs font-bold text-amber-800 leading-snug">{addressWarning}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs font-black text-slate-700 block mb-1.5 flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#2d533e]" /> ملاحظات على الطلب (اختياري)</label>
@@ -867,6 +933,7 @@ export default function Home() {
                     <div className="text-xs space-y-1.5 text-slate-700 font-semibold">
                       <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
                       <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
+                      <div><strong className="font-black text-slate-800">مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
                       <div><strong className="font-black text-slate-800">العنوان:</strong> {customer.address}</div>
                       {customer.notes && <div><strong className="font-black text-slate-800">الملاحظات:</strong> {customer.notes}</div>}
                     </div>
