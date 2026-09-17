@@ -97,7 +97,7 @@ export default function Home() {
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
   
-  // حالة الطحن أصبحت متغيرة ولا توجد بها قيمة ثابتة مسبقة
+  // حالة الطحن
   const [grindOption, setGrindOption] = useState('');
 
   const [zoomedImage, setZoomedImage] = useState(null);
@@ -218,10 +218,11 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    // معالجة خيارات الطحن من Google Sheet
+    // معالجة خيارات الطحن من Google Sheet - تم إضافة دعم للاسم بالعربي كما هو في الشيت
+    const rawGrindData = product.grindOptions || product['حالة الطحن'] || product['حالة الطحن '] || '';
     let parsedOptions = [];
-    if (product.grindOptions) {
-      parsedOptions = product.grindOptions.split('|').map(s => s.trim()).filter(Boolean);
+    if (rawGrindData) {
+      parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
     }
 
     setActiveModalProduct({ ...product, parsedGrindOptions: parsedOptions });
