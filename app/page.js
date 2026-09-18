@@ -96,6 +96,7 @@ export default function Home() {
   const [modalQty, setModalQty] = useState(1);
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
+  const customWeightInputRef = useRef(null); // Reference for the custom weight input field
   
   const [grindOption, setGrindOption] = useState('');
 
@@ -778,7 +779,7 @@ export default function Home() {
       </main>
 
       {activeModalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm pb-16">
           <div className="bg-white w-full max-w-md max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             {/* Modal Header */}
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
@@ -798,7 +799,7 @@ export default function Home() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-32">
               <div className="space-y-2.5">
                 <label className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الأوزان المتاحة</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -825,7 +826,16 @@ export default function Home() {
                   })}
                 </div>
 
-                <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`p-3 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-sm' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}>
+                <div 
+                  onClick={() => { 
+                    triggerVibration(); 
+                    setIsCustomWeight(true); 
+                    setTimeout(() => {
+                      if(customWeightInputRef.current) customWeightInputRef.current.focus();
+                    }, 50);
+                  }} 
+                  className={`p-3 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-sm' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}
+                >
                   <div className="flex items-center gap-2">
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-slate-300 bg-white'}`}>{isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}</div>
                     <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
@@ -833,7 +843,17 @@ export default function Home() {
                   {isCustomWeight && (
                     <div className="mt-2.5 pl-6" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="مثال: 300" className="flex-1 p-2 text-center text-sm font-black border-2 border-red-300 rounded-lg outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" />
+                        <input 
+                          ref={customWeightInputRef}
+                          type="number" 
+                          inputMode="numeric" 
+                          pattern="[0-9]*" 
+                          min="1" 
+                          value={customWeightValue} 
+                          onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} 
+                          placeholder="مثال: 300" 
+                          className="flex-1 p-2 text-center text-sm font-black border-2 border-red-300 rounded-lg outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" 
+                        />
                         <span className="text-sm font-black text-red-700 shrink-0">جرام</span>
                       </div>
                     </div>
@@ -913,7 +933,7 @@ export default function Home() {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
+            <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
               <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-sm sm:text-base shadow-sm hover:bg-[#1e382b] transition transform active:scale-[0.98]">
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
