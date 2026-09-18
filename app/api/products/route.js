@@ -68,7 +68,6 @@ function parseCSV(text) {
     h.includes('صورة') || h.includes('صوره') || h.includes('image') || h.includes('img') || h.includes('رابط') || h.includes('الصور')
   );
 
-  // --- تحديث جذري: إضافة قراءة الكود والمخزون وحد التنبيه ---
   const codeIdx = headers.findIndex(h => h.includes('كود') || h.includes('code'));
   const stockIdx = headers.findIndex(h => h.includes('مخزون') || h.includes('stock'));
   const alertIdx = headers.findIndex(h => h.includes('تنبيه') || h.includes('alert'));
@@ -118,7 +117,6 @@ function parseCSV(text) {
       continue;
     }
 
-    // --- تحديث جذري: سحب المتغيرات الجديدة من الشيت ---
     const itemCodeVal = codeIdx !== -1 && values[codeIdx] ? values[codeIdx].trim() : '';
     const stockVal = stockIdx !== -1 && values[stockIdx] ? parseFloat(values[stockIdx].replace(/,/g, '')) || 0 : 0;
     const alertVal = alertIdx !== -1 && values[alertIdx] ? parseFloat(values[alertIdx].replace(/,/g, '')) || 0 : 0;
@@ -129,7 +127,6 @@ function parseCSV(text) {
         statusVal.includes('خلص') || statusVal.toLowerCase() === 'out' || statusVal.toLowerCase() === 'false' || statusVal === '0') {
       isAvailable = false;
     }
-    // دمج حالة التوفر اليدوية مع توفر المخزون الرقمي
     if (isAvailable && stockVal <= 0) {
       isAvailable = false;
     }
@@ -167,8 +164,8 @@ function parseCSV(text) {
       originalPrice: crossedOutPrice, 
       available: isAvailable, 
       image: formattedImageUrl,
-      itemCode: itemCodeVal,    // تمرير الكود
-      stockGrams: stockVal,     // تمرير المخزون
+      itemCode: itemCodeVal,
+      stockGrams: stockVal,
       alertLimit: alertVal,
       status: statusVal
     });
@@ -176,7 +173,6 @@ function parseCSV(text) {
 
   const productsMap = {};
   rows.forEach(item => {
-    // تجميع المنتجات بناءً على كود الصنف لمنع التكرار (ولو مفيش كود يستخدم الاسم)
     const key = item.itemCode ? item.itemCode : `${item.category}_${item.name}`;
     
     if (!productsMap[key]) {
@@ -212,6 +208,9 @@ function parseCSV(text) {
 
   const products = Object.values(productsMap).map(product => ({
     ...product,
+    'كود الصنف': product.itemCode,
+    'المخزون الحالي بالجرام': product.stockGrams, // ده السطر السحري اللي هيشغل الواجهة
+    'حالة الصنف': product.status,
     isAvailable: product.status !== 'غير متوفر' && product.stockGrams > 0 && product.variants.some(v => v.available)
   }));
 
