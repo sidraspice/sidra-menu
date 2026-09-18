@@ -4,14 +4,13 @@ export async function POST(req) {
   try {
     const body = await req.json();
     
-    // سحب الرابط السري اللي إنت لسه ضايفه في Vercel
+    // استخدم رابط الـ Web App الذي نسخته من الخطوة السابقة هنا (أو الأفضل في .env)
     const scriptUrl = process.env.GOOGLE_SCRIPT_URL; 
 
     if (!scriptUrl) {
       throw new Error("لم يتم تكوين GOOGLE_SCRIPT_URL في الخادم.");
     }
 
-    // إرسال البيانات لجوجل شيت
     const response = await fetch(scriptUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
