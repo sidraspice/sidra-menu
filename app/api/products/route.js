@@ -56,7 +56,6 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
   
-  // 1️⃣ إصلاح حالة الطحن: البحث بكلمة "طحن" بوضوح لعدم التداخل
   const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('grind'));
 
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
@@ -69,10 +68,13 @@ function parseCSV(text) {
     h.includes('صورة') || h.includes('صوره') || h.includes('image') || h.includes('img') || h.includes('رابط') || h.includes('الصور')
   );
 
-  // 2️⃣ إصلاح المشكلة الكبرى: منع التداخل بين "الحالة" و "حالة الطحن"
+  // --- تحديث جذري: إضافة قراءة الكود والمخزون وحد التنبيه ---
+  const codeIdx = headers.findIndex(h => h.includes('كود') || h.includes('code'));
+  const stockIdx = headers.findIndex(h => h.includes('مخزون') || h.includes('stock'));
+  const alertIdx = headers.findIndex(h => h.includes('تنبيه') || h.includes('alert'));
+
   let statusIdx = headers.findIndex(h => {
     const clean = h.trim();
-    // نبحث عن كلمة الحالة فقط ولا نقبل "حالة الطحن"
     return clean === 'الحالة' || clean === 'حالة' || clean === 'حالة الصنف' || clean.includes('توفر') || clean.includes('متوفر') || clean.includes('متاح');
   });
 
@@ -116,15 +118,20 @@ function parseCSV(text) {
       continue;
     }
 
+    // --- تحديث جذري: سحب المتغيرات الجديدة من الشيت ---
+    const itemCodeVal = codeIdx !== -1 && values[codeIdx] ? values[codeIdx].trim() : '';
+    const stockVal = stockIdx !== -1 && values[stockIdx] ? parseFloat(values[stockIdx].replace(/,/g, '')) || 0 : 0;
+    const alertVal = alertIdx !== -1 && values[alertIdx] ? parseFloat(values[alertIdx].replace(/,/g, '')) || 0 : 0;
+    const statusVal = statusIdx !== -1 && values[statusIdx] ? values[statusIdx].trim() : '';
+
     let isAvailable = true;
-    if (statusIdx !== -1 && values[statusIdx] !== undefined) {
-      const statusVal = values[statusIdx].trim();
-      if (
-        statusVal.includes('غير') || statusVal.includes('لا') || statusVal.includes('نفذ') || 
-        statusVal.includes('خلص') || statusVal.toLowerCase() === 'out' || statusVal.toLowerCase() === 'false' || statusVal === '0'
-      ) {
-        isAvailable = false;
-      }
+    if (statusVal.includes('غير') || statusVal.includes('لا') || statusVal.includes('نفذ') || 
+        statusVal.includes('خلص') || statusVal.toLowerCase() === 'out' || statusVal.toLowerCase() === 'false' || statusVal === '0') {
+      isAvailable = false;
+    }
+    // دمج حالة التوفر اليدوية مع توفر المخزون الرقمي
+    if (isAvailable && stockVal <= 0) {
+      isAvailable = false;
     }
 
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
@@ -144,10 +151,8 @@ function parseCSV(text) {
       }
     }
 
-    // استخراج حالة الطحن بشكل صحيح الآن
     const grindOptionsVal = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
     
-    // تحسين تنسيق الوزن
     let finalWeightStr = 'حسب الطلب';
     if (rawWeight) {
       finalWeightStr = (rawWeight.includes('جرام') || rawWeight.includes('g') || rawWeight.includes('ك')) ? rawWeight : `${rawWeight} جرام`;
@@ -157,24 +162,34 @@ function parseCSV(text) {
       category: rowCat || 'أخرى',
       name: rowName,
       weight: finalWeightStr,
-      grindOptions: grindOptionsVal, // تم الإضافة هنا بشكل سليم
+      grindOptions: grindOptionsVal,
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
-      available: isAvailable,
-      image: formattedImageUrl
+      available: isAvailable, 
+      image: formattedImageUrl,
+      itemCode: itemCodeVal,    // تمرير الكود
+      stockGrams: stockVal,     // تمرير المخزون
+      alertLimit: alertVal,
+      status: statusVal
     });
   }
 
   const productsMap = {};
   rows.forEach(item => {
-    const key = `${item.category}_${item.name}`;
+    // تجميع المنتجات بناءً على كود الصنف لمنع التكرار (ولو مفيش كود يستخدم الاسم)
+    const key = item.itemCode ? item.itemCode : `${item.category}_${item.name}`;
+    
     if (!productsMap[key]) {
       productsMap[key] = {
         id: key,
+        itemCode: item.itemCode,
         name: item.name,
         category: item.category,
         image: item.image || '',
-        grindOptions: item.grindOptions || '', // ربط حالة الطحن بالمنتج
+        grindOptions: item.grindOptions || '', 
+        status: item.status,
+        stockGrams: item.stockGrams,
+        alertLimit: item.alertLimit,
         variants: []
       };
     }
@@ -183,7 +198,6 @@ function parseCSV(text) {
       productsMap[key].image = item.image;
     }
 
-    // تأكيد إضافة خيار الطحن لو كان موجود في صف تاني لنفس المنتج
     if (item.grindOptions && !productsMap[key].grindOptions) {
       productsMap[key].grindOptions = item.grindOptions;
     }
@@ -198,7 +212,7 @@ function parseCSV(text) {
 
   const products = Object.values(productsMap).map(product => ({
     ...product,
-    isAvailable: product.variants.some(v => v.available)
+    isAvailable: product.status !== 'غير متوفر' && product.stockGrams > 0 && product.variants.some(v => v.available)
   }));
 
   return { products, storeSettings };
