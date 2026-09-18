@@ -327,10 +327,10 @@ export default function Home() {
     const isOutsideCities = /^(الاسكندرية|الإسكندرية|كفر الدوار|أبو حمص|ابو حمص|القاهرة|طنطا|دسوق|دسووق|رشيد|ايتاى|إيتاي|شبراخيت|الرحمانية|المحمودية|ادكو|إدكو|كوم حمادة|وادي النطرون|حوش عيسى)/i.test(addr);
 
     if (customer.deliveryZone === 'damanhour' && isOutsideCities && !isDamanhour) {
-      return "⚠️ العنوان يبدو خارج دمنهور. من فضلك راجع مكان التوصيل.";
+      return "⚠️ العنوان يبدو خارج دمنهور، برجاء مراجعة مكان التوصيل.";
     }
     if (customer.deliveryZone === 'outside' && /^دمنهور/i.test(addr)) {
-      return "⚠️ العنوان يبدو داخل دمنهور. من فضلك راجع مكان التوصيل.";
+      return "⚠️ العنوان يبدو داخل دمنهور، برجاء مراجعة مكان التوصيل.";
     }
     return null;
   }, [customer.address, customer.deliveryZone]);
@@ -426,24 +426,22 @@ export default function Home() {
 
     message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
     
-    if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-      message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
-    }
-    
-    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-
-    // صياغة الواتساب مفصولة بالكامل بناءً على مكان التوصيل
     if (customer.deliveryZone === 'damanhour') {
+      if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+        message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
+      }
+      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
       message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
     } else if (customer.deliveryZone === 'outside') {
-      message += `🚚 *شحن خارج دمنهور*\n`;
-      message += `يتم الشحن عبر البريد ويتوفر خياران:\n`;
-      message += `📌 *شحن سريع:* التسليم باليد على العنوان.\n`;
-      message += `📌 *شحن عادي:* الاستلام من أقرب مكتب بريد لعنوانكم.\n`;
-      message += `(سنقوم بإبلاغ حضراتكم بمصاريف الشحن وقت إرسال الطلب).\n\n`;
-      message += `💡 نرجو إبلاغنا باختياركم المفضل لنقوم بتجهيز الطلب والبدء بإجراءات الشحن.\n\n`;
+      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+      message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
+      message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
+      message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
+      message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
+      message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
       message += `💳 *لتأكيد الطلب:*\n`;
-      message += `برجاء تحويل إجمالي الفاتورة قبل الشحن عبر إنستاباي (InstaPay) على الرقم: 01009750003`;
+      message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
+      message += `*01009750003*`;
     }
 
     const nowTs = Date.now();
