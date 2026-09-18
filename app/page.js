@@ -140,19 +140,28 @@ export default function Home() {
       if (!json.success) throw new Error(json.error);
       
       const mappedProducts = json.products.map(p => {
-         const stockGrams = parseFloat(p['المخزون الحالي بالجرام'] || p.stockGrams || p.stock || 0);
-         let status = (p['حالة الصنف'] || p['حالة الصنف '] || '');
-         if (typeof status === 'string') status = status.trim();
+         const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
+         const alertLimit = parseFloat(p['حد التنبيه بالجرام']) || 0;
+         const itemCode = p['كود الصنف'] || '';
+         let status = (p['حالة الصنف'] || '').toString().trim();
          
-         let isAvailable = p.isAvailable;
+         let isAvailable = true;
          if (status === 'غير متوفر') {
              isAvailable = false;
          } else if (status === 'متوفر') {
              if (stockGrams <= 0) isAvailable = false;
-             else isAvailable = true;
+         } else {
+             if (stockGrams <= 0) isAvailable = false;
          }
          
-         return { ...p, stockGrams, isAvailable };
+         return { 
+             ...p, 
+             stockGrams, 
+             alertLimit, 
+             itemCode, 
+             isAvailable,
+             'حالة الطحن': p['حالة الطحن'] || '' 
+         };
       });
 
       setData({ products: mappedProducts, categories: json.categories });
@@ -243,7 +252,7 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    const rawGrindData = product.grindOptions || product['حالة المنتج'] || product['حالة المنتج '] || product['حالة الطحن'] || product['حالة الطحن '] || '';
+    const rawGrindData = product['حالة الطحن'] || '';
     let parsedOptions = [];
     if (rawGrindData && typeof rawGrindData === 'string') {
       parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
@@ -298,7 +307,6 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    // التحقق الفعلي من المخزون الإجمالي في السلة والطلب الحالي
     let requestedGrams = (isCustomWeight ? parseFloat(customWeightValue) : getWeightNumberInGrams(selectedVariant.weight)) * modalQty;
     let alreadyInCartGrams = cart.reduce((total, item) => {
         const itemPId = item.productId || item.key.split('_')[0];
@@ -309,7 +317,7 @@ export default function Home() {
     }, 0);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${activeModalProduct.stockGrams} جرام.` });
         setTimeout(() => setToast({ visible: false, message: '' }), 2500);
         return;
     }
@@ -323,7 +331,7 @@ export default function Home() {
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
-      return [...prev, { key: itemKey, productId: activeModalProduct.id, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
+      return [...prev, { key: itemKey, productId: activeModalProduct.id, itemCode: activeModalProduct.itemCode, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
     });
     
     setActiveModalProduct(null);
@@ -350,7 +358,7 @@ export default function Home() {
                }, 0);
                
                if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
-                   setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${product.stockGrams} جرام.` });
+                   setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${product.stockGrams} جرام.` });
                    setTimeout(() => setToast({ visible: false, message: '' }), 2500);
                    return; 
                }
@@ -852,7 +860,7 @@ export default function Home() {
                       }, 0);
                       
                       if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-                          setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+                          setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${activeModalProduct.stockGrams} جرام.` });
                           setTimeout(() => setToast({ visible: false, message: '' }), 2500);
                       } else {
                           setModalQty(modalQty + 1); 
