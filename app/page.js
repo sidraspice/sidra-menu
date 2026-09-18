@@ -138,7 +138,24 @@ export default function Home() {
       const res = await fetch('/api/products');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setData({ products: json.products, categories: json.categories });
+      
+      const mappedProducts = json.products.map(p => {
+         const stockGrams = parseFloat(p['المخزون الحالي بالجرام'] || p.stockGrams || p.stock || 0);
+         let status = (p['حالة الصنف'] || p['حالة الصنف '] || '');
+         if (typeof status === 'string') status = status.trim();
+         
+         let isAvailable = p.isAvailable;
+         if (status === 'غير متوفر') {
+             isAvailable = false;
+         } else if (status === 'متوفر') {
+             if (stockGrams <= 0) isAvailable = false;
+             else isAvailable = true;
+         }
+         
+         return { ...p, stockGrams, isAvailable };
+      });
+
+      setData({ products: mappedProducts, categories: json.categories });
     } catch (err) {
       setError(err.message || 'حدث خطأ في تحميل البيانات');
     } finally {
@@ -268,8 +285,6 @@ export default function Home() {
 
   const addToCart = (e) => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
-    triggerVibration(); 
-    triggerFlyingAnimation(e, activeModalProduct.image || '/logo.png');
 
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
@@ -283,13 +298,32 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
+    // التحقق الفعلي من المخزون الإجمالي في السلة والطلب الحالي
+    let requestedGrams = (isCustomWeight ? parseFloat(customWeightValue) : getWeightNumberInGrams(selectedVariant.weight)) * modalQty;
+    let alreadyInCartGrams = cart.reduce((total, item) => {
+        const itemPId = item.productId || item.key.split('_')[0];
+        if (itemPId == activeModalProduct.id) {
+            return total + (getWeightNumberInGrams(item.weight) * item.qty);
+        }
+        return total;
+    }, 0);
+
+    if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
+        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+        setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+        return;
+    }
+
+    triggerVibration(); 
+    triggerFlyingAnimation(e, activeModalProduct.image || '/logo.png');
+
     const finalName = grindOption ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
     const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption || 'default'}`;
     
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
-      return [...prev, { key: itemKey, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
+      return [...prev, { key: itemKey, productId: activeModalProduct.id, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
     });
     
     setActiveModalProduct(null);
@@ -299,6 +333,31 @@ export default function Home() {
 
   const updateCartQty = (key, delta) => {
     triggerVibration();
+
+    if (delta > 0) {
+       const itemToUpdate = cart.find(i => i.key === key);
+       if (itemToUpdate) {
+           const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
+           const product = data.products.find(p => p.id == itemPId);
+           if (product) {
+               const itemWeightGrams = getWeightNumberInGrams(itemToUpdate.weight);
+               const alreadyInCartGrams = cart.reduce((total, item) => {
+                   const currPId = item.productId || item.key.split('_')[0];
+                   if (currPId == product.id) {
+                       return total + (getWeightNumberInGrams(item.weight) * item.qty);
+                   }
+                   return total;
+               }, 0);
+               
+               if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
+                   setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${product.stockGrams} جرام.` });
+                   setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+                   return; 
+               }
+           }
+       }
+    }
+
     setCart(prev => prev.map(item => item.key === key ? (item.qty + delta > 0 ? { ...item, qty: item.qty + delta } : null) : item).filter(Boolean));
   };
 
@@ -777,9 +836,28 @@ export default function Home() {
               <div className="space-y-2 pb-1">
                 <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
                 <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
-                  <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
+                  <button onClick={() => { 
+                      triggerVibration(); 
+                      setModalQty(Math.max(1, modalQty - 1)); 
+                  }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
                   <span className="font-black text-base text-[#1e382b] w-6 text-center">{modalQty}</span>
-                  <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
+                  <button onClick={() => { 
+                      triggerVibration(); 
+                      const weightGrams = isCustomWeight ? (parseFloat(customWeightValue)||0) : getWeightNumberInGrams(selectedVariant?.weight);
+                      const requestedGrams = weightGrams * (modalQty + 1);
+                      const alreadyInCartGrams = cart.reduce((total, item) => {
+                          const itemPId = item.productId || item.key.split('_')[0];
+                          if (itemPId == activeModalProduct.id) return total + (getWeightNumberInGrams(item.weight) * item.qty);
+                          return total;
+                      }, 0);
+                      
+                      if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
+                          setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+                          setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+                      } else {
+                          setModalQty(modalQty + 1); 
+                      }
+                  }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
                 </div>
               </div>
             </div>
