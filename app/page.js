@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  ArrowRight, User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, Clock, RotateCcw, Package, HelpCircle
+  User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -434,14 +434,13 @@ export default function Home() {
       message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
     } else if (customer.deliveryZone === 'outside') {
       message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-      message += `🚚 *شحن خارج دمنهور*\n`;
-      message += `يتم الشحن من خلال مكتب البريد، ويتوفر لحضراتكم خيارين:\n`;
-      message += `📌 *شحن سريع:* (التسليم باليد على العنوان).\n`;
-      message += `📌 *شحن عادي:* (الاستلام من أقرب مكتب بريد للعنوان).\n`;
-      message += `(سنقوم بإبلاغ حضراتكم بمصاريف الشحن وقت الإرسال).\n\n`;
-      message += `💡 نرجو إبلاغنا باختياركم المفضل لنتمكن من تجهيز الطلب والبدء بالشحن.\n\n`;
+      message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
+      message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
+      message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
+      message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
+      message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
       message += `💳 *لتأكيد الطلب:*\n`;
-      message += `برجاء تحويل إجمالي الفاتورة قبل الشحن عبر إنستاباي (InstaPay) على الرقم:\n`;
+      message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
       message += `*01009750003*`;
     }
 
@@ -671,30 +670,29 @@ export default function Home() {
 
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:max-h-[85vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+          <div className="bg-white w-full max-w-md max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             {/* Modal Header */}
-            <div className="px-5 pt-5 pb-4 border-b border-slate-100 shrink-0 bg-white z-10">
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
                 {activeModalProduct.image && (
-                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-14 h-14 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
+                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
                     <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
                     <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
                   </div>
                 )}
                 <div className="flex-1 pr-1">
                   <span className="text-[10px] font-bold text-[#c89d56] block mb-0.5">{activeModalProduct.category}</span>
-                  <h2 className="text-lg font-black text-[#1e382b] leading-snug">{activeModalProduct.name}</h2>
+                  <h2 className="text-base sm:text-lg font-black text-[#1e382b] leading-snug">{activeModalProduct.name}</h2>
                 </div>
-                <button onClick={() => setActiveModalProduct(null)} className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                <button onClick={() => setActiveModalProduct(null)} className="p-1.5 bg-slate-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
               </div>
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-white">
-              
-              <div className="space-y-3">
-                <label className="text-sm font-black text-slate-800 flex items-center gap-1.5 border-b-2 border-slate-50 pb-2">الأوزان المتاحة</label>
-                <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+              <div className="space-y-2.5">
+                <label className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الأوزان المتاحة</label>
+                <div className="grid grid-cols-2 gap-2">
                   {activeModalProduct.variants.map((variant, idx) => {
                     const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
                     const displayWeight = isSelected ? getCalculatedTotalWeight(variant.weight, modalQty) : variant.weight;
@@ -703,31 +701,31 @@ export default function Home() {
                     const displayOriginalPrice = isSelected && hasOffer ? (variant.originalPrice * modalQty).toFixed(2) : variant.originalPrice;
 
                     return (
-                      <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-3 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
-                        {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[10px] px-2 py-0.5 rounded-md shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
+                      <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
+                        {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-black">{displayWeight}</span>
+                          <span className="text-xs sm:text-sm font-black">{displayWeight}</span>
                         </div>
-                        <div className="text-sm font-black text-[#2d533e] mt-1 flex flex-col">
+                        <div className="text-xs sm:text-sm font-black text-[#2d533e] mt-0.5 flex flex-col">
                           {variant.available ? (
-                            <div className="flex items-center gap-1.5"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[11px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
-                          ) : <span className="text-slate-400 text-sm">0</span>}
+                            <div className="flex items-center gap-1"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
+                          ) : <span className="text-slate-400">0</span>}
                         </div>
                       </button>
                     );
                   })}
                 </div>
 
-                <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`p-3.5 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-md' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}>
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-slate-300 bg-white'}`}>{isCustomWeight && <div className="w-2.5 h-2.5 rounded-full bg-white" />}</div>
-                    <span className={`text-base font-black ${isCustomWeight ? 'text-red-700' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
+                <div onClick={() => { triggerVibration(); setIsCustomWeight(true); }} className={`p-3 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-sm' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-slate-300 bg-white'}`}>{isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}</div>
+                    <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
                   </div>
                   {isCustomWeight && (
-                    <div className="mt-3.5 pl-7" onClick={e => e.stopPropagation()}>
+                    <div className="mt-2.5 pl-6" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="مثال: 300" className="flex-1 p-3 text-center text-base font-black border-2 border-red-300 rounded-xl outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" />
-                        <span className="text-base font-black text-red-700 shrink-0">جرام</span>
+                        <input type="number" inputMode="numeric" pattern="[0-9]*" min="1" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="مثال: 300" className="flex-1 p-2 text-center text-sm font-black border-2 border-red-300 rounded-lg outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" />
+                        <span className="text-sm font-black text-red-700 shrink-0">جرام</span>
                       </div>
                     </div>
                   )}
@@ -735,14 +733,13 @@ export default function Home() {
               </div>
 
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
-                <div className="space-y-3">
-                  <span className="text-sm font-black text-slate-800 flex items-center gap-1.5 border-b-2 border-slate-50 pb-2">حالة المنتج</span>
-                  
+                <div className="space-y-2">
+                  <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">حالة المنتج</span>
                   {activeModalProduct.parsedGrindOptions.length === 1 ? (
                     <div className="w-full">
-                      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-sm font-black rounded-xl cursor-default select-none w-full">
-                        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-                        <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[11px] font-bold text-slate-400">(فقط)</span></span>
+                      <div className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-xs font-black rounded-xl cursor-default select-none w-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[10px] font-bold text-slate-400">(فقط)</span></span>
                       </div>
                     </div>
                   ) : (
@@ -755,17 +752,17 @@ export default function Home() {
                             role="radio"
                             aria-checked={isSelected}
                             onClick={() => { triggerVibration(); setGrindOption(opt); }}
-                            className={`relative flex-1 py-3.5 px-3 rounded-xl border-2 transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${
+                            className={`relative flex-1 py-2.5 px-2 rounded-xl border-2 transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${
                               isSelected 
                                 ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md z-10' 
                                 : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'
                             }`}
                           >
                             <div className="flex items-center justify-center w-full relative">
-                              <span className="font-black text-sm">{opt}</span>
+                              <span className="font-black text-xs sm:text-sm">{opt}</span>
                               {isSelected && (
                                 <div className="absolute right-0 flex items-center justify-center animate-in zoom-in duration-200">
-                                  <Check className="w-4 h-4 text-white stroke-[3]" />
+                                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[3]" />
                                 </div>
                               )}
                             </div>
@@ -777,19 +774,19 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="space-y-3 pb-2">
-                <span className="text-sm font-black text-slate-800 flex items-center gap-1.5 border-b-2 border-slate-50 pb-2">الكمية المطلوبة</span>
-                <div className="flex items-center gap-3 justify-center bg-slate-50 py-2 rounded-xl border border-slate-100">
-                  <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-10 h-10 rounded-xl bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
-                  <span className="font-black text-lg text-[#1e382b] w-8 text-center">{modalQty}</span>
-                  <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-10 h-10 rounded-xl bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
+              <div className="space-y-2 pb-1">
+                <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
+                <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
+                  <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
+                  <span className="font-black text-base text-[#1e382b] w-6 text-center">{modalQty}</span>
+                  <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-5 pb-5 pt-4 border-t border-slate-100 bg-white shrink-0 z-10">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
+            <div className="px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
+              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-sm sm:text-base shadow-sm hover:bg-[#1e382b] transition transform active:scale-[0.98]">
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
@@ -828,55 +825,55 @@ export default function Home() {
 
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:max-h-[85vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+          <div className="bg-white w-full max-w-md max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
             {/* Unified Modal Header */}
-            <div className="px-5 pt-5 pb-4 border-b border-slate-100 shrink-0 bg-white z-10">
+            <div className="px-4 py-3.5 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex justify-between items-center">
-                <h2 className="text-base font-black text-[#1e382b]">
+                <h2 className="text-sm font-black text-[#1e382b]">
                   {currentStep === 'cart' && 'سلة المشتريات'}
                   {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
                   {currentStep === 'review' && 'مراجعة الطلب قبل الإرسال'}
                 </h2>
                 {currentStep === 'cart' && cart.length > 0 && (
-                  <button onClick={() => setShowClearConfirm(true)} className="text-xs font-black text-red-600 px-3 py-1.5 bg-red-50 rounded-xl border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
+                  <button onClick={() => setShowClearConfirm(true)} className="text-[11px] font-black text-red-600 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
                 )}
               </div>
             </div>
 
             {/* Unified Modal Body (Flex-1 for native scrolling) */}
-            <div className="flex-1 overflow-y-auto p-5 bg-white">
+            <div className="flex-1 overflow-y-auto p-4 bg-white">
               
               {currentStep === 'cart' && (
                 <div className="space-y-4">
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
                     <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center mb-2.5">
-                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-4 h-4 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
-                        <span className="text-xs font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
+                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
                       </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-500 ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${deliveryProgressPercent}%` }} />
                       </div>
                     </div>
                   )}
 
-                  <div className="divide-y divide-slate-100 pb-4">
-                    {cart.length === 0 ? <div className="text-center py-16 text-slate-400 font-bold text-sm">السلة فارغة حالياً</div> : (
+                  <div className="divide-y divide-slate-100 pb-2">
+                    {cart.length === 0 ? <div className="text-center py-12 text-slate-400 font-bold text-sm">السلة فارغة حالياً</div> : (
                       cart.map(item => (
-                        <div key={item.key} className="py-3 flex justify-between items-center gap-3">
+                        <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
                           <div className="flex-1">
-                            <h4 className="font-black text-sm text-[#1e382b] leading-snug">{item.name}</h4>
-                            <div className="text-xs text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
-                            <div className="text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
+                            <h4 className="font-black text-xs sm:text-sm text-[#1e382b] leading-snug">{item.name}</h4>
+                            <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
+                            <div className="text-[11px] sm:text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
                               <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
                               {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button onClick={() => updateCartQty(item.key, -1)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-4 h-4" /></button>
-                            <span className="text-sm font-black w-5 text-center">{item.qty}</span>
-                            <button onClick={() => updateCartQty(item.key, 1)} className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-4 h-4" /></button>
-                            <button onClick={() => removeCartItem(item.key)} className="w-8 h-8 bg-red-50 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-100 ml-1"><Trash2 className="w-4 h-4" /></button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-3.5 h-3.5" /></button>
+                            <span className="text-xs sm:text-sm font-black w-4 sm:w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => removeCartItem(item.key)} className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-100 ml-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
                       ))
@@ -886,95 +883,52 @@ export default function Home() {
               )}
 
               {currentStep === 'checkout' && (
-                <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-6">
-                  {/* Group 1: Personal Data */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-black text-[#2d533e] flex items-center gap-1.5 border-b-2 border-slate-50 pb-2">
-                      <User className="w-4 h-4" /> 1. البيانات الشخصية
-                    </h3>
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1.5">الاسم الكامل <span className="text-red-500">*</span></label>
-                      <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full p-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none transition-colors`} />
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1.5">رقم الهاتف <span className="text-red-500">*</span></label>
-                      <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full p-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none transition-colors`} />
-                    </div>
-                  </div>
-
-                  {/* Group 2: Delivery Address */}
-                  <div className="space-y-4 pt-2">
-                    <h3 className="text-sm font-black text-[#2d533e] flex items-center gap-1.5 border-b-2 border-slate-50 pb-2">
-                      <MapPin className="w-4 h-4" /> 2. بيانات التوصيل
-                    </h3>
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1.5">مكان التوصيل <span className="text-red-500">*</span></label>
-                      <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={customer.deliveryZone === 'damanhour'}
-                          onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); }}
-                          className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8]'}`}
-                        >
-                          {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />}
-                          داخل دمنهور
-                        </button>
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={customer.deliveryZone === 'outside'}
-                          onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); }}
-                          className={`flex-1 py-3 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-2 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8]'}`}
-                        >
-                          {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />}
-                          خارج دمنهور
-                        </button>
-                      </div>
-                      {formErrors.deliveryZone && <p className="text-red-500 text-xs font-bold mt-1.5">{formErrors.deliveryZone}</p>}
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-600 block mb-1.5">العنوان بالتفصيل <span className="text-red-500">*</span></label>
-                      <textarea rows={3} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full p-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none transition-colors`} />
-                      {addressWarning && (
-                        <div className="mt-2 bg-amber-50 border border-amber-200 p-2.5 rounded-xl flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                          <span className="text-xs font-bold text-amber-800 leading-snug">{addressWarning}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Group 3: Notes */}
-                  <div className="space-y-4 pt-2">
-                    <h3 className="text-sm font-black text-[#2d533e] flex items-center justify-between border-b-2 border-slate-50 pb-2">
-                      <div className="flex items-center gap-1.5">
-                        <FileText className="w-4 h-4" /> 3. الملاحظات
-                      </div>
-                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg font-bold">اختياري</span>
-                    </h3>
-                    <div>
-                      <textarea 
-                        rows={2} 
-                        value={customer.notes} 
-                        onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} 
-                        placeholder="مثال: يفضل التواصل معي قبل التوصيل، أو اكتب أي ملاحظة خاصة بالطلب." 
-                        className="w-full p-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none placeholder:text-slate-400 placeholder:font-semibold leading-relaxed transition-colors" 
-                      />
-                    </div>
+                <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-3">
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
+                    <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
                   
-                  {/* Spacer to ensure easy scrolling past the last element on mobile */}
-                  <div className="h-4"></div>
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
+                    <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
+                  </div>
+
+                  <div className="pt-1">
+                    <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : 'bg-white border-[#e8e2d5] text-slate-500'}`}>
+                        {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />} داخل دمنهور
+                      </button>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : 'bg-white border-[#e8e2d5] text-slate-500'}`}>
+                        {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />} خارج دمنهور
+                      </button>
+                    </div>
+                    {formErrors.deliveryZone && <p className="text-red-500 text-[10px] font-bold mt-1.5">{formErrors.deliveryZone}</p>}
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">العنوان بالتفصيل <span className="text-red-500">*</span></label>
+                    <textarea rows={2} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none`} />
+                    {addressWarning && (
+                      <div className="mt-1.5 bg-amber-50 border border-amber-200 p-1.5 rounded-lg flex items-start gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <span className="text-[10px] font-bold text-amber-800 leading-snug">{addressWarning}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">ملاحظات على الطلب (اختياري)</label>
+                    <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: يفضل التواصل معي قبل التوصيل، أو اكتب أي ملاحظة خاصة بالطلب." className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none placeholder:text-slate-400 placeholder:font-semibold placeholder:text-[10px] sm:placeholder:text-[11px]" />
+                  </div>
                 </form>
               )}
 
               {currentStep === 'review' && (
-                <div className="space-y-4 pb-4">
-                  <div className="bg-[#fbf9f4] p-4 rounded-2xl border-2 border-[#e8e2d5]">
-                    <h4 className="text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-[#e8e2d5]">بيانات العميل والتوصيل:</h4>
-                    <div className="text-xs space-y-1.5 text-slate-700 font-semibold">
+                <div className="space-y-3 pb-2">
+                  <div className="bg-[#fbf9f4] p-3 rounded-2xl border-2 border-[#e8e2d5]">
+                    <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-[#e8e2d5]">بيانات العميل والتوصيل:</h4>
+                    <div className="text-[11px] sm:text-xs space-y-1.5 text-slate-700 font-semibold">
                       <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
                       <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
                       <div><strong className="font-black text-slate-800">مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
@@ -982,12 +936,12 @@ export default function Home() {
                       {customer.notes && <div><strong className="font-black text-slate-800">الملاحظات:</strong> {customer.notes}</div>}
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-2xl border-2 border-slate-100">
-                    <h4 className="text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-slate-100">المنتجات المطلوبة:</h4>
+                  <div className="bg-white p-3 rounded-2xl border-2 border-slate-100">
+                    <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-slate-100">المنتجات المطلوبة:</h4>
                     <div className="space-y-2 divide-y divide-slate-50">
                       {cart.map((item, idx) => (
-                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-sm">
-                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[11px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
+                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-[11px] sm:text-xs">
+                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[10px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
                           <span className="font-black text-[#2d533e]">{(item.price * item.qty).toFixed(2)} جنيه</span>
                         </div>
                       ))}
@@ -998,33 +952,33 @@ export default function Home() {
             </div>
 
             {/* Unified Modal Footer (Sticky Bottom) */}
-            <div className="px-5 pb-5 pt-4 border-t border-slate-100 bg-white shrink-0 z-10">
-              <div className="flex justify-between items-center font-black text-sm pb-3">
+            <div className="px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
+              <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">الإجمالي النهائي:</span>
-                <span className="text-[#2d533e] text-xl">{totalAmount} جنيه</span>
+                <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
               </div>
 
               {currentStep === 'cart' && (
-                <div className="flex flex-col gap-2.5">
-                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3.5 rounded-xl font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-4 h-4 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
+                <div className="flex flex-col gap-2">
+                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'checkout' && (
-                <div className="flex flex-col gap-2.5">
-                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3.5 rounded-xl font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-4 h-4 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
+                <div className="flex flex-col gap-2">
+                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'review' && (
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex gap-2.5">
-                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3.5 rounded-xl font-black text-sm transition-colors">تعديل البيانات</button>
-                    <button onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] text-white py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-[0.98]"><Phone className="w-4 h-4 fill-white" /><span>إرسال عبر واتساب</span></button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3 rounded-xl font-black text-xs sm:text-sm transition-colors">تعديل البيانات</button>
+                    <button onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]"><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></button>
                   </div>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3.5 rounded-xl font-black text-sm sm:text-base hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
             </div>
