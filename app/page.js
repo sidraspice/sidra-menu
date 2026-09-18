@@ -426,19 +426,24 @@ export default function Home() {
 
     message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
     
-    if (customer.deliveryZone === 'damanhour') {
-      if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-        message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
-      }
-    } else if (customer.deliveryZone === 'outside') {
-      message += `\n🚚 شحن خارج دمنهور\nسيتم شحن الطلب عبر البريد السريع، وسنبلغ حضراتكم بمصاريف الشحن قبل الشحن.\nويمكن التسليم على العنوان أو الاستلام من أقرب مكتب بريد للعنوان.\n\n`;
+    if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+      message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
     }
     
-    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n✨ الدفع عند الاستلام بعد المعاينة`;
+    message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
 
-    // إخفاء رسالة التوصيل اليومي لعملاء الشحن، وإظهارها فقط لعملاء دمنهور
+    // صياغة الواتساب مفصولة بالكامل بناءً على مكان التوصيل
     if (customer.deliveryZone === 'damanhour') {
-      message += `\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
+      message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
+    } else if (customer.deliveryZone === 'outside') {
+      message += `🚚 *شحن خارج دمنهور*\n`;
+      message += `يتم الشحن عبر البريد ويتوفر خياران:\n`;
+      message += `📌 *شحن سريع:* التسليم باليد على العنوان.\n`;
+      message += `📌 *شحن عادي:* الاستلام من أقرب مكتب بريد لعنوانكم.\n`;
+      message += `(سنقوم بإبلاغ حضراتكم بمصاريف الشحن وقت إرسال الطلب).\n\n`;
+      message += `💡 نرجو إبلاغنا باختياركم المفضل لنقوم بتجهيز الطلب والبدء بإجراءات الشحن.\n\n`;
+      message += `💳 *لتأكيد الطلب:*\n`;
+      message += `برجاء تحويل إجمالي الفاتورة قبل الشحن عبر إنستاباي (InstaPay) على الرقم: 01009750003`;
     }
 
     const nowTs = Date.now();
