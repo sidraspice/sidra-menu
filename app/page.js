@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  User, MapPin, FileText, AlertCircle, ChevronRight, ChevronDown, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
+  User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -106,6 +106,7 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -141,7 +142,6 @@ export default function Home() {
       
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
-         const alertLimit = parseFloat(p['حد التنبيه بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
          let status = (p['حالة الصنف'] || '').toString().trim();
          
@@ -157,7 +157,6 @@ export default function Home() {
          return { 
              ...p, 
              stockGrams, 
-             alertLimit, 
              itemCode, 
              isAvailable,
              'حالة الطحن': p['حالة الطحن'] || '' 
@@ -298,27 +297,29 @@ export default function Home() {
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
     let finalOriginalPrice = isOfferValid(selectedVariant.price, selectedVariant.originalPrice) ? selectedVariant.originalPrice : null;
+    let unitWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
 
     if (isCustomWeight) {
       const parsedWeight = parseFloat(customWeightValue);
       if (!parsedWeight || parsedWeight <= 0) return;
+      unitWeightGrams = parsedWeight;
       finalWeight = `${parsedWeight} جرام`;
       finalPrice = getCalculatedPrice();
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    let requestedGrams = (isCustomWeight ? parseFloat(customWeightValue) : getWeightNumberInGrams(selectedVariant.weight)) * modalQty;
+    let requestedGrams = unitWeightGrams * modalQty;
     let alreadyInCartGrams = cart.reduce((total, item) => {
         const itemPId = item.productId || item.key.split('_')[0];
         if (itemPId == activeModalProduct.id) {
-            return total + (getWeightNumberInGrams(item.weight) * item.qty);
+            return total + (item.unitWeightGrams * item.qty);
         }
         return total;
     }, 0);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${activeModalProduct.stockGrams} جرام.` });
-        setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
         return;
     }
 
@@ -331,7 +332,19 @@ export default function Home() {
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
-      return [...prev, { key: itemKey, productId: activeModalProduct.id, itemCode: activeModalProduct.itemCode, name: finalName, category: activeModalProduct.category, weight: finalWeight, price: finalPrice, originalPrice: finalOriginalPrice, qty: modalQty }];
+      return [...prev, { 
+        key: itemKey, 
+        productId: activeModalProduct.id, 
+        itemCode: activeModalProduct.itemCode, 
+        name: finalName, 
+        category: activeModalProduct.category, 
+        weight: finalWeight, 
+        unitWeightGrams: unitWeightGrams,
+        grindOption: grindOption,
+        price: finalPrice, 
+        originalPrice: finalOriginalPrice, 
+        qty: modalQty 
+      }];
     });
     
     setActiveModalProduct(null);
@@ -348,18 +361,18 @@ export default function Home() {
            const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
            const product = data.products.find(p => p.id == itemPId);
            if (product) {
-               const itemWeightGrams = getWeightNumberInGrams(itemToUpdate.weight);
+               const itemWeightGrams = itemToUpdate.unitWeightGrams;
                const alreadyInCartGrams = cart.reduce((total, item) => {
                    const currPId = item.productId || item.key.split('_')[0];
                    if (currPId == product.id) {
-                       return total + (getWeightNumberInGrams(item.weight) * item.qty);
+                       return total + (item.unitWeightGrams * item.qty);
                    }
                    return total;
                }, 0);
                
                if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
-                   setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${product.stockGrams} جرام.` });
-                   setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+                   setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح: ${product.stockGrams} جرام.` });
+                   setTimeout(() => setToast({ visible: false, message: '' }), 3000);
                    return; 
                }
            }
@@ -450,88 +463,117 @@ export default function Home() {
     }
   };
 
-  const handleSendWhatsAppOrder = () => {
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    const mins = String(now.getMinutes()).padStart(2, '0');
-    
-    let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
+  const handleSendWhatsAppOrder = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-      const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
-      orderId = `${orderId}-${randomChar}`;
-    }
+    try {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      
+      let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
 
-    let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-    message += `🏷️ رقم الطلب: ${orderId}\n`;
-    
-    if (isEditing && lastOrder) {
-      message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
-    } else {
-      message += `\n`;
-    }
+      if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
+        orderId = `${orderId}-${randomChar}`;
+      }
 
-    message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
-    if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
-    message += `\n📦 المنتجات المطلوبة:\n\n`;
-    
-    let totalWeightGrams = 0;
-    cart.forEach((item, index) => {
-      totalWeightGrams += (getWeightNumberInGrams(item.weight) * item.qty);
-      const itemTotal = (item.price * item.qty).toFixed(2);
-      const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
-      message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n`;
-      if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-        message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
+      // إرسال الطلب للسيرفر للتحقق وتسجيله كـ pending
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          customer,
+          cart,
+          totalAmount
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || 'فشل تسجيل الطلب');
+      }
+
+      // بناء رسالة الواتساب فقط إذا نجح التسجيل
+      let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
+      message += `🏷️ رقم الطلب: ${orderId}\n`;
+      
+      if (isEditing && lastOrder) {
+        message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
       } else {
-        message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
+        message += `\n`;
       }
-    });
 
-    message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
-    
-    if (customer.deliveryZone === 'damanhour') {
-      if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-        message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
+      message += `\n📦 المنتجات المطلوبة:\n\n`;
+      
+      let totalWeightGrams = 0;
+      cart.forEach((item, index) => {
+        totalWeightGrams += (item.unitWeightGrams * item.qty);
+        const itemTotal = (item.price * item.qty).toFixed(2);
+        const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
+        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n`;
+        if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
+          message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
+        } else {
+          message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
+        }
+      });
+
+      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
+      
+      if (customer.deliveryZone === 'damanhour') {
+        if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+          message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
+        }
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+        message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
+      } else if (customer.deliveryZone === 'outside') {
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+        message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
+        message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
+        message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
+        message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
+        message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
+        message += `💳 *لتأكيد الطلب:*\n`;
+        message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
+        message += `*01009750003*`;
       }
-      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-      message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يوميًا من الساعة 5 مساءً حتى 9 مساءً.`;
-    } else if (customer.deliveryZone === 'outside') {
-      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-      message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
-      message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
-      message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
-      message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
-      message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
-      message += `💳 *لتأكيد الطلب:*\n`;
-      message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
-      message += `*01009750003*`;
+
+      const nowTs = Date.now();
+      const orderData = { 
+        id: orderId, 
+        items: cart, 
+        createdAt: isEditing ? lastOrder.createdAt : nowTs, 
+        expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
+      };
+      
+      localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
+      setLastOrder(orderData);
+      
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
+      setCart([]);
+      setIsEditing(false);
+      setCustomer(prev => {
+        const nextData = { ...prev, notes: '' };
+        localStorage.setItem('sedra_customer', JSON.stringify(nextData));
+        return nextData;
+      });
+      setIsCartOpen(false);
+      setCurrentStep('cart');
+      
+    } catch (error) {
+      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
+      setTimeout(() => setToast({ visible: false, message: '' }), 4000);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const nowTs = Date.now();
-    const orderData = { 
-      id: orderId, 
-      items: cart, 
-      createdAt: isEditing ? lastOrder.createdAt : nowTs, 
-      expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
-    };
-    
-    localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
-    setLastOrder(orderData);
-    
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
-    setCart([]);
-    setIsEditing(false);
-    setCustomer(prev => {
-      const nextData = { ...prev, notes: '' };
-      localStorage.setItem('sedra_customer', JSON.stringify(nextData));
-      return nextData;
-    });
-    setIsCartOpen(false);
-    setCurrentStep('cart');
   };
 
   return (
@@ -855,13 +897,13 @@ export default function Home() {
                       const requestedGrams = weightGrams * (modalQty + 1);
                       const alreadyInCartGrams = cart.reduce((total, item) => {
                           const itemPId = item.productId || item.key.split('_')[0];
-                          if (itemPId == activeModalProduct.id) return total + (getWeightNumberInGrams(item.weight) * item.qty);
+                          if (itemPId == activeModalProduct.id) return total + (item.unitWeightGrams * item.qty);
                           return total;
                       }, 0);
                       
                       if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
                           setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حاليًا. المتاح حاليًا: ${activeModalProduct.stockGrams} جرام.` });
-                          setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+                          setTimeout(() => setToast({ visible: false, message: '' }), 3000);
                       } else {
                           setModalQty(modalQty + 1); 
                       }
@@ -1062,7 +1104,9 @@ export default function Home() {
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
                     <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3 rounded-xl font-black text-xs sm:text-sm transition-colors">تعديل البيانات</button>
-                    <button onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]"><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></button>
+                    <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]">
+                      {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></>}
+                    </button>
                   </div>
                   <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
