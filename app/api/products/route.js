@@ -15,15 +15,12 @@ function formatImageUrl(url) {
       return `https://lh3.googleusercontent.com/d/${match[1]}`;
     }
   }
-
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/')) {
     return trimmed;
   }
-
   if (/^[a-zA-Z0-9_-]{25,}$/.test(trimmed)) {
     return `https://lh3.googleusercontent.com/d/${trimmed}`;
   }
-
   return trimmed;
 }
 
@@ -55,9 +52,8 @@ function parseCSV(text) {
   const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف'));
   const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
   const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
-  
   const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('grind'));
-
+  
   const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
   const regularPriceIdx = headers.findIndex(h => 
     (h.includes('سعر') || h.includes('ثمن')) && 
@@ -99,37 +95,19 @@ function parseCSV(text) {
     const rowCat = categoryIdx !== -1 && values[categoryIdx] ? values[categoryIdx].trim() : '';
 
     if (rowName.includes('حالة المتجر') || rowName.includes('مواعيد العمل') || rowCat.includes('إعدادات')) {
-      const openVal = parseInt(values[weightIdx]);
-      const closeVal = parseInt(values[regularPriceIdx]);
-      const modeVal = statusIdx !== -1 && values[statusIdx] ? values[statusIdx].trim() : 'تلقائي';
-
-      if (!isNaN(openVal)) storeSettings.openHour = openVal;
-      if (!isNaN(closeVal)) storeSettings.closeHour = closeVal;
-      if (modeVal) storeSettings.mode = modeVal;
-
-      continue;
+      // إعدادات المتجر
+      continue; 
     }
 
     if (!values[regularPriceIdx]) continue;
 
     const rawWeight = values[weightIdx] ? values[weightIdx].trim() : '';
-    if (rawWeight === '1000' || rawWeight === '1000g' || rawWeight === '1 كجم' || rawWeight === '1كجم' || rawWeight === '1 كيلو' || rawWeight === 'كيلو') {
-      continue;
-    }
+    if (rawWeight === '1000' || rawWeight === '1000g' || rawWeight === '1 كجم' || rawWeight === '1كجم' || rawWeight === '1 كيلو' || rawWeight === 'كيلو') continue;
 
     const itemCodeVal = codeIdx !== -1 && values[codeIdx] ? values[codeIdx].trim() : '';
     const stockVal = stockIdx !== -1 && values[stockIdx] ? parseFloat(values[stockIdx].replace(/,/g, '')) || 0 : 0;
     const alertVal = alertIdx !== -1 && values[alertIdx] ? parseFloat(values[alertIdx].replace(/,/g, '')) || 0 : 0;
     const statusVal = statusIdx !== -1 && values[statusIdx] ? values[statusIdx].trim() : '';
-
-    let isAvailable = true;
-    if (statusVal.includes('غير') || statusVal.includes('لا') || statusVal.includes('نفذ') || 
-        statusVal.includes('خلص') || statusVal.toLowerCase() === 'out' || statusVal.toLowerCase() === 'false' || statusVal === '0') {
-      isAvailable = false;
-    }
-    if (isAvailable && stockVal <= 0) {
-      isAvailable = false;
-    }
 
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
     const formattedImageUrl = formatImageUrl(rawImageUrl);
@@ -148,8 +126,6 @@ function parseCSV(text) {
       }
     }
 
-    const grindOptionsVal = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
-    
     let finalWeightStr = 'حسب الطلب';
     if (rawWeight) {
       finalWeightStr = (rawWeight.includes('جرام') || rawWeight.includes('g') || rawWeight.includes('ك')) ? rawWeight : `${rawWeight} جرام`;
@@ -159,15 +135,14 @@ function parseCSV(text) {
       category: rowCat || 'أخرى',
       name: rowName,
       weight: finalWeightStr,
-      grindOptions: grindOptionsVal,
+      grindOptions: grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '',
       price: finalPriceToPay, 
       originalPrice: crossedOutPrice, 
-      available: isAvailable, 
+      explicitStatus: statusVal, 
       image: formattedImageUrl,
       itemCode: itemCodeVal,
       stockGrams: stockVal,
-      alertLimit: alertVal,
-      status: statusVal
+      alertLimit: alertVal
     });
   }
 
@@ -183,36 +158,47 @@ function parseCSV(text) {
         category: item.category,
         image: item.image || '',
         grindOptions: item.grindOptions || '', 
-        status: item.status,
         stockGrams: item.stockGrams,
         alertLimit: item.alertLimit,
         variants: []
       };
+    } else {
+      // هنا الذكاء: لو لقى وزن تاني فاضي، بيحتفظ بالرقم الأكبر اللي إنت كتبته في الوزن الأول
+      if (item.stockGrams > productsMap[key].stockGrams) {
+        productsMap[key].stockGrams = item.stockGrams;
+      }
     }
 
-    if (item.image && !productsMap[key].image) {
-      productsMap[key].image = item.image;
-    }
-
-    if (item.grindOptions && !productsMap[key].grindOptions) {
-      productsMap[key].grindOptions = item.grindOptions;
-    }
+    if (item.image && !productsMap[key].image) productsMap[key].image = item.image;
+    if (item.grindOptions && !productsMap[key].grindOptions) productsMap[key].grindOptions = item.grindOptions;
 
     productsMap[key].variants.push({
       weight: item.weight,
       price: item.price,
-      originalPrice: item.originalPrice, 
-      available: item.available
+      originalPrice: item.originalPrice,
+      explicitStatus: item.explicitStatus
     });
   });
 
-  const products = Object.values(productsMap).map(product => ({
-    ...product,
-    'كود الصنف': product.itemCode,
-    'المخزون الحالي بالجرام': product.stockGrams, // ده السطر السحري اللي هيشغل الواجهة
-    'حالة الصنف': product.status,
-    isAvailable: product.status !== 'غير متوفر' && product.stockGrams > 0 && product.variants.some(v => v.available)
-  }));
+  const products = Object.values(productsMap).map(product => {
+    const hasStock = product.stockGrams > 0;
+    
+    const mappedVariants = product.variants.map(v => ({
+       weight: v.weight,
+       price: v.price,
+       originalPrice: v.originalPrice,
+       // يشتغل لو المخزون المشترك أكبر من صفر، ومفيش كلمة "غير متوفر" صريحة
+       available: v.explicitStatus !== 'غير متوفر' && hasStock
+    }));
+
+    return {
+      ...product,
+      variants: mappedVariants,
+      'كود الصنف': product.itemCode,
+      'المخزون الحالي بالجرام': product.stockGrams, 
+      isAvailable: hasStock && mappedVariants.some(v => v.available)
+    };
+  });
 
   return { products, storeSettings };
 }
@@ -224,33 +210,18 @@ export async function GET() {
 
     const res = await fetch(urlWithCacheBust, {
       cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
     });
 
-    if (!res.ok) {
-      throw new Error('فشل جلب البيانات من Google Sheets');
-    }
+    if (!res.ok) throw new Error('فشل جلب البيانات من Google Sheets');
 
     const csvData = await res.text();
     const { products, storeSettings } = parseCSV(csvData);
     const rawCategories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
     const categories = ['كل المنتجات', ...rawCategories];
 
-    return NextResponse.json({
-      success: true,
-      categories,
-      products,
-      storeSettings,
-      updatedAt: new Date().toISOString()
-    });
+    return NextResponse.json({ success: true, categories, products, storeSettings, updatedAt: new Date().toISOString() });
   } catch (error) {
-    console.error('Data Fetch Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'تعذر تحميل قائمة المنتجات حاليًا.'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'تعذر تحميل قائمة المنتجات حاليًا.' }, { status: 500 });
   }
 }
