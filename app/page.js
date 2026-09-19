@@ -262,7 +262,8 @@ export default function Home() {
     setIsCustomWeight(false);
     setCustomWeightValue('');
     
-    setGrindOption(parsedOptions.length > 0 ? parsedOptions[0] : '');
+    // التعديل الأول: عدم اختيار أي حالة افتراضياً إلا إذا كانت حالة واحدة فقط
+    setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
   const getCalculatedPrice = () => {
@@ -292,6 +293,14 @@ export default function Home() {
 
   const addToCart = (e) => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
+
+    // التعديل الثاني: منع الإضافة للسلة إذا لم يتم اختيار حالة المنتج (حصى/مطحون)
+    if (activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 1 && !grindOption) {
+      setToast({ visible: true, message: 'الرجاء اختيار حالة المنتج أولاً' });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      triggerVibration();
+      return;
+    }
 
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
@@ -774,7 +783,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* --- بداية نافذة (Modal) اختيار المنتج المعدلة --- */}
+      {/* --- بداية نافذة (Modal) اختيار المنتج --- */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
@@ -796,7 +805,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Body (أضفنا padding-bottom لمنع اختفاء المحتوى خلف الزر السفلي) */}
+            {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
               
               {/* قسم الأوزان */}
@@ -828,7 +837,7 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* الوزن المخصص (مُعاد تصميمه بالكامل) */}
+                {/* الوزن المخصص */}
                 <div 
                   onClick={() => { 
                     triggerVibration(); 
@@ -848,7 +857,6 @@ export default function Home() {
                   
                   {isCustomWeight && (
                     <div className="mt-3.5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                      {/* خانة الكتابة */}
                       <div className="flex items-center gap-2">
                         <input 
                           ref={customWeightInputRef}
@@ -864,7 +872,6 @@ export default function Home() {
                         <span className="text-sm font-black text-slate-600 shrink-0 bg-slate-100 px-3 py-2.5 rounded-lg border border-slate-200">جرام</span>
                       </div>
 
-                      {/* بطاقة ملخص الحساب الفوري */}
                       <div className="mt-3 bg-[#fbf9f4] rounded-lg border border-[#e8e2d5] p-3 shadow-inner">
                         {customWeightValue && parseFloat(customWeightValue) > 0 ? (
                           <div className="flex justify-between items-center">
@@ -897,7 +904,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* قسم حالة الطحن (مُصحح) */}
+              {/* قسم حالة الطحن */}
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">حالة المنتج</span>
@@ -970,10 +977,11 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Footer (زر الإضافة المُثبت) */}
+            {/* Modal Footer (زر الإضافة المُثبت مع التعديل المطلوب) */}
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
+              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) || (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption)} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
                 {(() => {
+                  if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) return 'الرجاء اختيار حالة المنتج أولاً';
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
                   return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
