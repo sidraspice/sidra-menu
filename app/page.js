@@ -149,8 +149,8 @@ export default function Home() {
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
-         // فحص شامل لجميع احتمالات أسماء أعمدة الصور في الشيت
-         const image = p['صورة'] || p['صورة المنتج'] || p['رابط الصورة'] || p['image'] || '';
+         // Mapping دقيق لعمود "صورة" كما طلب حصرياً
+         const image = p['صورة'] || '';
          let status = (p['حالة الصنف'] || '').toString().trim();
          
          let isAvailable = true;
@@ -504,7 +504,7 @@ export default function Home() {
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        throw new Error('فشل الاتصال بالخادم، يرجى المحاولة لاحقاً');
+        throw new Error('فشل الاتصال بالخادم، استجابة غير صالحة');
       }
 
       const resData = await response.json();
@@ -558,7 +558,7 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // [تم التأكد تماماً من عدم وجود أي روابط تأكيد هنا]
+      // [تمت إزالة رابط التأكيد نهائياً من رسالة العميل تماماً]
 
       const nowTs = Date.now();
       const orderData = { 
