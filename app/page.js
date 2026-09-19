@@ -139,6 +139,10 @@ export default function Home() {
     setError(null);
     try {
       const res = await fetch('/api/products');
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('تعذر تحميل المنتجات (خطأ في الاستجابة)');
+      }
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       
@@ -497,6 +501,11 @@ export default function Home() {
         })
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('فشل الاتصال بالخادم، يرجى المحاولة لاحقاً');
+      }
+
       const resData = await response.json();
       if (!response.ok || !resData.success) {
         throw new Error(resData.error || 'فشل تسجيل الطلب');
@@ -548,9 +557,7 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // --- الرابط السحري للتأكيد (يصلك في محادثة المتجر حصرياً) ---
-      const magicLink = `${window.location.origin}/api/confirm?id=${orderId}`;
-      message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${magicLink}`;
+      // [تمت إزالة رابط التأكيد نهائياً من رسالة العميل لتكون نظيفة 100%]
 
       const nowTs = Date.now();
       const orderData = { 
