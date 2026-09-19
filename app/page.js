@@ -149,8 +149,8 @@ export default function Home() {
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
-         // Mapping دقيق لعمود "صورة" كما طلب حصرياً
-         const image = p['صورة'] || '';
+         // دعم شامل لكل احتمالات أسماء أعمدة الصور في الشيت
+         const image = p['صورة'] || p['صورة المنتج'] || p['رابط الصورة'] || p['image'] || '';
          let status = (p['حالة الصنف'] || '').toString().trim();
          
          let isAvailable = true;
