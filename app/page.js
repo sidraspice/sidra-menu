@@ -546,6 +546,10 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
+      // --- الرابط السحري للتأكيد ---
+      const magicLink = `${window.location.origin}/api/confirm?id=${orderId}`;
+      message += `\n\n────────────\n⚙️ *(للاستخدام الداخلي فقط)*\n🔗 لتأكيد الطلب وخصم المخزون اضغط هنا:\n${magicLink}`;
+
       const nowTs = Date.now();
       const orderData = { 
         id: orderId, 
@@ -898,7 +902,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* قسم حالة الطحن (مع التظليل الأحمر عند الخطأ) */}
+              {/* قسم حالة الطحن */}
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
                 <div ref={grindSectionRef} className={`space-y-2 ${grindError ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
                   <span className={`text-xs font-black block mb-1.5 border-b pb-1 ${grindError ? 'text-red-700 border-red-200' : 'text-slate-800 border-slate-50'}`}>
@@ -975,7 +979,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Footer (زر الإضافة الدائم الجاهز) */}
+            {/* Modal Footer */}
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
               <button 
                 disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} 
@@ -995,6 +999,7 @@ export default function Home() {
                 className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
               >
                 {(() => {
+                  if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) return 'الرجاء اختيار حالة المنتج أولاً';
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
                   return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
@@ -1004,7 +1009,6 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* --- نهاية نافذة اختيار المنتج --- */}
 
       {zoomedImage && (
         <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setZoomedImage(null)}>
