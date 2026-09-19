@@ -96,13 +96,12 @@ export default function Home() {
   const [modalQty, setModalQty] = useState(1);
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
-  const customWeightInputRef = useRef(null); // Reference for the custom weight input field
+  const customWeightInputRef = useRef(null); 
   
   const [grindOption, setGrindOption] = useState('');
 
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
-  const toastTimeoutRef = useRef(null);
 
   const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', address: '', notes: '' });
@@ -159,8 +158,7 @@ export default function Home() {
              ...p, 
              stockGrams, 
              itemCode, 
-             isAvailable,
-             'حالة الطحن': p['حالة الطحن'] || '' 
+             isAvailable
          };
       });
 
@@ -252,7 +250,8 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    const rawGrindData = product['حالة الطحن'] || '';
+    // اصلاح جلب بيانات حالة الطحن سواء من الكود القديم او الجديد
+    const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
     let parsedOptions = [];
     if (rawGrindData && typeof rawGrindData === 'string') {
       parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
@@ -483,7 +482,6 @@ export default function Home() {
         orderId = `${orderId}-${randomChar}`;
       }
 
-      // إرسال الطلب للسيرفر للتحقق وتسجيله كـ pending
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -500,7 +498,6 @@ export default function Home() {
         throw new Error(resData.error || 'فشل تسجيل الطلب');
       }
 
-      // بناء رسالة الواتساب فقط إذا نجح التسجيل
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
       message += `🏷️ رقم الطلب: ${orderId}\n`;
       
@@ -1167,5 +1164,3 @@ export default function Home() {
     </div>
   );
 }
-
-
