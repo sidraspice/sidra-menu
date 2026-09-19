@@ -250,7 +250,6 @@ export default function Home() {
   }, [data.products, selectedCategory, search]);
 
   const openProductModal = (product) => {
-    // اصلاح جلب بيانات حالة الطحن سواء من الكود القديم او الجديد
     const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
     let parsedOptions = [];
     if (rawGrindData && typeof rawGrindData === 'string') {
@@ -775,9 +774,11 @@ export default function Home() {
         )}
       </main>
 
+      {/* --- بداية نافذة (Modal) اختيار المنتج المعدلة --- */}
       {activeModalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm pb-16">
-          <div className="bg-white w-full max-w-md max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+            
             {/* Modal Header */}
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
@@ -795,10 +796,14 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-32">
-              <div className="space-y-2.5">
-                <label className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الأوزان المتاحة</label>
+            {/* Modal Body (أضفنا padding-bottom لمنع اختفاء المحتوى خلف الزر السفلي) */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
+              
+              {/* قسم الأوزان */}
+              <div className="space-y-3">
+                <label className="text-xs font-black text-slate-800 block border-b border-slate-50 pb-1.5">الأوزان المتاحة</label>
+                
+                {/* الأوزان الجاهزة */}
                 <div className="grid grid-cols-2 gap-2">
                   {activeModalProduct.variants.map((variant, idx) => {
                     const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
@@ -823,6 +828,7 @@ export default function Home() {
                   })}
                 </div>
 
+                {/* الوزن المخصص (مُعاد تصميمه بالكامل) */}
                 <div 
                   onClick={() => { 
                     triggerVibration(); 
@@ -831,14 +837,18 @@ export default function Home() {
                       if(customWeightInputRef.current) customWeightInputRef.current.focus();
                     }, 50);
                   }} 
-                  className={`p-3 rounded-xl border-2 transition cursor-pointer ${isCustomWeight ? 'border-red-600 bg-red-50 shadow-sm' : 'border-[#e8e2d5] bg-white hover:border-red-300'}`}
+                  className={`p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${isCustomWeight ? 'border-[#2d533e] bg-white shadow-md' : 'border-[#e8e2d5] bg-[#fdfcfa] hover:border-[#c89d56]'}`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-red-600 bg-red-600' : 'border-slate-300 bg-white'}`}>{isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}</div>
-                    <span className={`text-sm font-black ${isCustomWeight ? 'text-red-700' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-[#2d533e] bg-[#2d533e]' : 'border-slate-300 bg-white'}`}>
+                      {isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                    <span className={`text-sm font-black ${isCustomWeight ? 'text-[#1e382b]' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
                   </div>
+                  
                   {isCustomWeight && (
-                    <div className="mt-2.5 pl-6" onClick={e => e.stopPropagation()}>
+                    <div className="mt-3.5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                      {/* خانة الكتابة */}
                       <div className="flex items-center gap-2">
                         <input 
                           ref={customWeightInputRef}
@@ -848,16 +858,46 @@ export default function Home() {
                           min="1" 
                           value={customWeightValue} 
                           onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} 
-                          placeholder="مثال: 300" 
-                          className="flex-1 p-2 text-center text-sm font-black border-2 border-red-300 rounded-lg outline-none focus:border-red-600 bg-white shadow-sm text-red-700 placeholder:text-red-300/60" 
+                          placeholder="مثال: 250" 
+                          className="flex-1 p-2.5 text-center text-base font-black border-2 border-slate-200 rounded-lg outline-none focus:border-[#2d533e] focus:bg-[#fbf9f4] bg-white shadow-sm text-[#1e382b] transition-colors" 
                         />
-                        <span className="text-sm font-black text-red-700 shrink-0">جرام</span>
+                        <span className="text-sm font-black text-slate-600 shrink-0 bg-slate-100 px-3 py-2.5 rounded-lg border border-slate-200">جرام</span>
+                      </div>
+
+                      {/* بطاقة ملخص الحساب الفوري */}
+                      <div className="mt-3 bg-[#fbf9f4] rounded-lg border border-[#e8e2d5] p-3 shadow-inner">
+                        {customWeightValue && parseFloat(customWeightValue) > 0 ? (
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">الوزن المطلوب</span>
+                              <span className="text-sm font-black text-[#1e382b]">{getCalculatedTotalWeight(`${customWeightValue} جرام`, modalQty)}</span>
+                            </div>
+                            <div className="text-left">
+                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">السعر النهائي</span>
+                              <div className="flex items-center gap-1.5 justify-end">
+                                {getCalculatedOriginalPrice() && (
+                                  <span className="text-slate-400 line-through text-[10px] font-bold">
+                                    {(getCalculatedOriginalPrice() * modalQty).toFixed(2)}
+                                  </span>
+                                )}
+                                <span className="text-base font-black text-[#2d533e]">
+                                  {(getCalculatedPrice() * modalQty).toFixed(2)} جنيه
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-2 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5">
+                            <AlertCircle className="w-4 h-4" /> أدخل الوزن بالجرام لظهور السعر
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* قسم حالة الطحن (مُصحح) */}
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">حالة المنتج</span>
@@ -900,7 +940,8 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="space-y-2 pb-1">
+              {/* قسم الكمية المطلوبة */}
+              <div className="space-y-2">
                 <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
                 <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
                   <button onClick={() => { 
@@ -929,19 +970,20 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-sm sm:text-base shadow-sm hover:bg-[#1e382b] transition transform active:scale-[0.98]">
+            {/* Modal Footer (زر الإضافة المُثبت) */}
+            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
+              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
-                  return `إضافة للسلة (${getCalculatedTotalWeight(isCustomWeight ? `${customWeightValue} جرام` : selectedVariant.weight, modalQty)}) — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
+                  return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
                 })()}
               </button>
             </div>
           </div>
         </div>
       )}
+      {/* --- نهاية نافذة اختيار المنتج --- */}
 
       {zoomedImage && (
         <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setZoomedImage(null)}>
@@ -953,7 +995,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-2">
           <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3.5 rounded-2xl font-bold flex items-center justify-between shadow-lg active:scale-[0.99] transition">
             <div className="flex items-center gap-2.5">
@@ -970,8 +1012,7 @@ export default function Home() {
 
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
-            {/* Unified Modal Header */}
+          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
             <div className="px-4 py-3.5 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex justify-between items-center">
                 <h2 className="text-sm font-black text-[#1e382b]">
@@ -985,9 +1026,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Unified Modal Body (Flex-1 for native scrolling) */}
-            <div className="flex-1 overflow-y-auto p-4 bg-white">
-              
+            <div className="flex-1 overflow-y-auto p-4 bg-white pb-[120px] sm:pb-4">
               {currentStep === 'cart' && (
                 <div className="space-y-4">
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
@@ -1096,8 +1135,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Unified Modal Footer (Sticky Bottom) */}
-            <div className="px-4 pb-4 pt-3 border-t border-slate-100 bg-white shrink-0 z-10">
+            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
               <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">الإجمالي النهائي:</span>
                 <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
@@ -1129,7 +1167,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
