@@ -12,17 +12,17 @@ export async function POST(request) {
       body: JSON.stringify(body),
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const textResponse = await response.text();
+    const responseText = await response.text();
+    
+    try {
+      const data = JSON.parse(responseText);
+      return NextResponse.json(data);
+    } catch (parseError) {
       return NextResponse.json(
-        { success: false, error: 'استجاب خادم الخارجي بصيغة غير صالحة' },
+        { success: false, error: `استجابة غير صالحة من Google Script: ${responseText.substring(0, 150)}` },
         { status: 502 }
       );
     }
-    
-    const data = await response.json();
-    return NextResponse.json(data);
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.toString() },
