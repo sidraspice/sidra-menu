@@ -546,7 +546,9 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // [تمت إزالة الرابط نهائياً من هنا ليكون واتساب العميل نظيفاً 100%]
+      // --- الرابط السحري للتأكيد (يصلك في محادثة المتجر حصرياً) ---
+      const magicLink = `${window.location.origin}/api/confirm?id=${orderId}`;
+      message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${magicLink}`;
 
       const nowTs = Date.now();
       const orderData = { 
@@ -1208,7 +1210,7 @@ export default function Home() {
         </div>
       )}
 
-      {showRestoreConfirm && (
+      {showRestoreConfirm && 
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
             <RotateCcw className="w-10 h-10 text-amber-500 mx-auto mb-2" />
@@ -1220,7 +1222,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      )}
+      }
     </div>
   );
 }
