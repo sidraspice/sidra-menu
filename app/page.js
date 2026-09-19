@@ -48,21 +48,21 @@ const getCalculatedTotalWeight = (weightStr, qty) => {
   if (!weightStr) return '';
   const str = weightStr.toString();
   const numMatch = str.match(/\d+(\.\d+)?/);
-   
+  
   if (numMatch) {
     const isKilo = str.includes('كيلو') || str.includes('كجم') || str.includes('kg');
     let unitWeight = parseFloat(numMatch[0]);
     if (isKilo) unitWeight *= 1000;
-     
+    
     const totalGrams = unitWeight * qty;
-     
+    
     if (totalGrams >= 1000 && totalGrams % 1000 === 0) return `${totalGrams / 1000} كيلو`;
     if (totalGrams >= 1000) return `${(totalGrams / 1000).toFixed(2).replace(/\.00$/, '')} كيلو`;
     return `${totalGrams} جرام`;
   } else if (qty > 1) {
     return `${str} (عدد ${qty})`;
   }
-   
+  
   return str;
 };
 
@@ -76,7 +76,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
-   
+  
   const [cart, setCart] = useState([]);
   const [isCartLoaded, setIsCartLoaded] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -98,7 +98,7 @@ export default function Home() {
   const [customWeightValue, setCustomWeightValue] = useState('');
   const customWeightInputRef = useRef(null); 
   const grindSectionRef = useRef(null);
-   
+  
   const [grindOption, setGrindOption] = useState('');
   const [grindError, setGrindError] = useState(false);
 
@@ -145,7 +145,7 @@ export default function Home() {
       }
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-       
+      
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
@@ -270,7 +270,7 @@ export default function Home() {
     setIsCustomWeight(false);
     setCustomWeightValue('');
     setGrindError(false);
-     
+    
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
@@ -336,7 +336,7 @@ export default function Home() {
 
     const finalName = grindOption ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
     const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption || 'default'}`;
-     
+    
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
@@ -354,7 +354,7 @@ export default function Home() {
         qty: modalQty 
       }];
     });
-     
+    
     setActiveModalProduct(null);
     setToast({ visible: true, message: `تمت إضافة "${finalName}" بنجاح` });
     setTimeout(() => setToast({ visible: false, message: '' }), 2500);
@@ -435,15 +435,15 @@ export default function Home() {
   const validateForm = () => {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
-     
+    
     const cleanPhone = customer.phone.replace(/\s+/g, '');
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
       errors.phone = 'رقم هاتف غير صحيح';
     }
-     
+    
     if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
-     
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -481,7 +481,7 @@ export default function Home() {
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const hh = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
-       
+      
       let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
 
       if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
@@ -513,7 +513,7 @@ export default function Home() {
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
       message += `🏷️ رقم الطلب: ${orderId}\n`;
-       
+      
       if (isEditing && lastOrder) {
         message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
       } else {
@@ -523,7 +523,7 @@ export default function Home() {
       message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
-       
+      
       let totalWeightGrams = 0;
       cart.forEach((item, index) => {
         totalWeightGrams += (item.unitWeightGrams * item.qty);
@@ -538,7 +538,7 @@ export default function Home() {
       });
 
       message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
-       
+      
       if (customer.deliveryZone === 'damanhour') {
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
           message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
@@ -557,10 +557,7 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // إضافة رابط التأكيد الإداري الخاص بك في نهاية رسالة الواتساب التي تصل للإدارة فقط
-      if (resData.adminLink) {
-        message += `\n\n────────────\n🔗 *رابط تأكيد الطلب وخصم المخزون (خاص بالإدارة):*\n${resData.adminLink}`;
-      }
+      // 🔴 تم حذف إضافة رابط التأكيد من رسالة الواتساب نهائياً 🔴
 
       const nowTs = Date.now();
       const orderData = { 
@@ -569,10 +566,10 @@ export default function Home() {
         createdAt: isEditing ? lastOrder.createdAt : nowTs, 
         expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
       };
-       
+      
       localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
       setLastOrder(orderData);
-       
+      
       window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
       setCart([]);
       setIsEditing(false);
@@ -583,7 +580,7 @@ export default function Home() {
       });
       setIsCartOpen(false);
       setCurrentStep('cart');
-       
+      
     } catch (error) {
       setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
       setTimeout(() => setToast({ visible: false, message: '' }), 4000);
@@ -635,7 +632,7 @@ export default function Home() {
 
       <main className="max-w-xl mx-auto px-4 mt-0">
         <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
-           
+          
           {isEditing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
@@ -670,7 +667,7 @@ export default function Home() {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
                 const visual = getCategoryVisual(cat);
-                 
+                
                 let btnStyle = {};
                 let textClass = '';
 
@@ -793,11 +790,11 @@ export default function Home() {
         )}
       </main>
 
-      {/* --- نافذة (Modal) اختيار المنتج --- */}
+      {/* --- Modal --- */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
-             
+            
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
                 {activeModalProduct.image && (
@@ -815,10 +812,10 @@ export default function Home() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
-               
+              
               <div className="space-y-3">
                 <label className="text-xs font-black text-slate-800 block border-b border-slate-50 pb-1.5">الأوزان المتاحة</label>
-                 
+                
                 <div className="grid grid-cols-2 gap-2">
                   {activeModalProduct.variants.map((variant, idx) => {
                     const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
@@ -859,7 +856,7 @@ export default function Home() {
                     </div>
                     <span className={`text-sm font-black ${isCustomWeight ? 'text-[#1e382b]' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
                   </div>
-                   
+                  
                   {isCustomWeight && (
                     <div className="mt-3.5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
@@ -972,7 +969,7 @@ export default function Home() {
                           if (itemPId == activeModalProduct.id) return total + (item.unitWeightGrams * item.qty);
                           return total;
                       }, 0);
-                       
+                      
                       if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
                           setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح حالياً: ${activeModalProduct.stockGrams} جرام.` });
                           setTimeout(() => setToast({ visible: false, message: '' }), 3000);
@@ -1100,7 +1097,7 @@ export default function Home() {
                     <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
                     <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
-                   
+                  
                   <div>
                     <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
                     <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
@@ -1128,7 +1125,7 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                   
+                  
                   <div>
                     <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">ملاحظات على الطلب (اختياري)</label>
                     <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: يفضل التواصل معي قبل التوصيل، أو اكتب أي ملاحظة خاصة بالطلب." className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none placeholder:text-slate-400 placeholder:font-semibold placeholder:text-[10px] sm:placeholder:text-[11px]" />
