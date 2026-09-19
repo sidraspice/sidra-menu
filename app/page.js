@@ -145,6 +145,7 @@ export default function Home() {
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
+         const image = p['صورة'] || p['image'] || '';
          let status = (p['حالة الصنف'] || '').toString().trim();
          
          let isAvailable = true;
@@ -160,6 +161,7 @@ export default function Home() {
              ...p, 
              stockGrams, 
              itemCode, 
+             image,
              isAvailable
          };
       });
@@ -1210,7 +1212,7 @@ export default function Home() {
         </div>
       )}
 
-      {showRestoreConfirm && 
+      {showRestoreConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
             <RotateCcw className="w-10 h-10 text-amber-500 mx-auto mb-2" />
@@ -1222,7 +1224,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      }
+      )}
     </div>
   );
 }
