@@ -149,7 +149,8 @@ export default function Home() {
       const mappedProducts = json.products.map(p => {
          const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
          const itemCode = p['كود الصنف'] || '';
-         const image = p['صورة'] || p['image'] || '';
+         // فحص شامل لجميع احتمالات أسماء أعمدة الصور في الشيت
+         const image = p['صورة'] || p['صورة المنتج'] || p['رابط الصورة'] || p['image'] || '';
          let status = (p['حالة الصنف'] || '').toString().trim();
          
          let isAvailable = true;
@@ -557,7 +558,7 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // [تمت إزالة رابط التأكيد نهائياً من رسالة العميل لتكون نظيفة 100%]
+      // [تم التأكد تماماً من عدم وجود أي روابط تأكيد هنا]
 
       const nowTs = Date.now();
       const orderData = { 
