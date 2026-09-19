@@ -1,30 +1,20 @@
 import { NextResponse } from 'next/server';
 
-export async function POST(req) {
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwjgmUi4xGpAnfRIJZ0HWYPfKPYZkDgpYYmMR-zxSJbd1XdP11RGFhRt9jghrdIyT6ZZw/exec';
+
+export async function POST(request) {
   try {
-    const body = await req.json();
+    const body = await request.json();
     
-    // استخدم رابط الـ Web App الذي نسخته من الخطوة السابقة هنا (أو الأفضل في .env)
-    const scriptUrl = process.env.GOOGLE_SCRIPT_URL; 
-
-    if (!scriptUrl) {
-      throw new Error("لم يتم تكوين GOOGLE_SCRIPT_URL في الخادم.");
-    }
-
-    const response = await fetch(scriptUrl, {
+    const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-
+    
     const data = await response.json();
-
-    if (!data.success) {
-      return NextResponse.json({ success: false, error: data.error }, { status: 400 });
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json(data);
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.toString() });
   }
 }
