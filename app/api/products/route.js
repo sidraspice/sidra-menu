@@ -49,27 +49,60 @@ function parseCSV(text) {
 
   const headers = parseCSVLine(lines[0]);
 
-  const categoryIdx = headers.findIndex(h => h.includes('قسم') || h.includes('تصنيف') || h.includes('القسم'));
-  const nameIdx = headers.findIndex(h => h.includes('منتج') || h.includes('اسم') || h.includes('صنف'));
-  const weightIdx = headers.findIndex(h => h.includes('وزن') || h.includes('حجم'));
-  const grindIdx = headers.findIndex(h => h.includes('طحن') || h.includes('grind'));
+  // البحث المرن والشامل عن عمود القسم بكل أشكاله المحتملة
+  const categoryIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('قسم') || clean.includes('تصنيف') || clean.includes('category') || clean.includes('cat');
+  });
+
+  const nameIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('منتج') || clean.includes('اسم') || clean.includes('صنف') || clean.includes('name');
+  });
+
+  const weightIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('وزن') || clean.includes('حجم') || clean.includes('weight');
+  });
+
+  const grindIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('طحن') || clean.includes('grind');
+  });
   
-  const newDiscountPriceIdx = headers.findIndex(h => h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'));
-  const regularPriceIdx = headers.findIndex(h => 
-    (h.includes('سعر') || h.includes('ثمن')) && 
-    !(h.includes('جديد') || h.includes('خصم') || h.includes('بعد') || h.includes('عرض'))
-  );
+  const newDiscountPriceIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('جديد') || clean.includes('خصم') || clean.includes('بعد') || clean.includes('عرض');
+  });
 
-  const imageIdx = headers.findIndex(h => 
-    h.includes('صورة') || h.includes('صوره') || h.includes('image') || h.includes('img') || h.includes('رابط') || h.includes('الصور')
-  );
+  const regularPriceIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return (clean.includes('سعر') || clean.includes('ثمن') || clean.includes('price')) && 
+           !(clean.includes('جديد') || clean.includes('خصم') || clean.includes('بعد') || clean.includes('عرض'));
+  });
 
-  const codeIdx = headers.findIndex(h => h.includes('كود') || h.includes('code'));
-  const stockIdx = headers.findIndex(h => h.includes('مخزون') || h.includes('stock'));
-  const alertIdx = headers.findIndex(h => h.includes('تنبيه') || h.includes('alert'));
+  const imageIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('صورة') || clean.includes('صوره') || clean.includes('image') || clean.includes('img') || clean.includes('رابط') || clean.includes('الصور');
+  });
+
+  const codeIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('كود') || clean.includes('code');
+  });
+
+  const stockIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('مخزون') || clean.includes('stock');
+  });
+
+  const alertIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('تنبيه') || clean.includes('alert');
+  });
 
   let statusIdx = headers.findIndex(h => {
-    const clean = h.trim();
+    const clean = h.trim().toLowerCase();
     return clean === 'الحالة' || clean === 'حالة' || clean === 'حالة الصنف' || clean.includes('توفر') || clean.includes('متوفر') || clean.includes('متاح');
   });
 
@@ -78,7 +111,7 @@ function parseCSV(text) {
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
-    if (!nameIdx || !values[nameIdx]) continue;
+    if (nameIdx === -1 || !values[nameIdx]) continue;
 
     const rowName = values[nameIdx].trim();
     const rowCat = categoryIdx !== -1 && values[categoryIdx] ? values[categoryIdx].trim() : '';
