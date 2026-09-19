@@ -6,7 +6,6 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // إرسال الطلب إلى جوجل سكريبت لتسجيله في Pending_Orders وتوليد رابط التأكيد الإداري
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
