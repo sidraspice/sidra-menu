@@ -97,8 +97,10 @@ export default function Home() {
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
   const customWeightInputRef = useRef(null); 
+  const grindSectionRef = useRef(null);
   
   const [grindOption, setGrindOption] = useState('');
+  const [grindError, setGrindError] = useState(false);
 
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
@@ -261,8 +263,8 @@ export default function Home() {
     setModalQty(1);
     setIsCustomWeight(false);
     setCustomWeightValue('');
+    setGrindError(false);
     
-    // التعديل الأول: عدم اختيار أي حالة افتراضياً إلا إذا كانت حالة واحدة فقط
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
@@ -293,14 +295,6 @@ export default function Home() {
 
   const addToCart = (e) => {
     if (!activeModalProduct || !selectedVariant || !selectedVariant.available) return;
-
-    // التعديل الثاني: منع الإضافة للسلة إذا لم يتم اختيار حالة المنتج (حصى/مطحون)
-    if (activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 1 && !grindOption) {
-      setToast({ visible: true, message: 'الرجاء اختيار حالة المنتج أولاً' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-      triggerVibration();
-      return;
-    }
 
     let finalWeight = selectedVariant.weight;
     let finalPrice = selectedVariant.price;
@@ -904,10 +898,12 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* قسم حالة الطحن */}
+              {/* قسم حالة الطحن (مع التظليل الأحمر عند الخطأ) */}
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">حالة المنتج</span>
+                <div ref={grindSectionRef} className={`space-y-2 ${grindError ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
+                  <span className={`text-xs font-black block mb-1.5 border-b pb-1 ${grindError ? 'text-red-700 border-red-200' : 'text-slate-800 border-slate-50'}`}>
+                    حالة المنتج {grindError && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد الحالة)</span>}
+                  </span>
                   {activeModalProduct.parsedGrindOptions.length === 1 ? (
                     <div className="w-full">
                       <div className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-xs font-black rounded-xl cursor-default select-none w-full">
@@ -924,11 +920,13 @@ export default function Home() {
                             key={i}
                             role="radio"
                             aria-checked={isSelected}
-                            onClick={() => { triggerVibration(); setGrindOption(opt); }}
+                            onClick={() => { triggerVibration(); setGrindOption(opt); setGrindError(false); }}
                             className={`relative flex-1 py-2.5 px-2 rounded-xl border-2 transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${
                               isSelected 
                                 ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md z-10' 
-                                : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'
+                                : grindError 
+                                  ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' 
+                                  : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'
                             }`}
                           >
                             <div className="flex items-center justify-center w-full relative">
@@ -977,11 +975,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Modal Footer (زر الإضافة المُثبت مع التعديل المطلوب) */}
+            {/* Modal Footer (زر الإضافة الدائم الجاهز) */}
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) || (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption)} onClick={(e) => addToCart(e)} className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]">
+              <button 
+                disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} 
+                onClick={(e) => {
+                  if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) {
+                    setGrindError(true);
+                    triggerVibration();
+                    setToast({ visible: true, message: 'الرجاء تحديد حالة المنتج (حصى أو مطحون)' });
+                    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+                    if (grindSectionRef.current) {
+                      grindSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                  }
+                  addToCart(e);
+                }} 
+                className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
+              >
                 {(() => {
-                  if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) return 'الرجاء اختيار حالة المنتج أولاً';
                   if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
                   return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
