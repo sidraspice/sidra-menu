@@ -557,7 +557,9 @@ export default function Home() {
         message += `*01009750003*`;
       }
 
-      // 🔴 تم حذف إضافة رابط التأكيد من رسالة الواتساب نهائياً 🔴
+      if (resData.adminLink) {
+        message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
+      }
 
       const nowTs = Date.now();
       const orderData = { 
