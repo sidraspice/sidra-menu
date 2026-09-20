@@ -445,7 +445,12 @@ export default function Home() {
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
     
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    
+    if (Object.keys(errors).length > 0) {
+      triggerVibration();
+      return false;
+    }
+    return true;
   };
 
   const handleProceedToReview = (e) => {
@@ -1105,16 +1110,18 @@ export default function Home() {
                     <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
 
-                  <div className="pt-1">
+                  <div className={`pt-1 pb-1 ${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
+                    <label className={`text-[11px] sm:text-xs font-bold block mb-1.5 ${formErrors.deliveryZone ? 'text-red-700 border-b border-red-200 pb-1' : 'text-slate-700'}`}>
+                      مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
+                    </label>
                     <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : 'bg-white border-[#e8e2d5] text-slate-500'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />} داخل دمنهور
                       </button>
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : 'bg-white border-[#e8e2d5] text-slate-500'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />} خارج دمنهور
                       </button>
                     </div>
-                    {formErrors.deliveryZone && <p className="text-red-500 text-[10px] font-bold mt-1.5">{formErrors.deliveryZone}</p>}
                   </div>
 
                   <div>
