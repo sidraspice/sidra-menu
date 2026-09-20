@@ -581,7 +581,7 @@ export default function Home() {
       setCart([]);
       setIsEditing(false);
       setCustomer(prev => {
-        const nextData = { ...prev, notes: '' };
+        const nextData = { ...prev, notes: '', deliveryZone: '' };
         localStorage.setItem('sedra_customer', JSON.stringify(nextData));
         return nextData;
       });
