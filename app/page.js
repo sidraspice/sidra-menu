@@ -951,12 +951,12 @@ export default function Home() {
       message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
       
       if (customer.deliveryZone === 'damanhour') {
-        if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-          message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
-        }
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n\n`;
-        message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+        if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+          message += `🎁 التوصيل مجاني (حساب المندوب علينا)\n`;
+        }
+        message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
       } else if (customer.deliveryZone === 'outside') {
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
         message += `💳 طريقة الدفع: ${customer.paymentMethod}\n\n`;
