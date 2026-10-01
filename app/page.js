@@ -361,10 +361,12 @@ export default function Home() {
   const historyPushedRef = useRef({ modal: false, search: false });
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-    script.async = true;
-    document.body.appendChild(script);
+    if (typeof window !== 'undefined' && !window.confetti && !document.querySelector('script[src*="canvas-confetti"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, []);
 
   // إدارة تاريخ المتصفح وزر رجوع الهاتف بشكل موحد دون تكرار أو تسريب ذاكرة
@@ -416,8 +418,10 @@ export default function Home() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAnyModalOpen, isSearchModeActive, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack, activeModalProduct, isCartOpen]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch('/api/products');
@@ -453,14 +457,41 @@ export default function Home() {
       });
 
       setData({ products: mappedProducts, categories: json.categories });
+
+      try {
+        localStorage.setItem('sedra_products_cache', JSON.stringify({
+          products: mappedProducts,
+          categories: json.categories
+        }));
+      } catch (e) {
+        console.error(e);
+      }
     } catch (err) {
-      setError(err.message || 'حدث خطأ في تحميل البيانات');
+      if (!isBackground) {
+        setError(err.message || 'حدث خطأ في تحميل البيانات');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    let hasLocalCache = false;
+    try {
+      const savedProducts = localStorage.getItem('sedra_products_cache');
+      if (savedProducts) {
+        const parsed = JSON.parse(savedProducts);
+        if (parsed?.products && Array.isArray(parsed.products) && parsed.products.length > 0) {
+          setData({ products: parsed.products, categories: parsed.categories || [] });
+          setLoading(false);
+          hasLocalCache = true;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    fetchData(hasLocalCache);
+  }, []);
 
   useEffect(() => {
     try {
@@ -1017,11 +1048,8 @@ export default function Home() {
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // على الهاتف: التوجيه المباشر في نفس النافذة يفعّل App Links / Universal Links
-        // فيفتح تطبيق WhatsApp المثبت فوراً دون الوقوف في صفحة api.whatsapp.com الوسيطة
         window.location.href = waUrl;
       } else {
-        // على الكمبيوتر: يفتح في نافذة جديدة لإبقاء متجر العميل مفتوحاً وتشغيل WhatsApp Web
         window.open(waUrl, '_blank', 'noopener,noreferrer');
       }
 
@@ -1167,8 +1195,17 @@ export default function Home() {
             </div>
           )}
 
+          {/* حالة التحميل: إظهار هيكل التصنيفات Skeleton للزائر الجديد */}
+          {loading && data.products.length === 0 && !isSearchModeActive && (
+            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1 animate-pulse">
+              {[1, 2, 3, 4, 5].map(n => (
+                <div key={n} className="h-7 w-16 bg-[#e8e2d5]/60 rounded-xl"></div>
+              ))}
+            </div>
+          )}
+
           {/* إظهار الأقسام في الوضع الطبيعي فقط وإخفاؤها تمامًا أثناء وضع البحث */}
-          {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
+          {!isSearchModeActive && displayCategories.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
@@ -1212,21 +1249,49 @@ export default function Home() {
           )}
         </div>
 
-        {loading && (
-          <div className="text-center py-16 text-[#2d533e] font-bold">
-            <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-[#c89d56]" />
-            جاري تحميل قائمة الأسعار...
+        {/* حالة Skeleton Loading لعملاء المرة الأولى: تصميم هيكلي مطابق تمامًا لشبكة المنتجات */}
+        {loading && data.products.length === 0 && (
+          <div>
+            <div className="flex justify-between items-center mb-2.5">
+              <div className="h-4 w-28 bg-[#e8e2d5]/60 rounded-md animate-pulse"></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {[1, 2, 3, 4, 5, 6].map((sk) => (
+                <div key={sk} className="bg-white rounded-2xl p-3 border border-[#e8e2d5] shadow-2xs flex flex-col justify-between animate-pulse">
+                  <div>
+                    <div className="flex items-start gap-2 mb-2">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border border-[#e8e2d5]/40 shrink-0"></div>
+                      <div className="flex-1 min-w-0 space-y-1.5 pt-0.5">
+                        <div className="h-2.5 w-10 bg-slate-100 rounded"></div>
+                        <div className="h-3.5 w-full bg-slate-100 rounded"></div>
+                        <div className="h-3.5 w-3/4 bg-slate-100 rounded"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="py-1.5 border-t border-slate-50 space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <div className="h-2.5 w-8 bg-slate-100 rounded"></div>
+                        <div className="h-3 w-10 bg-slate-100 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="w-full h-9 bg-slate-100 rounded-xl mt-1"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {error && (
+        {error && data.products.length === 0 && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-center my-6 shadow-xs">
             <p className="text-sm font-bold mb-2.5">{error}</p>
-            <button onClick={fetchData} className="bg-[#2d533e] text-white text-sm px-4 py-2 rounded-lg font-bold inline-flex items-center gap-1 shadow"><RefreshCw className="w-4 h-4" /> إعادة المحاولة</button>
+            <button onClick={() => fetchData(false)} className="bg-[#2d533e] text-white text-sm px-4 py-2 rounded-lg font-bold inline-flex items-center gap-1 shadow"><RefreshCw className="w-4 h-4" /> إعادة المحاولة</button>
           </div>
         )}
 
-        {!loading && !error && (
+        {data.products.length > 0 && (
           <>
             {/* حالة فتح واجهة البحث قبل كتابة أي نص */}
             {isSearchModeActive && !search.trim() ? (
@@ -1251,13 +1316,13 @@ export default function Home() {
 
                 {filteredProducts.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2.5">
-                    {filteredProducts.map(product => (
+                    {filteredProducts.map((product, index) => (
                       <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
                         <div>
                           <div className="flex items-start gap-2 mb-2">
                             <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
                               {product.image ? (
-                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
                               )}
