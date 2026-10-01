@@ -354,6 +354,9 @@ export default function Home() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isSearchModeActive = isSearchOpen || search.trim().length > 0;
+  const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
@@ -361,22 +364,50 @@ export default function Home() {
     document.body.appendChild(script);
   }, []);
 
+  // تسجيل حالة البحث في سجل المتصفح لتمكين الخروج بزر رجوع الهاتف
   useEffect(() => {
-    const isAnyModalOpen = isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack;
-    const handlePopState = () => {
-      if (isCartOpen) setIsCartOpen(false);
-      if (activeModalProduct) setActiveModalProduct(null);
-      if (zoomedImage) setZoomedImage(null);
-      if (showClearConfirm) setShowClearConfirm(false);
-      if (showRestoreConfirm) setShowRestoreConfirm(false);
-      if (showWelcomeBack) setShowWelcomeBack(false);
-    };
+    if (isSearchModeActive) {
+      window.history.pushState({ sedraSearch: true }, '');
+    }
+  }, [isSearchModeActive]);
+
+  // تسجيل حالة النوافذ المنبثقة في سجل المتصفح
+  useEffect(() => {
     if (isAnyModalOpen) {
       window.history.pushState({ modal: true }, '');
-      window.addEventListener('popstate', handlePopState);
     }
+  }, [isAnyModalOpen]);
+
+  // معالجة زر رجوع الهاتف بالأولوية (إغلاق النوافذ المنبثقة أولًا ثم الخروج من وضع البحث)
+  useEffect(() => {
+    if (!isAnyModalOpen && !isSearchModeActive) return;
+
+    const handlePopState = () => {
+      if (zoomedImage) {
+        setZoomedImage(null);
+        return;
+      }
+      if (showClearConfirm || showRestoreConfirm || showWelcomeBack) {
+        if (showClearConfirm) setShowClearConfirm(false);
+        if (showRestoreConfirm) setShowRestoreConfirm(false);
+        if (showWelcomeBack) setShowWelcomeBack(false);
+        return;
+      }
+      if (activeModalProduct || isCartOpen) {
+        if (activeModalProduct) setActiveModalProduct(null);
+        if (isCartOpen) setIsCartOpen(false);
+        return;
+      }
+      if (isSearchModeActive) {
+        setSearch('');
+        setIsSearchOpen(false);
+        if (searchInputRef.current) searchInputRef.current.blur();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isCartOpen, activeModalProduct, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack]);
+  }, [isAnyModalOpen, isSearchModeActive, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack, activeModalProduct, isCartOpen]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -490,6 +521,9 @@ export default function Home() {
     setSearch('');
     setIsSearchOpen(false);
     if (searchInputRef.current) searchInputRef.current.blur();
+    if (typeof window !== 'undefined' && window.history.state?.sedraSearch) {
+      window.history.back();
+    }
   };
 
   const handleShareProduct = (product, e) => {
@@ -567,15 +601,10 @@ export default function Home() {
     const scoredResults = [];
     let maxScore = 0;
 
+    // أثناء البحث يتم الفحص في جميع منتجات المتجر
     for (let i = 0; i < indexedProducts.length; i++) {
       const entry = indexedProducts[i];
       const item = entry.product;
-
-      const matchesCategory = selectedCategory === 'فرص خاصة'
-        ? item.variants.some(v => isOfferValid(v.price, v.originalPrice))
-        : (selectedCategory === 'كل المنتجات' || item.category === selectedCategory);
-
-      if (!matchesCategory) continue;
 
       const score = scoreProductMatch(entry.searchIndex, queryMeta);
       if (score > 0) {
@@ -984,8 +1013,6 @@ export default function Home() {
     }
   };
 
-  const isSearchModeActive = isSearchOpen || search.trim().length > 0;
-
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       <style dangerouslySetInnerHTML={{__html: `
@@ -994,8 +1021,6 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
       {flyingItems.map(item => (
@@ -1033,7 +1058,7 @@ export default function Home() {
       )}
 
       <main className="max-w-xl mx-auto px-4 mt-0">
-        <div className={`sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs ${isSearchModeActive ? 'pt-2.5 pb-2 mb-2' : 'pt-1 pb-2.5 mb-3'}`}>
+        <div className={`sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs ${isSearchModeActive ? 'pt-2.5 pb-2.5 mb-2.5' : 'pt-1 pb-2.5 mb-3'}`}>
           
           {isEditing && !isSearchModeActive && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
@@ -1073,7 +1098,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2">
               <div className="flex-1 bg-white rounded-2xl shadow-sm p-2 flex items-center gap-2 border-2 border-[#2d533e]">
                 <Search className="w-5 h-5 text-[#2d533e] mr-1 shrink-0" />
                 <input
@@ -1112,8 +1137,9 @@ export default function Home() {
             </div>
           )}
 
-          {!loading && !error && displayCategories.length > 0 && (
-            <div className={isSearchModeActive ? "flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 pb-0.5" : "flex flex-wrap justify-center gap-1.5 pt-1 pb-1"}>
+          {/* إظهار الأقسام في الوضع الطبيعي فقط وإخفاؤها تمامًا أثناء وضع البحث */}
+          {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
@@ -1185,20 +1211,9 @@ export default function Home() {
               <div>
                 <div className="flex justify-between items-center mb-2.5">
                   {search.trim() ? (
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <span className="text-xs font-black text-[#1e382b]">
-                        نتائج البحث عن &laquo;{search.trim()}&raquo; ({filteredProducts.length} منتج)
-                      </span>
-                      {selectedCategory !== 'كل المنتجات' && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCategory('كل المنتجات')}
-                          className="text-[11px] font-black text-[#2d533e] underline shrink-0"
-                        >
-                          البحث في كل المنتجات
-                        </button>
-                      )}
-                    </div>
+                    <span className="text-xs font-black text-[#1e382b]">
+                      نتائج البحث عن &laquo;{search.trim()}&raquo; ({filteredProducts.length} منتج)
+                    </span>
                   ) : (
                     <span className="text-xs font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
                   )}
@@ -1266,15 +1281,6 @@ export default function Home() {
                   <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-4 shadow-2xs">
                     <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">لم نجد صنفًا مطابقًا لبحثك.</p>
                     <p className="text-xs font-semibold text-slate-500">جرّب كلمة أخرى أو اكتب جزءًا من اسم الصنف.</p>
-                    {selectedCategory !== 'كل المنتجات' && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCategory('كل المنتجات')}
-                        className="mt-3 bg-[#2d533e] text-white text-xs font-black px-4 py-2 rounded-xl shadow-xs hover:bg-[#1e382b] transition"
-                      >
-                        البحث في كل المنتجات
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
