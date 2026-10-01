@@ -565,7 +565,7 @@ export default function Home() {
         message += `\n`;
       }
 
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n💳 طريقة الدفع: ${customer.paymentMethod}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
       
@@ -588,10 +588,12 @@ export default function Home() {
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
           message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
         }
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n\n`;
         message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
       } else if (customer.deliveryZone === 'outside') {
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n\n`;
         message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
         message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
         message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
