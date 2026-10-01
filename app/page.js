@@ -25,7 +25,7 @@ const getCategoryVisual = (catName) => {
   if (name.includes('مشروبات') || name.includes('شاي') || name.includes('قهوة')) return { icon: '☕', label: 'مشروبات' };
   if (name.includes('بذور') || name.includes('مكملات')) return { icon: '🌾', label: 'بذور ومكملات' };
   if (name.includes('مجفف')) return { icon: '🍋', label: 'مجففات' };
-  if (name.includes('متنوعة') || name.includes('متنوعه')) return { icon: '🫙', label: 'بهارات متنوعة' };
+  if (name.includes('متنوعة') || name.includes('متنوعه')) return { icon: '𫬙', label: 'بهارات متنوعة' };
   if (name.includes('حلواني') || name.includes('حلوانى')) return { icon: '🍰', label: 'لوازم حلواني' };
   if (name.includes('علاج') || name.includes('خاص')) return { icon: '🍯', label: 'خاصة وعلاجية' };
   if (name.includes('بلدى') || name.includes('بلدي')) return { icon: '🧂', label: 'بهارات بلدي' };
@@ -76,11 +76,11 @@ const normalizeArabic = (text) => {
   return text
     .toString()
     .toLowerCase()
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '') // إزالة التشكيل والتطويل (ـ)
-    .replace(/[أإآٱ]/g, 'ا') // توحيد الهمزات
-    .replace(/ة/g, 'ه') // توحيد التاء المربوطة والهاء
-    .replace(/[ىئ\u06CC\u0649]/g, 'ي') // توحيد الياء والألف المقصورة
-    .replace(/[\u06A9گ]/g, 'ك') // توحيد الكاف الفارسية (مثل کرکم)
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[ىئ\u06CC\u0649]/g, 'ي')
+    .replace(/[\u06A9گ]/g, 'ك')
     .replace(/ؤ/g, 'و')
     .replace(/[-_()/،,.٫!؟"'\[\]{}]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -109,20 +109,7 @@ const normalizeOrthographicWord = (word) => {
 };
 
 const SIMILAR_ARABIC_GROUPS = [
-  'قك',
-  'سص',
-  'تط',
-  'دض',
-  'ذزظ',
-  'ثسص',
-  'هحخ',
-  'عغ',
-  'بف',
-  'نلر',
-  'شس',
-  'تث',
-  'جحخ',
-  'طك'
+  'قك', 'سص', 'تط', 'دض', 'ذزظ', 'ثسص', 'هحخ', 'عغ', 'بف', 'نلر', 'شس', 'تث', 'جحخ', 'طك'
 ];
 
 const areArabicCharsClose = (c1, c2) => {
@@ -142,7 +129,6 @@ const getTypoScore = (qWord, targetWord) => {
   if (lq < 4 || lt < 3) return 0;
   if (Math.abs(lq - lt) > 1) return 0;
 
-  // الحالة 1: نفس الطول (إبدال حرف متقارب أو تبديل حرفين متجاورين)
   if (lq === lt) {
     const diffs = [];
     for (let i = 0; i < lq; i++) {
@@ -168,7 +154,6 @@ const getTypoScore = (qWord, targetWord) => {
     return 0;
   }
 
-  // الحالة 2: فرق حرف واحد (حرف ناقص أو زائد) بشرط تطابق الحرف الأول
   const shorter = lq < lt ? qWord : targetWord;
   const longer = lq < lt ? targetWord : qWord;
   if (shorter.length < 4 || shorter[0] !== longer[0]) return 0;
@@ -188,14 +173,11 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
 
   if (!normQ) return 0;
 
-  // 1. تطابق كامل مع اسم المنتج أو كود الصنف
   if (normName === normQ || (compactQ.length >= 2 && compactName === compactQ)) return 1000;
   if (normCode && normCode === normQ) return 980;
 
-  // 2. يبدأ اسم المنتج بعبارة البحث كاملة
   if (normName.startsWith(normQ + ' ')) return 950;
 
-  // 3. معالجة البحث بكلمة واحدة مع ترتيب ذكي حسب موضع الكلمة وطولها
   if (qWords.length === 1) {
     const qw = qWords[0];
     const qwo = qWordsOrtho[0];
@@ -217,17 +199,14 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
     if (bestPrefixScore > 0) return bestPrefixScore;
   }
 
-  // 4. يبدأ اسم المنتج بنص البحث متصلًا أو مباشرًا
   if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) {
     return 800;
   }
 
-  // 5. عبارة البحث موجودة بشكل متصل داخل اسم المنتج
   if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) {
     return 700;
   }
 
-  // 6. فحص تطابق جميع كلمات البحث (جزئي / دلالي في بيانات المنتج / خطأ إملائي بسيط)
   let totalTokenScore = 0;
   let matchedInNameCount = 0;
   let usedTypo = false;
@@ -277,7 +256,6 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
       }
     }
 
-    // فحص الحقول الإضافية الموجودة في بيانات المنتج (حالة الطحن والتصنيف)
     if (bestForToken === 0 && qwo.length >= 2) {
       for (let g = 0; g < grindWords.length; g++) {
         if (grindWords[g] === qwo || grindWords[g].startsWith(qwo)) {
@@ -369,7 +347,6 @@ export default function Home() {
     }
   }, []);
 
-  // إدارة تاريخ المتصفح وزر رجوع الهاتف بشكل موحد دون تكرار أو تسريب ذاكرة
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -583,7 +560,6 @@ export default function Home() {
     return ['كل المنتجات', 'فرص خاصة', ...originalCats];
   }, [data.categories]);
 
-  // تجهيز فهرس البحث المطبّع محليًا دون المساس بالبيانات الأصلية للمنتجات
   const indexedProducts = useMemo(() => {
     return data.products.map((product, originalIndex) => {
       const normName = normalizeArabic(product.name || '');
@@ -619,7 +595,6 @@ export default function Home() {
   const filteredProducts = useMemo(() => {
     const trimmedSearch = deferredSearch.trim();
 
-    // السلوك الأصلي تمامًا عند عدم وجود نص بحث
     if (!trimmedSearch) {
       return data.products.filter(item => {
         if (selectedCategory === 'فرص خاصة') {
@@ -640,7 +615,6 @@ export default function Home() {
     const scoredResults = [];
     let maxScore = 0;
 
-    // أثناء البحث يتم الفحص في جميع منتجات المتجر
     for (let i = 0; i < indexedProducts.length; i++) {
       const entry = indexedProducts[i];
       const item = entry.product;
@@ -652,7 +626,6 @@ export default function Home() {
       }
     }
 
-    // إذا وُجد تطابق مباشر قوي، نستبعد التطابقات المبنية فقط على تخمين خطأ إملائي ضعيف
     const finalResults = maxScore >= 750
       ? scoredResults.filter(r => r.score >= 300)
       : scoredResults;
@@ -823,7 +796,7 @@ export default function Home() {
     const isOutsideCities = /^(الاسكندرية|الإسكندرية|كفر الدوار|أبو حمص|ابو حمص|القاهرة|طنطا|دسوق|دسووق|رشيد|ايتاى|إيتاي|شبراخيت|الرحمانية|المحمودية|ادكو|إدكو|كوم حمادة|وادي النطرون|حوش عيسى)/i.test(addr);
 
     if (customer.deliveryZone === 'damanhour' && isOutsideCities && !isDamanhour) {
-      return "⚠️ العنوان يبدو خارج دمنهور، برجاء مراجعة مكان التوصيل.";
+      return "⚠️️ العنوان يبدو خارج دمنهور، برجاء مراجعة مكان التوصيل.";
     }
     if (customer.deliveryZone === 'outside' && /^دمنهور/i.test(addr)) {
       return "⚠️ العنوان يبدو داخل دمنهور، برجاء مراجعة مكان التوصيل.";
@@ -1101,7 +1074,6 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      {/* إخفاء مساحة اللوجو أثناء وضع البحث فقط لإعطاء الأولوية لمربع البحث والنتائج على الهاتف */}
       {!isSearchModeActive && (
         <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
           <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
@@ -1148,8 +1120,17 @@ export default function Home() {
                 <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">بحث 🔍</span>
               </button>
 
+              <a
+                href="/track"
+                className="bg-white hover:bg-[#fbf9f4] text-[#1e382b] border-2 border-[#e8e2d5] text-xs font-bold px-3 py-3 rounded-2xl transition shadow-xs flex items-center gap-1.5 shrink-0"
+                title="متابعة حالة الطلب"
+              >
+                <Package className="w-4 h-4 text-[#2d533e]" />
+                <span className="text-[11px] sm:text-xs">المتابعة</span>
+              </a>
+
               {lastOrder && !isEditing && (
-                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
+                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
                   <RotateCcw className="w-4 h-4 text-[#c89d56]" />
                   <span>تعديل آخر طلب</span>
                 </button>
@@ -1195,7 +1176,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* حالة التحميل: إظهار هيكل التصنيفات Skeleton للزائر الجديد */}
           {loading && data.products.length === 0 && !isSearchModeActive && (
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1 animate-pulse">
               {[1, 2, 3, 4, 5].map(n => (
@@ -1204,7 +1184,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* إظهار الأقسام في الوضع الطبيعي فقط وإخفاؤها تمامًا أثناء وضع البحث */}
           {!isSearchModeActive && displayCategories.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
@@ -1249,7 +1228,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* حالة Skeleton Loading لعملاء المرة الأولى: تصميم هيكلي مطابق تمامًا لشبكة المنتجات */}
         {loading && data.products.length === 0 && (
           <div>
             <div className="flex justify-between items-center mb-2.5">
@@ -1293,7 +1271,6 @@ export default function Home() {
 
         {data.products.length > 0 && (
           <>
-            {/* حالة فتح واجهة البحث قبل كتابة أي نص */}
             {isSearchModeActive && !search.trim() ? (
               <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-3 shadow-2xs">
                 <div className="w-12 h-12 rounded-full bg-[#2d533e]/10 flex items-center justify-center mx-auto mb-2.5">
