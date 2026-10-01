@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
   User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
@@ -70,16 +70,17 @@ const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
 };
 
+// --- دوال البحث الذكي وتطبيع النص العربي ---
 const normalizeArabic = (text) => {
   if (!text) return '';
   return text
     .toString()
     .toLowerCase()
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/[ىئ\u06CC\u0649]/g, 'ي')
-    .replace(/[\u06A9گ]/g, 'ك')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '') // إزالة التشكيل والتطويل (ـ)
+    .replace(/[أإآٱ]/g, 'ا') // توحيد الهمزات
+    .replace(/ة/g, 'ه') // توحيد التاء المربوطة والهاء
+    .replace(/[ىئ\u06CC\u0649]/g, 'ي') // توحيد الياء والألف المقصورة
+    .replace(/[\u06A9گ]/g, 'ك') // توحيد الكاف الفارسية (مثل کرکم)
     .replace(/ؤ/g, 'و')
     .replace(/[-_()/،,.٫!؟"'\[\]{}]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -87,7 +88,9 @@ const normalizeArabic = (text) => {
 };
 
 const stripDefiniteArticle = (word) => {
-  if (word && word.length > 3 && word.startsWith('ال')) return word.slice(2);
+  if (word && word.length > 3 && word.startsWith('ال')) {
+    return word.slice(2);
+  }
   return word;
 };
 
@@ -106,13 +109,27 @@ const normalizeOrthographicWord = (word) => {
 };
 
 const SIMILAR_ARABIC_GROUPS = [
-  'قك', 'سص', 'تط', 'دض', 'ذزظ', 'ثسص', 'هحخ', 'عغ', 'بف', 'نلر', 'شس', 'تث', 'جحخ', 'طك'
+  'قك',
+  'سص',
+  'تط',
+  'دض',
+  'ذزظ',
+  'ثسص',
+  'هحخ',
+  'عغ',
+  'بف',
+  'نلر',
+  'شس',
+  'تث',
+  'جحخ',
+  'طك'
 ];
 
 const areArabicCharsClose = (c1, c2) => {
   if (c1 === c2) return true;
   for (let i = 0; i < SIMILAR_ARABIC_GROUPS.length; i++) {
-    if (SIMILAR_ARABIC_GROUPS[i].includes(c1) && SIMILAR_ARABIC_GROUPS[i].includes(c2)) return true;
+    const group = SIMILAR_ARABIC_GROUPS[i];
+    if (group.includes(c1) && group.includes(c2)) return true;
   }
   return false;
 };
@@ -125,6 +142,7 @@ const getTypoScore = (qWord, targetWord) => {
   if (lq < 4 || lt < 3) return 0;
   if (Math.abs(lq - lt) > 1) return 0;
 
+  // الحالة 1: نفس الطول (إبدال حرف متقارب أو تبديل حرفين متجاورين)
   if (lq === lt) {
     const diffs = [];
     for (let i = 0; i < lq; i++) {
@@ -133,23 +151,34 @@ const getTypoScore = (qWord, targetWord) => {
     }
     if (diffs.length === 1) {
       const idx = diffs[0];
-      if (areArabicCharsClose(qWord[idx], targetWord[idx])) return 240;
-      if (lq >= 5 && idx > 0 && qWord[0] === targetWord[0]) return 200;
+      if (areArabicCharsClose(qWord[idx], targetWord[idx])) {
+        return 240;
+      }
+      if (lq >= 5 && idx > 0 && qWord[0] === targetWord[0]) {
+        return 200;
+      }
       return 0;
     }
     if (diffs.length === 2 && diffs[1] === diffs[0] + 1) {
-      if (qWord[diffs[0]] === targetWord[diffs[0] + 1] && qWord[diffs[0] + 1] === targetWord[diffs[0]]) return 220;
+      const i = diffs[0];
+      if (qWord[i] === targetWord[i + 1] && qWord[i + 1] === targetWord[i]) {
+        return 220;
+      }
     }
     return 0;
   }
 
+  // الحالة 2: فرق حرف واحد (حرف ناقص أو زائد) بشرط تطابق الحرف الأول
   const shorter = lq < lt ? qWord : targetWord;
   const longer = lq < lt ? targetWord : qWord;
   if (shorter.length < 4 || shorter[0] !== longer[0]) return 0;
 
   for (let i = 1; i < longer.length; i++) {
-    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) return 210;
+    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) {
+      return 210;
+    }
   }
+
   return 0;
 };
 
@@ -158,22 +187,129 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
   const { normName, compactName, nameWords, nameWordsOrtho, catWords, grindWords, normCode } = itemIndex;
 
   if (!normQ) return 0;
+
+  // 1. تطابق كامل مع اسم المنتج أو كود الصنف
   if (normName === normQ || (compactQ.length >= 2 && compactName === compactQ)) return 1000;
   if (normCode && normCode === normQ) return 980;
+
+  // 2. يبدأ اسم المنتج بعبارة البحث كاملة
   if (normName.startsWith(normQ + ' ')) return 950;
 
+  // 3. معالجة البحث بكلمة واحدة مع ترتيب ذكي حسب موضع الكلمة وطولها
   if (qWords.length === 1) {
     const qw = qWords[0];
     const qwo = qWordsOrtho[0];
+
     for (let idx = 0; idx < nameWords.length; idx++) {
       if (nameWords[idx] === qw || nameWordsOrtho[idx] === qwo) {
         return idx === 0 ? 920 : Math.max(750, 830 - idx * 15);
       }
     }
+
+    let bestPrefixScore = 0;
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      if (nameWords[idx].startsWith(qw) || nameWordsOrtho[idx].startsWith(qwo)) {
+        const lenDiff = Math.min(Math.abs(nameWordsOrtho[idx].length - qwo.length), 10);
+        const base = idx === 0 ? 860 : Math.max(700, 760 - idx * 15);
+        bestPrefixScore = Math.max(bestPrefixScore, base - lenDiff);
+      }
+    }
+    if (bestPrefixScore > 0) return bestPrefixScore;
   }
 
-  if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) return 700;
-  return 400;
+  // 4. يبدأ اسم المنتج بنص البحث متصلًا أو مباشرًا
+  if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) {
+    return 800;
+  }
+
+  // 5. عبارة البحث موجودة بشكل متصل داخل اسم المنتج
+  if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) {
+    return 700;
+  }
+
+  // 6. فحص تطابق جميع كلمات البحث (جزئي / دلالي في بيانات المنتج / خطأ إملائي بسيط)
+  let totalTokenScore = 0;
+  let matchedInNameCount = 0;
+  let usedTypo = false;
+
+  for (let i = 0; i < qWords.length; i++) {
+    const qw = qWords[i];
+    const qwo = qWordsOrtho[i];
+    let bestForToken = 0;
+    let tokenUsedTypo = false;
+    let inName = false;
+
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      const nw = nameWords[idx];
+      const nwo = nameWordsOrtho[idx];
+
+      if (nw === qw || nwo === qwo) {
+        const s = idx === 0 ? 160 : 135;
+        if (s > bestForToken) {
+          bestForToken = s;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else if (nw.startsWith(qw) || nwo.startsWith(qwo)) {
+        const lenDiff = Math.min(Math.abs(nwo.length - qwo.length), 10);
+        const s = (idx === 0 ? 125 : 105) - lenDiff;
+        if (s > bestForToken) {
+          bestForToken = s;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else if (qw.length >= 2 && (nw.includes(qw) || nwo.includes(qwo))) {
+        if (80 > bestForToken) {
+          bestForToken = 80;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else {
+        const ts = Math.max(getTypoScore(qw, nw), getTypoScore(qwo, nwo));
+        if (ts > 0) {
+          const s = Math.floor(ts / 4);
+          if (s > bestForToken) {
+            bestForToken = s;
+            inName = true;
+            tokenUsedTypo = true;
+          }
+        }
+      }
+    }
+
+    // فحص الحقول الإضافية الموجودة في بيانات المنتج (حالة الطحن والتصنيف)
+    if (bestForToken === 0 && qwo.length >= 2) {
+      for (let g = 0; g < grindWords.length; g++) {
+        if (grindWords[g] === qwo || grindWords[g].startsWith(qwo)) {
+          bestForToken = 50;
+          break;
+        }
+      }
+    }
+
+    if (bestForToken === 0 && qwo.length >= 2) {
+      for (let c = 0; c < catWords.length; c++) {
+        if (catWords[c] === qwo || catWords[c].startsWith(qwo)) {
+          bestForToken = 40;
+          break;
+        }
+      }
+    }
+
+    if (bestForToken === 0) return 0;
+
+    if (tokenUsedTypo) usedTypo = true;
+    if (inName) matchedInNameCount++;
+    totalTokenScore += bestForToken;
+  }
+
+  if (matchedInNameCount === 0 && qWords.length > 1) return 0;
+
+  if (usedTypo) {
+    return Math.min(280, 150 + totalTokenScore);
+  }
+
+  return Math.min(640, 350 + totalTokenScore);
 };
 
 export default function Home() {
@@ -181,7 +317,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
-  const deferredSearch = useDeferredValue(search);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
@@ -219,57 +354,54 @@ export default function Home() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isSearchModeActive = Boolean(isSearchOpen || search.trim().length > 0);
+  const isSearchModeActive = isSearchOpen || search.trim().length > 0;
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
 
-  const historyPushedRef = useRef({ modal: false, search: false });
-
   useEffect(() => {
-    if (typeof window !== 'undefined' && !window.confetti && !document.querySelector('script[src*="canvas-confetti"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+    script.async = true;
+    document.body.appendChild(script);
   }, []);
 
+  // تسجيل حالة البحث في سجل المتصفح لتمكين الخروج بزر رجوع الهاتف
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    if (isAnyModalOpen && !historyPushedRef.current.modal) {
-      window.history.pushState({ sedraType: 'modal' }, '');
-      historyPushedRef.current.modal = true;
-    } else if (!isAnyModalOpen) {
-      historyPushedRef.current.modal = false;
+    if (isSearchModeActive) {
+      window.history.pushState({ sedraSearch: true }, '');
     }
+  }, [isSearchModeActive]);
 
-    if (isSearchModeActive && !historyPushedRef.current.search) {
-      window.history.pushState({ sedraType: 'search' }, '');
-      historyPushedRef.current.search = true;
-    } else if (!isSearchModeActive) {
-      historyPushedRef.current.search = false;
+  // تسجيل حالة النوافذ المنبثقة في سجل المتصفح
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      window.history.pushState({ modal: true }, '');
     }
+  }, [isAnyModalOpen]);
+
+  // معالجة زر رجوع الهاتف بالأولوية (إغلاق النوافذ المنبثقة أولًا ثم الخروج من وضع البحث)
+  useEffect(() => {
+    if (!isAnyModalOpen && !isSearchModeActive) return;
 
     const handlePopState = () => {
-      if (zoomedImage) { setZoomedImage(null); historyPushedRef.current.modal = false; return; }
+      if (zoomedImage) {
+        setZoomedImage(null);
+        return;
+      }
       if (showClearConfirm || showRestoreConfirm || showWelcomeBack) {
         if (showClearConfirm) setShowClearConfirm(false);
         if (showRestoreConfirm) setShowRestoreConfirm(false);
         if (showWelcomeBack) setShowWelcomeBack(false);
-        historyPushedRef.current.modal = false;
         return;
       }
       if (activeModalProduct || isCartOpen) {
         if (activeModalProduct) setActiveModalProduct(null);
         if (isCartOpen) setIsCartOpen(false);
-        historyPushedRef.current.modal = false;
         return;
       }
       if (isSearchModeActive) {
         setSearch('');
         setIsSearchOpen(false);
         if (searchInputRef.current) searchInputRef.current.blur();
-        historyPushedRef.current.search = false;
       }
     };
 
@@ -277,13 +409,15 @@ export default function Home() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isAnyModalOpen, isSearchModeActive, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack, activeModalProduct, isCartOpen]);
 
-  const fetchData = async (isBackground = false) => {
-    if (!isBackground) setLoading(true);
+  const fetchData = async () => {
+    setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/products');
       const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) throw new Error('تعذر تحميل المنتجات');
+      if (!contentType.includes('application/json')) {
+        throw new Error('تعذر تحميل المنتجات (خطأ في الاستجابة)');
+      }
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       
@@ -294,38 +428,32 @@ export default function Home() {
          let status = (p['حالة الصنف'] || '').toString().trim();
          
          let isAvailable = true;
-         if (status === 'غير متوفر') isAvailable = false;
-         else if (stockGrams <= 0) isAvailable = false;
+         if (status === 'غير متوفر') {
+             isAvailable = false;
+         } else if (status === 'متوفر') {
+             if (stockGrams <= 0) isAvailable = false;
+         } else {
+             if (stockGrams <= 0) isAvailable = false;
+         }
          
-         return { ...p, stockGrams, itemCode, image, isAvailable };
+         return { 
+             ...p, 
+             stockGrams, 
+             itemCode, 
+             image,
+             isAvailable
+         };
       });
 
       setData({ products: mappedProducts, categories: json.categories });
-      try {
-        localStorage.setItem('sedra_products_cache', JSON.stringify({ products: mappedProducts, categories: json.categories }));
-      } catch (e) { console.error(e); }
     } catch (err) {
-      if (!isBackground) setError(err.message || 'حدث خطأ في تحميل البيانات');
+      setError(err.message || 'حدث خطأ في تحميل البيانات');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let hasLocalCache = false;
-    try {
-      const savedProducts = localStorage.getItem('sedra_products_cache');
-      if (savedProducts) {
-        const parsed = JSON.parse(savedProducts);
-        if (parsed?.products && Array.isArray(parsed.products) && parsed.products.length > 0) {
-          setData({ products: parsed.products, categories: parsed.categories || [] });
-          setLoading(false);
-          hasLocalCache = true;
-        }
-      }
-    } catch (e) { console.error(e); }
-    fetchData(hasLocalCache);
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
     try {
@@ -381,16 +509,19 @@ export default function Home() {
 
   const openSearchMode = () => {
     setIsSearchOpen(true);
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => { if (searchInputRef.current) searchInputRef.current.focus(); }, 60);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setTimeout(() => {
+      if (searchInputRef.current) searchInputRef.current.focus();
+    }, 60);
   };
 
   const closeSearchMode = () => {
     setSearch('');
     setIsSearchOpen(false);
     if (searchInputRef.current) searchInputRef.current.blur();
-    if (typeof window !== 'undefined' && historyPushedRef.current.search) {
-      historyPushedRef.current.search = false;
+    if (typeof window !== 'undefined' && window.history.state?.sedraSearch) {
       window.history.back();
     }
   };
@@ -413,29 +544,43 @@ export default function Home() {
     return ['كل المنتجات', 'فرص خاصة', ...originalCats];
   }, [data.categories]);
 
+  // تجهيز فهرس البحث المطبّع محليًا دون المساس بالبيانات الأصلية للمنتجات
   const indexedProducts = useMemo(() => {
     return data.products.map((product, originalIndex) => {
       const normName = normalizeArabic(product.name || '');
       const compactName = normName.replace(/\s+/g, '');
       const nameWords = normName ? normName.split(' ') : [];
       const nameWordsOrtho = nameWords.map(normalizeOrthographicWord);
+
       const normCat = normalizeArabic(product.category || '');
       const catWords = normCat ? normCat.split(' ').map(normalizeOrthographicWord) : [];
+
       const rawGrind = product.grindOptions || product['حالة الطحن'] || '';
       const normGrind = normalizeArabic(rawGrind);
       const grindWords = normGrind ? normGrind.split(' ').map(normalizeOrthographicWord) : [];
+
       const normCode = normalizeArabic(product.itemCode || '');
 
       return {
         product,
         originalIndex,
-        searchIndex: { normName, compactName, nameWords, nameWordsOrtho, catWords, grindWords, normCode }
+        searchIndex: {
+          normName,
+          compactName,
+          nameWords,
+          nameWordsOrtho,
+          catWords,
+          grindWords,
+          normCode
+        }
       };
     });
   }, [data.products]);
 
   const filteredProducts = useMemo(() => {
-    const trimmedSearch = deferredSearch.trim();
+    const trimmedSearch = search.trim();
+
+    // السلوك الأصلي تمامًا عند عدم وجود نص بحث
     if (!trimmedSearch) {
       return data.products.filter(item => {
         if (selectedCategory === 'فرص خاصة') {
@@ -454,21 +599,32 @@ export default function Home() {
     const queryMeta = { normQ, compactQ, qWords, qWordsOrtho };
 
     const scoredResults = [];
+    let maxScore = 0;
+
+    // أثناء البحث يتم الفحص في جميع منتجات المتجر
     for (let i = 0; i < indexedProducts.length; i++) {
       const entry = indexedProducts[i];
+      const item = entry.product;
+
       const score = scoreProductMatch(entry.searchIndex, queryMeta);
       if (score > 0) {
-        scoredResults.push({ product: entry.product, score, originalIndex: entry.originalIndex });
+        if (score > maxScore) maxScore = score;
+        scoredResults.push({ product: item, score, originalIndex: entry.originalIndex });
       }
     }
 
-    scoredResults.sort((a, b) => {
+    // إذا وُجد تطابق مباشر قوي، نستبعد التطابقات المبنية فقط على تخمين خطأ إملائي ضعيف
+    const finalResults = maxScore >= 750
+      ? scoredResults.filter(r => r.score >= 300)
+      : scoredResults;
+
+    finalResults.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.originalIndex - b.originalIndex;
     });
 
-    return scoredResults.map(r => r.product);
-  }, [data.products, indexedProducts, selectedCategory, deferredSearch]);
+    return finalResults.map(r => r.product);
+  }, [data.products, indexedProducts, selectedCategory, search]);
 
   const openProductModal = (product) => {
     const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
@@ -476,12 +632,14 @@ export default function Home() {
     if (rawGrindData && typeof rawGrindData === 'string') {
       parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
     }
+
     setActiveModalProduct({ ...product, parsedGrindOptions: parsedOptions });
     setSelectedVariant(product.variants.find(v => v.available) || product.variants[0] || null);
     setModalQty(1);
     setIsCustomWeight(false);
     setCustomWeightValue('');
     setGrindError(false);
+    
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
@@ -530,12 +688,14 @@ export default function Home() {
     let requestedGrams = unitWeightGrams * modalQty;
     let alreadyInCartGrams = cart.reduce((total, item) => {
         const itemPId = item.productId || item.key.split('_')[0];
-        if (itemPId == activeModalProduct.id) return total + (item.unitWeightGrams * item.qty);
+        if (itemPId == activeModalProduct.id) {
+            return total + (item.unitWeightGrams * item.qty);
+        }
         return total;
     }, 0);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
         setTimeout(() => setToast({ visible: false, message: '' }), 3000);
         return;
     }
@@ -550,10 +710,17 @@ export default function Home() {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
       return [...prev, { 
-        key: itemKey, productId: activeModalProduct.id, itemCode: activeModalProduct.itemCode, 
-        name: finalName, category: activeModalProduct.category, weight: finalWeight, 
-        unitWeightGrams: unitWeightGrams, grindOption: grindOption, price: finalPrice, 
-        originalPrice: finalOriginalPrice, qty: modalQty 
+        key: itemKey, 
+        productId: activeModalProduct.id, 
+        itemCode: activeModalProduct.itemCode, 
+        name: finalName, 
+        category: activeModalProduct.category, 
+        weight: finalWeight, 
+        unitWeightGrams: unitWeightGrams,
+        grindOption: grindOption,
+        price: finalPrice, 
+        originalPrice: finalOriginalPrice, 
+        qty: modalQty 
       }];
     });
     
@@ -564,6 +731,31 @@ export default function Home() {
 
   const updateCartQty = (key, delta) => {
     triggerVibration();
+
+    if (delta > 0) {
+       const itemToUpdate = cart.find(i => i.key === key);
+       if (itemToUpdate) {
+            const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
+            const product = data.products.find(p => p.id == itemPId);
+            if (product) {
+                const itemWeightGrams = itemToUpdate.unitWeightGrams;
+                const alreadyInCartGrams = cart.reduce((total, item) => {
+                    const currPId = item.productId || item.key.split('_')[0];
+                    if (currPId == product.id) {
+                        return total + (item.unitWeightGrams * item.qty);
+                    }
+                    return total;
+                }, 0);
+                
+                if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
+                    setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${product.stockGrams} جرام.` });
+                    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+                    return; 
+                }
+            }
+       }
+    }
+
     setCart(prev => prev.map(item => item.key === key ? (item.qty + delta > 0 ? { ...item, qty: item.qty + delta } : null) : item).filter(Boolean));
   };
 
@@ -585,18 +777,59 @@ export default function Home() {
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
 
+  const addressWarning = useMemo(() => {
+    if (!customer.deliveryZone || !customer.address) return null;
+    const addr = customer.address.trim();
+    const isDamanhour = /^دمنهور/i.test(addr) || addr.includes('دمنهور');
+    const isOutsideCities = /^(الاسكندرية|الإسكندرية|كفر الدوار|أبو حمص|ابو حمص|القاهرة|طنطا|دسوق|دسووق|رشيد|ايتاى|إيتاي|شبراخيت|الرحمانية|المحمودية|ادكو|إدكو|كوم حمادة|وادي النطرون|حوش عيسى)/i.test(addr);
+
+    if (customer.deliveryZone === 'damanhour' && isOutsideCities && !isDamanhour) {
+      return "⚠️ العنوان يبدو خارج دمنهور، برجاء مراجعة مكان التوصيل.";
+    }
+    if (customer.deliveryZone === 'outside' && /^دمنهور/i.test(addr)) {
+      return "⚠️ العنوان يبدو داخل دمنهور، برجاء مراجعة مكان التوصيل.";
+    }
+    return null;
+  }, [customer.address, customer.deliveryZone]);
+
+  useEffect(() => {
+    if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD && !confettiFired && window.confetti) {
+      window.confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      setConfettiFired(true);
+    } else if (currentTotalNumber < FREE_DELIVERY_THRESHOLD || customer.deliveryZone === 'outside') {
+      setConfettiFired(false);
+    }
+  }, [currentTotalNumber, customer.deliveryZone, confettiFired]);
+
   const validateForm = () => {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
+    
     const cleanPhone = customer.phone.replace(/\s+/g, '');
-    if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) errors.phone = 'رقم هاتف غير صحيح';
-    if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل.';
-    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع') errors.paymentMethod = 'اختر طريقة الدفع.';
+    if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
+      errors.phone = 'رقم هاتف غير صحيح';
+    }
+    
+    if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
+
+    const validPaymentMethods = customer.deliveryZone === 'outside'
+      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
+      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+
+    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
+      errors.paymentMethod = 'من فضلك اختر طريقة الدفع أولًا.';
+    }
+
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
     
     setFormErrors(errors);
+    
     if (Object.keys(errors).length > 0) {
       triggerVibration();
+      if (errors.paymentMethod) {
+        setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
+        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      }
       return false;
     }
     return true;
@@ -618,11 +851,16 @@ export default function Home() {
   const executeRestore = () => {
     if (lastOrder?.items) {
       setCart(lastOrder.items);
-      setCustomer(prev => ({
-        ...prev,
-        deliveryZone: lastOrder.deliveryZone || prev.deliveryZone || '',
-        paymentMethod: lastOrder.paymentMethod || prev.paymentMethod || ''
-      }));
+      setCustomer(prev => {
+        const restoredZone = lastOrder.deliveryZone || lastOrder.customer?.deliveryZone || prev.deliveryZone || '';
+        const restoredPayment = lastOrder.paymentMethod || lastOrder.customer?.paymentMethod || prev.paymentMethod || '';
+        const validPayment = (restoredZone === 'outside' && restoredPayment === 'نقدًا') ? '' : restoredPayment;
+        return {
+          ...prev,
+          deliveryZone: restoredZone,
+          paymentMethod: validPayment
+        };
+      });
       setIsEditing(true);
       setShowRestoreConfirm(false);
       setToast({ visible: true, message: 'تم استرجاع الطلب لتعديله' });
@@ -631,7 +869,15 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = async () => {
-    if (!validateForm()) {
+    const validPaymentMethods = customer.deliveryZone === 'outside'
+      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
+      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+
+    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
+      setFormErrors(prev => ({ ...prev, paymentMethod: 'من فضلك اختر طريقة الدفع أولًا.' }));
+      triggerVibration();
+      setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
       setCurrentStep('checkout');
       return;
     }
@@ -647,23 +893,45 @@ export default function Home() {
       const mins = String(now.getMinutes()).padStart(2, '0');
       
       let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
+
       if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        orderId = `${orderId}-${chars.charAt(Math.floor(Math.random() * chars.length))}`;
+        const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
+        orderId = `${orderId}-${randomChar}`;
       }
 
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, customer, paymentMethod: customer.paymentMethod, cart, totalAmount })
+        body: JSON.stringify({
+          orderId,
+          customer,
+          paymentMethod: customer.paymentMethod,
+          cart,
+          totalAmount
+        })
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('فشل الاتصال بالخادم، استجابة غير صالحة');
+      }
+
       const resData = await response.json();
-      if (!response.ok || !resData.success) throw new Error(resData.error || 'فشل تسجيل الطلب');
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || 'فشل تسجيل الطلب');
+      }
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-      message += `🏷️ رقم الطلب: ${orderId}\n\n`;
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `🏷️ رقم الطلب: ${orderId}\n`;
+      
+      if (isEditing && lastOrder) {
+        message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
+      } else {
+        message += `\n`;
+      }
+
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
       
@@ -671,48 +939,82 @@ export default function Home() {
       cart.forEach((item, index) => {
         totalWeightGrams += (item.unitWeightGrams * item.qty);
         const itemTotal = (item.price * item.qty).toFixed(2);
-        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n   🔷 السعر: *${itemTotal} جنيه*\n\n`;
+        const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
+        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n`;
+        if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
+          message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
+        } else {
+          message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
+        }
       });
 
-      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم`}\n`;
-      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n💳 طريقة الدفع: ${customer.paymentMethod}\n`;
-      if (customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش') {
-        message += `📲 رقم التحويل: *01009750003*\n`;
-      }
-      if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-        message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
+      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
+      
+      const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
+
+      if (customer.deliveryZone === 'damanhour') {
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+        if (isTransferNumberNeeded) {
+          message += `📲 رقم التحويل: *01009750003*\n`;
+        }
+        if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+          message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
+        }
+        message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
+      } else if (customer.deliveryZone === 'outside') {
+        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+        if (isTransferNumberNeeded) {
+          message += `📲 رقم التحويل: *01009750003*\n`;
+        }
+        message += `\n📦 *طريقة الشحن عبر البريد المصري:*\n`;
+        message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
+        message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
+        message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
+        message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
+        message += `💳 *لتأكيد الطلب:*\n`;
+        message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
+        message += `*01009750003*`;
       }
 
       if (resData.adminLink) {
-        message += `\n\n────────────\n⚙️ *إدارة المتجر*\n🔗 لتأكيد الطلب اضغط هنا:\n${resData.adminLink}`;
+        message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
       }
 
+      const nowTs = Date.now();
       const orderData = { 
-        id: orderId, items: cart, deliveryZone: customer.deliveryZone, paymentMethod: customer.paymentMethod,
-        customer: { name: customer.name, phone: customer.phone, deliveryZone: customer.deliveryZone, address: customer.address },
-        createdAt: isEditing ? lastOrder.createdAt : Date.now(), 
-        expiresAt: isEditing ? lastOrder.expiresAt : Date.now() + EDIT_WINDOW_MS 
+        id: orderId, 
+        items: cart, 
+        deliveryZone: customer.deliveryZone,
+        paymentMethod: customer.paymentMethod,
+        customer: {
+          name: customer.name,
+          phone: customer.phone,
+          deliveryZone: customer.deliveryZone,
+          paymentMethod: customer.paymentMethod,
+          address: customer.address
+        },
+        createdAt: isEditing ? lastOrder.createdAt : nowTs, 
+        expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
       };
       
       localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
       setLastOrder(orderData);
       
-      const cleanPhone = WHATSAPP_NUMBER.replace(/\D/g, '');
-      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      
-      if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
-        window.location.href = waUrl;
-      } else {
-        window.open(waUrl, '_blank', 'noopener,noreferrer');
-      }
-
+      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
       setCart([]);
       setIsEditing(false);
-      setCustomer(prev => ({ ...prev, notes: '', deliveryZone: '', paymentMethod: '' }));
+      setCustomer(prev => {
+        const nextData = { ...prev, notes: '', deliveryZone: '', paymentMethod: '' };
+        localStorage.setItem('sedra_customer', JSON.stringify(nextData));
+        return nextData;
+      });
       setIsCartOpen(false);
       setCurrentStep('cart');
+      
     } catch (error) {
-      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب." });
+      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
       setTimeout(() => setToast({ visible: false, message: '' }), 4000);
     } finally {
       setIsSubmitting(false);
@@ -720,7 +1022,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pb-36 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
+    <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes flyToCart {
           0% { top: var(--startY); left: var(--startX); transform: scale(1) rotate(0deg); opacity: 1; }
@@ -744,71 +1046,67 @@ export default function Home() {
         </div>
       )}
 
-      <div className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw] ${toast.visible ? 'bottom-28 opacity-100' : 'bottom-16 opacity-0'}`}>
+      <div className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw] ${toast.visible ? 'bottom-24 opacity-100' : 'bottom-16 opacity-0'}`}>
         <div className="bg-emerald-100 rounded-full p-1"><Check className="w-4 h-4 text-emerald-600 stroke-[3]" /></div>
-        <span className="font-bold text-sm truncate text-slate-700">{toast.message}</span>
+        <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
-        <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
-          <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white"><img src="/logo.png" alt="عطارة سدرة" className="w-full h-full object-cover" /></div>
-          <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
-            <span className="text-[14px] sm:text-base font-black text-[#fff4d6] tracking-wide text-center leading-tight">ما تدفعش ولا جنيه غير بعد المعاينة</span>
-            <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
+      {/* إخفاء مساحة اللوجو أثناء وضع البحث فقط لإعطاء الأولوية لمربع البحث والنتائج على الهاتف */}
+      {!isSearchModeActive && (
+        <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
+          <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
+            <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white"><img src="/logo.png" alt="عطارة سدرة" className="w-full h-full object-cover" /></div>
+            <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
+              <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide text-center leading-tight">ما تدفعش ولا جنيه غير بعد المعاينة</span>
+              <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="max-w-xl mx-auto px-3 sm:px-4 mt-2">
-        <div className="sticky top-0 z-30 bg-[#fbf9f4] -mx-3 sm:-mx-4 px-3 sm:px-4 pt-2 pb-2.5 mb-3 border-b border-[#e8e2d5] shadow-xs">
-          {isEditing && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2 mb-2 flex items-center justify-between shadow-xs">
+      <main className="max-w-xl mx-auto px-4 mt-0">
+        <div className={`sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs ${isSearchModeActive ? 'pt-2.5 pb-2.5 mb-2.5' : 'pt-1 pb-2.5 mb-3'}`}>
+          
+          {isEditing && !isSearchModeActive && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" style={{ animationDuration: '3s' }} />
                 <div>
-                  <h4 className="text-amber-800 text-xs font-black">تعديل الطلب السابق</h4>
+                  <h4 className="text-amber-800 text-xs font-black">أنت الآن تقوم بتعديل طلبك السابق</h4>
                   <p className="text-amber-700 text-[10px] font-bold">({lastOrder?.id})</p>
                 </div>
               </div>
-              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-[10px] font-black underline">إلغاء</button>
+              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-[10px] font-black underline shrink-0">إلغاء التعديل</button>
             </div>
           )}
 
           {!isSearchModeActive ? (
-            <div className="flex items-center gap-1.5 mb-2">
+            <div className="flex items-center gap-2 mb-2.5">
               <button
                 type="button"
                 onClick={openSearchMode}
-                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-1.5 border-2 border-[#e8e2d5] hover:border-[#2d533e] transition text-right"
+                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-2 border-2 border-[#e8e2d5] hover:border-[#2d533e] active:scale-[0.99] transition text-right"
+                aria-label="فتح البحث"
               >
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-[#2d533e]/10 flex items-center justify-center shrink-0">
                     <Search className="w-4 h-4 text-[#2d533e]" />
                   </div>
-                  <span className="text-xs sm:text-sm font-bold text-slate-500 truncate">ابحث عن صنف بالاسم...</span>
+                  <span className="text-sm font-bold text-slate-500 truncate">ابحث عن صنف بالاسم...</span>
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2 py-1 rounded-lg border border-[#e8e2d5] shrink-0">بحث 🔍</span>
+                <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">بحث 🔍</span>
               </button>
 
-              <a
-                href="/track"
-                className="bg-white hover:bg-[#fbf9f4] text-[#1e382b] border-2 border-[#e8e2d5] text-xs font-bold px-2.5 py-2.5 rounded-2xl transition shadow-xs flex items-center gap-1 shrink-0"
-                title="متابعة الطلب"
-              >
-                <Package className="w-4 h-4 text-[#2d533e]" />
-                <span className="text-[11px]">المتابعة</span>
-              </a>
-
               {lastOrder && !isEditing && (
-                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-2.5 py-2.5 rounded-2xl transition shadow-sm flex items-center gap-1 shrink-0">
-                  <RotateCcw className="w-3.5 h-3.5 text-[#c89d56]" />
-                  <span className="text-[11px]">تعديل</span>
+                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
+                  <RotateCcw className="w-4 h-4 text-[#c89d56]" />
+                  <span>تعديل آخر طلب</span>
                 </button>
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
               <div className="flex-1 bg-white rounded-2xl shadow-sm p-2 flex items-center gap-2 border-2 border-[#2d533e]">
                 <Search className="w-5 h-5 text-[#2d533e] mr-1 shrink-0" />
                 <input
@@ -816,22 +1114,40 @@ export default function Home() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') closeSearchMode(); }}
-                  placeholder="اكتب اسم الصنف للبحث..."
-                  className="w-full bg-transparent focus:outline-none text-sm font-bold text-[#1e382b]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') closeSearchMode();
+                  }}
+                  placeholder="اكتب اسم الصنف الذي تبحث عنه..."
+                  className="w-full bg-transparent focus:outline-none text-sm sm:text-base font-bold text-[#1e382b] placeholder:text-slate-400 placeholder:font-semibold"
                 />
                 {search && (
-                  <button type="button" onClick={() => { setSearch(''); if (searchInputRef.current) searchInputRef.current.focus(); }} className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 rounded-lg">مسح</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      if (searchInputRef.current) searchInputRef.current.focus();
+                    }}
+                    className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition"
+                  >
+                    مسح
+                  </button>
                 )}
               </div>
-              <button type="button" onClick={closeSearchMode} className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0">
+              <button
+                type="button"
+                onClick={closeSearchMode}
+                className="w-11 h-11 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 flex items-center justify-center shrink-0 shadow-2xs active:scale-95 transition"
+                title="إغلاق البحث"
+                aria-label="إغلاق البحث"
+              >
                 <X className="w-5 h-5 stroke-[2.5]" />
               </button>
             </div>
           )}
 
-          {!isSearchModeActive && displayCategories.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5 pt-0.5">
+          {/* إظهار الأقسام في الوضع الطبيعي فقط وإخفاؤها تمامًا أثناء وضع البحث */}
+          {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
@@ -842,7 +1158,7 @@ export default function Home() {
 
                 if (isOfferBtn) {
                   if (isSelected) {
-                    btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff' };
+                    btnStyle = { background: 'linear-gradient(135deg, #d63031 0%, #ff7675 100%)', border: '1.5px solid #ff7675', color: '#ffffff', boxShadow: '0 3px 8px rgba(214, 48, 49, 0.3)' };
                     textClass = 'text-white';
                   } else {
                     btnStyle = { background: 'linear-gradient(135deg, #fff0f0 0%, #ffe3e3 100%)', border: '1.5px solid #ff7675', color: '#d63031' };
@@ -850,7 +1166,7 @@ export default function Home() {
                   }
                 } else {
                   if (isSelected) {
-                    btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea' };
+                    btnStyle = { background: 'linear-gradient(135deg, #1b3d2b 0%, #0e2417 100%)', border: '1.5px solid #d4af37', color: '#fff9ea', boxShadow: '0 3px 8px rgba(212, 175, 55, 0.25)' };
                     textClass = 'text-[#fff4d6]';
                   } else {
                     btnStyle = { background: '#ffffff', border: '1.5px solid #e2d9c8', color: '#1b3828' };
@@ -863,10 +1179,10 @@ export default function Home() {
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     style={btnStyle}
-                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1 active:scale-95 shadow-2xs shrink-0"
+                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group shrink-0"
                   >
-                    <span className="text-xs leading-none">{visual.icon}</span>
-                    <span className={`text-[11px] sm:text-xs font-bold leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
+                    <span className="text-sm leading-none">{visual.icon}</span>
+                    <span className={`text-xs font-bold leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
                   </button>
                 );
               })}
@@ -874,90 +1190,96 @@ export default function Home() {
           )}
         </div>
 
-        {loading && data.products.length === 0 && (
-          <div className="grid grid-cols-2 gap-2">
-            {[1, 2, 3, 4, 5, 6].map((sk) => (
-              <div key={sk} className="bg-white rounded-2xl p-3 border border-[#e8e2d5] animate-pulse h-40"></div>
-            ))}
+        {loading && (
+          <div className="text-center py-16 text-[#2d533e] font-bold">
+            <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-2 text-[#c89d56]" />
+            جاري تحميل قائمة الأسعار...
           </div>
         )}
 
-        {error && data.products.length === 0 && (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-center my-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-center my-6 shadow-xs">
             <p className="text-sm font-bold mb-2.5">{error}</p>
-            <button onClick={() => fetchData(false)} className="bg-[#2d533e] text-white text-sm px-4 py-2 rounded-lg font-bold inline-flex items-center gap-1"><RefreshCw className="w-4 h-4" /> إعادة المحاولة</button>
+            <button onClick={fetchData} className="bg-[#2d533e] text-white text-sm px-4 py-2 rounded-lg font-bold inline-flex items-center gap-1 shadow"><RefreshCw className="w-4 h-4" /> إعادة المحاولة</button>
           </div>
         )}
 
-        {data.products.length > 0 && (
+        {!loading && !error && (
           <>
+            {/* حالة فتح واجهة البحث قبل كتابة أي نص */}
             {isSearchModeActive && !search.trim() ? (
-              <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-3">
+              <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-3 shadow-2xs">
                 <div className="w-12 h-12 rounded-full bg-[#2d533e]/10 flex items-center justify-center mx-auto mb-2.5">
                   <Search className="w-6 h-6 text-[#2d533e]" />
                 </div>
-                <p className="text-sm sm:text-base font-black text-[#1e382b]">اكتب اسم الصنف للبحث</p>
+                <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">اكتب اسم الصنف للبحث</p>
+                <p className="text-xs font-semibold text-slate-500">مثال: كركم، ينسون، بهارات، بن، قرفة...</p>
               </div>
             ) : (
               <div>
-                <div className="flex justify-between items-center mb-2 px-1">
+                <div className="flex justify-between items-center mb-2.5">
                   {search.trim() ? (
-                    <span className="text-xs font-black text-[#1e382b]">نتائج البحث عن &laquo;{search.trim()}&raquo; ({filteredProducts.length} منتج)</span>
+                    <span className="text-xs font-black text-[#1e382b]">
+                      نتائج البحث عن &laquo;{search.trim()}&raquo; ({filteredProducts.length} منتج)
+                    </span>
                   ) : (
                     <span className="text-xs font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
                   )}
                 </div>
 
                 {filteredProducts.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pb-16">
-                    {filteredProducts.map((product, index) => (
-                      <div key={product.id} className={`bg-white rounded-2xl p-2.5 sm:p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {filteredProducts.map(product => (
+                      <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
                         <div>
-                          <div className="flex items-start gap-1.5 sm:gap-2 mb-2">
-                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`}>
+                          <div className="flex items-start gap-2 mb-2">
+                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
                               {product.image ? (
-                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-5 h-5 text-[#4d7c60]/50" /></div>
+                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
                               )}
+                              {product.image && <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>}
                             </div>
 
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-center mb-0.5">
-                                <span className={`text-[8px] sm:text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[75%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
-                                <button onClick={(e) => handleShareProduct(product, e)} className="p-0.5 text-slate-400 hover:text-[#2d533e]" title="مشاركة"><Share2 className="w-3 h-3" /></button>
+                                <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
+                                <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
                               </div>
-                              <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-xs sm:text-sm line-clamp-2 leading-tight cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
+                              <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
                             </div>
                           </div>
                         </div>
 
                         <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
-                          <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mb-2">
+                          <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
                             {product.variants.map((v, i) => {
                               const hasOffer = isOfferValid(v.price, v.originalPrice);
                               return (
                                 <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
-                                  <div className="flex items-center gap-1">
-                                    <span className={`font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
-                                    {hasOffer && v.available && <span className="text-[8px] bg-red-600 text-white px-1 rounded font-bold">فرصة</span>}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
+                                    {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
                                   </div>
                                   <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
                                     {v.available ? (
                                       <>
-                                        {hasOffer && <span className="text-slate-400 line-through text-[9px] leading-none mb-0.5">{v.originalPrice} ج</span>}
-                                        <span className="text-xs leading-none">{v.price} ج</span>
+                                        {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
+                                        <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
                                       </>
-                                    ) : <span className="text-xs">0</span>}
+                                    ) : (
+                                      <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                                    )}
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
                           {product.isAvailable ? (
-                            <button className="w-full bg-[#2d533e] text-white text-xs sm:text-sm py-2 rounded-xl font-black flex items-center justify-center gap-1 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-3.5 h-3.5" /> اختيار</button>
+                            <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
                           ) : (
-                            <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-xs sm:text-sm py-2 rounded-xl font-black flex items-center justify-center gap-1 opacity-90 cursor-not-allowed"><Ban className="w-3.5 h-3.5" /> غير متوفر</button>
+                            <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
                           )}
                         </div>
                       </div>
@@ -965,7 +1287,8 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-4 shadow-2xs">
-                    <p className="text-sm font-black text-[#1e382b]">لم نجد صنفًا مطابقًا لبحثك.</p>
+                    <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">لم نجد صنفًا مطابقًا لبحثك.</p>
+                    <p className="text-xs font-semibold text-slate-500">جرّب كلمة أخرى أو اكتب جزءًا من اسم الصنف.</p>
                   </div>
                 )}
               </div>
@@ -974,27 +1297,32 @@ export default function Home() {
         )}
       </main>
 
+      {/* --- Modal --- */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
+          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+            
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
                 {activeModalProduct.image && (
-                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer">
-                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
+                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
+                    <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
                   </div>
                 )}
                 <div className="flex-1 pr-1">
                   <span className="text-[10px] font-bold text-[#c89d56] block mb-0.5">{activeModalProduct.category}</span>
-                  <h2 className="text-base font-black text-[#1e382b] leading-snug">{activeModalProduct.name}</h2>
+                  <h2 className="text-base sm:text-lg font-black text-[#1e382b] leading-snug">{activeModalProduct.name}</h2>
                 </div>
-                <button onClick={() => setActiveModalProduct(null)} className="p-1.5 bg-slate-50 text-slate-400 hover:text-red-500 rounded-full"><X className="w-5 h-5" /></button>
+                <button onClick={() => setActiveModalProduct(null)} className="p-1.5 bg-slate-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white pb-32">
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
+              
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-800 block border-b pb-1">الأوزان المتاحة</label>
+                <label className="text-xs font-black text-slate-800 block border-b border-slate-50 pb-1.5">الأوزان المتاحة</label>
+                
                 <div className="grid grid-cols-2 gap-2">
                   {activeModalProduct.variants.map((variant, idx) => {
                     const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
@@ -1004,30 +1332,81 @@ export default function Home() {
                     const displayOriginalPrice = isSelected && hasOffer ? (variant.originalPrice * modalQty).toFixed(2) : variant.originalPrice;
 
                     return (
-                      <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b]' : 'border-[#e8e2d5] text-slate-700'}`}>
-                        {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] px-1.5 py-0.5 rounded font-black border z-10">فرصة</span>}
-                        <div className="text-xs font-black">{displayWeight}</div>
-                        <div className="text-xs font-black text-[#2d533e] mt-0.5">
-                          {variant.available ? <span>{displayPrice} ج</span> : <span>0</span>}
+                      <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
+                        {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs sm:text-sm font-black">{displayWeight}</span>
+                        </div>
+                        <div className="text-xs sm:text-sm font-black text-[#2d533e] mt-0.5 flex flex-col">
+                          {variant.available ? (
+                            <div className="flex items-center gap-1"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
+                          ) : <span className="text-slate-400">0</span>}
                         </div>
                       </button>
                     );
                   })}
                 </div>
 
-                <div onClick={() => { triggerVibration(); setIsCustomWeight(true); setTimeout(() => { if(customWeightInputRef.current) customWeightInputRef.current.focus(); }, 50); }} className={`p-3 rounded-2xl border-2 cursor-pointer ${isCustomWeight ? 'border-[#2d533e] bg-white shadow-md' : 'border-[#e8e2d5] bg-[#fdfcfa]'}`}>
+                <div 
+                  onClick={() => { 
+                    triggerVibration(); 
+                    setIsCustomWeight(true); 
+                    setTimeout(() => {
+                      if(customWeightInputRef.current) customWeightInputRef.current.focus();
+                    }, 50);
+                  }} 
+                  className={`p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${isCustomWeight ? 'border-[#2d533e] bg-white shadow-md' : 'border-[#e8e2d5] bg-[#fdfcfa] hover:border-[#c89d56]'}`}
+                >
                   <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-[#2d533e] bg-[#2d533e]' : 'border-slate-300'}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomWeight ? 'border-[#2d533e] bg-[#2d533e]' : 'border-slate-300 bg-white'}`}>
                       {isCustomWeight && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                     </div>
                     <span className={`text-sm font-black ${isCustomWeight ? 'text-[#1e382b]' : 'text-slate-600'}`}>وزن مخصص بالجرام</span>
                   </div>
                   
                   {isCustomWeight && (
-                    <div className="mt-3" onClick={e => e.stopPropagation()}>
+                    <div className="mt-3.5 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <input ref={customWeightInputRef} type="number" inputMode="numeric" value={customWeightValue} onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} placeholder="مثال: 250" className="flex-1 p-2 text-center text-base font-black border-2 border-slate-200 rounded-lg outline-none focus:border-[#2d533e]" />
-                        <span className="text-xs font-black text-slate-600 bg-slate-100 px-3 py-2 rounded-lg">جرام</span>
+                        <input 
+                          ref={customWeightInputRef}
+                          type="number" 
+                          inputMode="numeric" 
+                          pattern="[0-9]*" 
+                          min="1" 
+                          value={customWeightValue} 
+                          onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} 
+                          placeholder="مثال: 250" 
+                          className="flex-1 p-2.5 text-center text-base font-black border-2 border-slate-200 rounded-lg outline-none focus:border-[#2d533e] focus:bg-[#fbf9f4] bg-white shadow-sm text-[#1e382b] transition-colors" 
+                        />
+                        <span className="text-sm font-black text-slate-600 shrink-0 bg-slate-100 px-3 py-2.5 rounded-lg border border-slate-200">جرام</span>
+                      </div>
+
+                      <div className="mt-3 bg-[#fbf9f4] rounded-lg border border-[#e8e2d5] p-3 shadow-inner">
+                        {customWeightValue && parseFloat(customWeightValue) > 0 ? (
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">الوزن المطلوب</span>
+                              <span className="text-sm font-black text-[#1e382b]">{getCalculatedTotalWeight(`${customWeightValue} جرام`, modalQty)}</span>
+                            </div>
+                            <div className="text-left">
+                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">السعر النهائي</span>
+                              <div className="flex items-center gap-1.5 justify-end">
+                                {getCalculatedOriginalPrice() && (
+                                  <span className="text-slate-400 line-through text-[10px] font-bold">
+                                    {(getCalculatedOriginalPrice() * modalQty).toFixed(2)}
+                                  </span>
+                                )}
+                                <span className="text-base font-black text-[#2d533e]">
+                                  {(getCalculatedPrice() * modalQty).toFixed(2)} جنيه
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-2 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5">
+                            <AlertCircle className="w-4 h-4" /> أدخل الوزن بالجرام لظهور السعر
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1035,41 +1414,103 @@ export default function Home() {
               </div>
 
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
-                <div ref={grindSectionRef} className={`space-y-2 ${grindError ? 'p-3 bg-red-50 border border-red-200 rounded-2xl' : ''}`}>
-                  <span className={`text-xs font-black block mb-1 ${grindError ? 'text-red-700' : 'text-slate-800'}`}>حالة المنتج</span>
-                  <div className="flex items-center gap-2">
-                    {activeModalProduct.parsedGrindOptions.map((opt, i) => {
-                      const isSelected = grindOption === opt;
-                      return (
-                        <button key={i} onClick={() => { triggerVibration(); setGrindOption(opt); setGrindError(false); }} className={`flex-1 py-2 px-2 rounded-xl border-2 font-black text-xs ${isSelected ? 'bg-[#2d533e] border-[#2d533e] text-white' : 'bg-white border-[#e8e2d5] text-slate-600'}`}>
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div ref={grindSectionRef} className={`space-y-2 ${grindError ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
+                  <span className={`text-xs font-black block mb-1.5 border-b pb-1 ${grindError ? 'text-red-700 border-red-200' : 'text-slate-800 border-slate-50'}`}>
+                    حالة المنتج {grindError && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد الحالة)</span>}
+                  </span>
+                  {activeModalProduct.parsedGrindOptions.length === 1 ? (
+                    <div className="w-full">
+                      <div className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-xs font-black rounded-xl cursor-default select-none w-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                        <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[10px] font-bold text-slate-400">(فقط)</span></span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 w-full" role="radiogroup" aria-label="حالة المنتج">
+                      {activeModalProduct.parsedGrindOptions.map((opt, i) => {
+                        const isSelected = grindOption === opt;
+                        return (
+                          <button
+                            key={i}
+                            role="radio"
+                            aria-checked={isSelected}
+                            onClick={() => { triggerVibration(); setGrindOption(opt); setGrindError(false); }}
+                            className={`relative flex-1 py-2.5 px-2 rounded-xl border-2 transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-[#2d533e]/20 ${
+                              isSelected 
+                                ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-md z-10' 
+                                : grindError 
+                                  ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' 
+                                  : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-center w-full relative">
+                              <span className="font-black text-xs sm:text-sm">{opt}</span>
+                              {isSelected && (
+                                <div className="absolute right-0 flex items-center justify-center animate-in zoom-in duration-200">
+                                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[3]" />
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="space-y-2">
-                <span className="text-xs font-black text-slate-800 block mb-1">الكمية</span>
-                <div className="flex items-center gap-3 justify-center bg-slate-50 py-1 rounded-xl border">
-                  <button onClick={() => { triggerVibration(); setModalQty(Math.max(1, modalQty - 1)); }} className="w-7 h-7 rounded-lg bg-white border flex items-center justify-center font-bold"><Minus className="w-3.5 h-3.5" /></button>
-                  <span className="font-black text-base w-6 text-center">{modalQty}</span>
-                  <button onClick={() => { triggerVibration(); setModalQty(modalQty + 1); }} className="w-7 h-7 rounded-lg bg-white border flex items-center justify-center font-bold"><Plus className="w-3.5 h-3.5" /></button>
+                <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
+                <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
+                  <button onClick={() => { 
+                      triggerVibration(); 
+                      setModalQty(Math.max(1, modalQty - 1)); 
+                  }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
+                  <span className="font-black text-base text-[#1e382b] w-6 text-center">{modalQty}</span>
+                  <button onClick={() => { 
+                      triggerVibration(); 
+                      const weightGrams = isCustomWeight ? (parseFloat(customWeightValue)||0) : getWeightNumberInGrams(selectedVariant?.weight);
+                      const requestedGrams = weightGrams * (modalQty + 1);
+                      const alreadyInCartGrams = cart.reduce((total, item) => {
+                          const itemPId = item.productId || item.key.split('_')[0];
+                          if (itemPId == activeModalProduct.id) return total + (item.unitWeightGrams * item.qty);
+                          return total;
+                      }, 0);
+                      
+                      if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
+                          setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح حالياً: ${activeModalProduct.stockGrams} جرام.` });
+                          setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+                      } else {
+                          setModalQty(modalQty + 1); 
+                      }
+                  }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
                 </div>
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-white z-20 shadow-lg">
-              <button disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} onClick={(e) => {
-                if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) {
-                  setGrindError(true);
-                  triggerVibration();
-                  return;
-                }
-                addToCart(e);
-              }} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-sm shadow-md">
-                إضافة للسلة — {(getCalculatedPrice() * modalQty).toFixed(2)} جنيه
+            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
+              <button 
+                disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} 
+                onClick={(e) => {
+                  if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) {
+                    setGrindError(true);
+                    triggerVibration();
+                    setToast({ visible: true, message: 'الرجاء تحديد حالة المنتج (حصى أو مطحون)' });
+                    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+                    if (grindSectionRef.current) {
+                      grindSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                  }
+                  addToCart(e);
+                }} 
+                className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
+              >
+                {(() => {
+                  if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
+                  if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
+                  return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
+                })()}
               </button>
             </div>
           </div>
@@ -1078,50 +1519,53 @@ export default function Home() {
 
       {zoomedImage && (
         <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setZoomedImage(null)}>
-          <div className="relative max-w-sm w-full bg-white rounded-3xl p-3 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setZoomedImage(null)} className="absolute top-4 left-4 z-20 p-2 bg-black/60 text-white rounded-full"><X className="w-5 h-5" /></button>
-            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center"><img src={zoomedImage} alt="صورة" referrerPolicy="no-referrer" className="w-full h-full object-contain" /></div>
+            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center"><img src={zoomedImage} alt="صورة المنتج" referrerPolicy="no-referrer" className="w-full h-full object-contain" /></div>
+            <p className="text-sm font-bold text-slate-300 mt-3">انقر في أي مكان للإغلاق</p>
           </div>
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 p-2.5 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-[0_-4px_15px_rgba(0,0,0,0.08)] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-2">
-          <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3 rounded-2xl font-bold flex items-center justify-between shadow-lg active:scale-[0.99] transition">
-            <div className="flex items-center gap-2">
+          <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3.5 rounded-2xl font-bold flex items-center justify-between shadow-lg active:scale-[0.99] transition">
+            <div className="flex items-center gap-2.5">
               <div className="relative">
-                <ShoppingBag className="w-5 h-5 text-[#c89d56]" />
-                {totalItemsCount > 0 && <span className="absolute -top-2 -right-2 bg-[#c89d56] text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-black">{totalItemsCount}</span>}
+                <ShoppingBag className="w-6 h-6 text-[#c89d56]" />
+                {totalItemsCount > 0 && <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">{totalItemsCount}</span>}
               </div>
-              <span className="text-xs sm:text-sm font-black">سلة الطلبات</span>
+              <span className="text-sm font-black">سلة الطلبات</span>
             </div>
-            <span className="text-xs sm:text-sm text-[#c89d56] font-black">{totalAmount} جنيه</span>
+            <span className="text-sm text-[#c89d56] font-black">{totalAmount} جنيه</span>
           </button>
         </div>
       </div>
 
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
-            <div className="px-4 py-3 border-b shrink-0 bg-white z-10 flex justify-between items-center">
-              <h2 className="text-sm font-black text-[#1e382b]">
-                {currentStep === 'cart' && 'سلة المشتريات'}
-                {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
-                {currentStep === 'review' && 'مراجعة الطلب قبل الإرسال'}
-              </h2>
-              {currentStep === 'cart' && cart.length > 0 && (
-                <button onClick={() => setShowClearConfirm(true)} className="text-[11px] font-black text-red-600 px-2 py-1 bg-red-50 rounded-lg border border-red-200">مسح السلة</button>
-              )}
+          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+            <div className="px-4 py-3.5 border-b border-slate-100 shrink-0 bg-white z-10">
+              <div className="flex justify-between items-center">
+                <h2 className="text-sm font-black text-[#1e382b]">
+                  {currentStep === 'cart' && 'سلة المشتريات'}
+                  {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
+                  {currentStep === 'review' && 'مراجعة الطلب قبل الإرسال'}
+                </h2>
+                {currentStep === 'cart' && cart.length > 0 && (
+                  <button onClick={() => setShowClearConfirm(true)} className="text-[11px] font-black text-red-600 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
+                )}
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-white pb-32">
+            <div className="flex-1 overflow-y-auto p-4 bg-white pb-[120px] sm:pb-4">
               {currentStep === 'cart' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
-                    <div className="bg-white rounded-xl p-3 border border-slate-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
-                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} ج`}</span>
+                    <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+                      <div className="flex justify-between items-center mb-2.5">
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
+                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-500 ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${deliveryProgressPercent}%` }} />
@@ -1129,20 +1573,23 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-100 pb-2">
                     {cart.length === 0 ? <div className="text-center py-12 text-slate-400 font-bold text-sm">السلة فارغة حالياً</div> : (
                       cart.map(item => (
                         <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
                           <div className="flex-1">
-                            <h4 className="font-black text-xs sm:text-sm text-[#1e382b]">{item.name}</h4>
-                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
-                            <div className="text-xs text-[#2d533e] font-black mt-0.5">{(item.price * item.qty).toFixed(2)} جنيه</div>
+                            <h4 className="font-black text-xs sm:text-sm text-[#1e382b] leading-snug">{item.name}</h4>
+                            <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
+                            <div className="text-[11px] sm:text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
+                              <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
+                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700"><Minus className="w-3 h-3" /></button>
-                            <span className="text-xs font-black w-4 text-center">{item.qty}</span>
-                            <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700"><Plus className="w-3 h-3" /></button>
-                            <button onClick={() => removeCartItem(item.key)} className="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center text-red-500 ml-0.5"><Trash2 className="w-3 h-3" /></button>
+                            <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-3.5 h-3.5" /></button>
+                            <span className="text-xs sm:text-sm font-black w-4 sm:w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => removeCartItem(item.key)} className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-100 ml-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
                       ))
@@ -1154,73 +1601,90 @@ export default function Home() {
               {currentStep === 'checkout' && (
                 <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-3">
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
-                    <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none" />
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
+                    <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
                   
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
-                    <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none text-right" />
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
+                    <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">مكان التوصيل <span className="text-red-500">*</span></label>
-                    <div className="flex gap-2 w-full">
-                      <button type="button" onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-xs flex items-center justify-center gap-1 ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white' : 'bg-white border-[#e8e2d5] text-slate-600'}`}>
-                        داخل دمنهور
+                  <div className={`pt-1 pb-1 ${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
+                    <label className={`text-[11px] sm:text-xs font-bold block mb-1.5 ${formErrors.deliveryZone ? 'text-red-700 border-b border-red-200 pb-1' : 'text-slate-700'}`}>
+                      مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
+                    </label>
+                    <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                        {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />} داخل دمنهور
                       </button>
-                      <button type="button" onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'outside', paymentMethod: prev.paymentMethod === 'نقدًا' ? '' : prev.paymentMethod })); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-xs flex items-center justify-center gap-1 ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white' : 'bg-white border-[#e8e2d5] text-slate-600'}`}>
-                        خارج دمنهور
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'outside', paymentMethod: prev.paymentMethod === 'نقدًا' ? '' : prev.paymentMethod })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                        {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />} خارج دمنهور
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">طريقة الدفع <span className="text-red-500">*</span></label>
-                    <select value={customer.paymentMethod || ''} onChange={(e) => setCustomer({ ...customer, paymentMethod: e.target.value })} className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 bg-white border-slate-200 focus:border-[#2d533e] text-[#1e382b] outline-none">
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">طريقة الدفع <span className="text-red-500">*</span></label>
+                    <select
+                      value={customer.paymentMethod || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomer(prev => ({ ...prev, paymentMethod: val }));
+                        if (val) setFormErrors(prev => ({ ...prev, paymentMethod: null }));
+                      }}
+                      className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 bg-white ${formErrors.paymentMethod ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 focus:border-[#2d533e] text-[#1e382b]'} outline-none`}
+                    >
                       <option value="">اختر طريقة الدفع</option>
                       <option value="InstaPay">InstaPay</option>
                       <option value="محفظة كاش">محفظة كاش</option>
-                      {customer.deliveryZone !== 'outside' && <option value="نقدًا">نقدًا</option>}
+                      {customer.deliveryZone !== 'outside' && (
+                        <option value="نقدًا">نقدًا</option>
+                      )}
                       <option value="تحويل بنكي">تحويل بنكي</option>
                     </select>
+                    {formErrors.paymentMethod && (
+                      <p className="text-red-600 text-[10px] sm:text-[11px] font-bold mt-1">{formErrors.paymentMethod}</p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">العنوان بالتفصيل <span className="text-red-500">*</span></label>
-                    <textarea rows={2} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none" />
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">العنوان بالتفصيل <span className="text-red-500">*</span></label>
+                    <textarea rows={2} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none`} />
+                    {addressWarning && (
+                      <div className="mt-1.5 bg-amber-50 border border-amber-200 p-1.5 rounded-lg flex items-start gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <span className="text-[10px] font-bold text-amber-800 leading-snug">{addressWarning}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">ملاحظات (اختياري)</label>
-                    <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="ملاحظات على التوصيل..." className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none" />
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">ملاحظات على الطلب (اختياري)</label>
+                    <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: يفضل التواصل معي قبل التوصيل، أو اكتب أي ملاحظة خاصة بالطلب." className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none placeholder:text-slate-400 placeholder:font-semibold placeholder:text-[10px] sm:placeholder:text-[11px]" />
                   </div>
                 </form>
               )}
 
               {currentStep === 'review' && (
                 <div className="space-y-3 pb-2">
-                  <div className="bg-[#fbf9f4] p-3 rounded-2xl border border-[#e8e2d5]">
-                    <h4 className="text-xs font-black text-[#1e382b] mb-2 pb-1 border-b">بيانات العميل والتوصيل:</h4>
-                    <div className="text-xs space-y-1.5 text-slate-700 font-semibold">
-                      <div><strong>الاسم:</strong> {customer.name}</div>
-                      <div><strong>الهاتف:</strong> {customer.phone}</div>
-                      <div><strong>مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
-                      <div><strong>طريقة الدفع:</strong> {customer.paymentMethod}</div>
-                      <div><strong>العنوان:</strong> {customer.address}</div>
-                      {customer.notes && <div><strong>ملاحظات:</strong> {customer.notes}</div>}
+                  <div className="bg-[#fbf9f4] p-3 rounded-2xl border-2 border-[#e8e2d5]">
+                    <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-[#e8e2d5]">بيانات العميل والتوصيل:</h4>
+                    <div className="text-[11px] sm:text-xs space-y-1.5 text-slate-700 font-semibold">
+                      <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
+                      <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
+                      <div><strong className="font-black text-slate-800">مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
+                      <div><strong className="font-black text-slate-800">طريقة الدفع:</strong> {customer.paymentMethod}</div>
+                      <div><strong className="font-black text-slate-800">العنوان:</strong> {customer.address}</div>
+                      {customer.notes && <div><strong className="font-black text-slate-800">الملاحظات:</strong> {customer.notes}</div>}
                     </div>
                   </div>
-
-                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs">
-                    <h4 className="text-xs font-black text-[#1e382b] mb-2 pb-1 border-b">المنتجات المطلوبة في الطلب:</h4>
+                  <div className="bg-white p-3 rounded-2xl border-2 border-slate-100">
+                    <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-slate-100">المنتجات المطلوبة:</h4>
                     <div className="space-y-2 divide-y divide-slate-50">
                       {cart.map((item, idx) => (
-                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-black text-[#1e382b] block">{item.name}</span>
-                            <span className="text-[10px] text-slate-500 font-bold">{getCalculatedTotalWeight(item.weight, item.qty)}</span>
-                          </div>
+                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-[11px] sm:text-xs">
+                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[10px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
                           <span className="font-black text-[#2d533e]">{(item.price * item.qty).toFixed(2)} جنيه</span>
                         </div>
                       ))}
@@ -1230,34 +1694,35 @@ export default function Home() {
               )}
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t bg-white shadow-md z-20">
-              <div className="flex justify-between items-center font-black text-sm pb-2">
+            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
+              <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">الإجمالي النهائي:</span>
-                <span className="text-[#2d533e] text-base">{totalAmount} جنيه</span>
+                <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
               </div>
 
               {currentStep === 'cart' && (
                 <div className="flex flex-col gap-2">
-                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border border-red-500 py-2.5 rounded-xl font-black text-xs">إغلاق</button>
+                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'checkout' && (
                 <div className="flex flex-col gap-2">
-                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1"><span>مراجعة الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setCurrentStep('cart')} className="w-full bg-slate-100 text-slate-700 py-2.5 rounded-xl font-black text-xs">رجوع للسلة</button>
+                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
 
               {currentStep === 'review' && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] py-2.5 rounded-xl font-black text-xs">تعديل البيانات</button>
-                    <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] text-white py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1 shadow-sm">
+                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3 rounded-xl font-black text-xs sm:text-sm transition-colors">تعديل البيانات</button>
+                    <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]">
                       {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></>}
                     </button>
                   </div>
+                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
                 </div>
               )}
             </div>
@@ -1270,9 +1735,10 @@ export default function Home() {
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
             <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
             <h3 className="font-black text-base text-[#1e382b] mb-1.5">تأكيد مسح السلة</h3>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 font-bold text-xs">إلغاء</button>
-              <button onClick={clearEntireCart} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-black text-xs">نعم، امسح</button>
+            <p className="text-xs font-bold text-slate-500 mb-4">هل أنت متأكد من مسح السلة بالكامل؟</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setShowClearConfirm(false)} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm text-slate-700">إلغاء</button>
+              <button onClick={clearEntireCart} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-sm shadow-md">نعم، امسح</button>
             </div>
           </div>
         </div>
@@ -1283,9 +1749,10 @@ export default function Home() {
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
             <RotateCcw className="w-10 h-10 text-amber-500 mx-auto mb-2" />
             <h3 className="font-black text-base text-[#1e382b] mb-1.5">استبدال السلة الحالية</h3>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setShowRestoreConfirm(false)} className="flex-1 py-2.5 rounded-xl bg-slate-100 font-bold text-xs">إلغاء</button>
-              <button onClick={executeRestore} className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-black text-xs">استرجاع</button>
+            <p className="text-xs font-bold text-slate-500 mb-4">هل تريد استبدال سلتك الحالية بآخر طلب وتعديله؟</p>
+            <div className="flex gap-2.5">
+              <button onClick={() => setShowRestoreConfirm(false)} className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm text-slate-700">إلغاء</button>
+              <button onClick={executeRestore} className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm shadow-md">استرجاع الطلب</button>
             </div>
           </div>
         </div>
