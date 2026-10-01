@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
   User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
@@ -317,6 +317,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
@@ -354,8 +355,10 @@ export default function Home() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isSearchModeActive = isSearchOpen || search.trim().length > 0;
+  const isSearchModeActive = Boolean(isSearchOpen || search.trim().length > 0);
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
+
+  const historyPushedRef = useRef({ modal: false, search: false });
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -364,44 +367,48 @@ export default function Home() {
     document.body.appendChild(script);
   }, []);
 
-  // تسجيل حالة البحث في سجل المتصفح لتمكين الخروج بزر رجوع الهاتف
+  // إدارة تاريخ المتصفح وزر رجوع الهاتف بشكل موحد دون تكرار أو تسريب ذاكرة
   useEffect(() => {
-    if (isSearchModeActive) {
-      window.history.pushState({ sedraSearch: true }, '');
-    }
-  }, [isSearchModeActive]);
+    if (typeof window === 'undefined') return;
 
-  // تسجيل حالة النوافذ المنبثقة في سجل المتصفح
-  useEffect(() => {
-    if (isAnyModalOpen) {
-      window.history.pushState({ modal: true }, '');
+    if (isAnyModalOpen && !historyPushedRef.current.modal) {
+      window.history.pushState({ sedraType: 'modal' }, '');
+      historyPushedRef.current.modal = true;
+    } else if (!isAnyModalOpen) {
+      historyPushedRef.current.modal = false;
     }
-  }, [isAnyModalOpen]);
 
-  // معالجة زر رجوع الهاتف بالأولوية (إغلاق النوافذ المنبثقة أولًا ثم الخروج من وضع البحث)
-  useEffect(() => {
-    if (!isAnyModalOpen && !isSearchModeActive) return;
+    if (isSearchModeActive && !historyPushedRef.current.search) {
+      window.history.pushState({ sedraType: 'search' }, '');
+      historyPushedRef.current.search = true;
+    } else if (!isSearchModeActive) {
+      historyPushedRef.current.search = false;
+    }
 
     const handlePopState = () => {
       if (zoomedImage) {
         setZoomedImage(null);
+        historyPushedRef.current.modal = false;
         return;
       }
       if (showClearConfirm || showRestoreConfirm || showWelcomeBack) {
         if (showClearConfirm) setShowClearConfirm(false);
         if (showRestoreConfirm) setShowRestoreConfirm(false);
         if (showWelcomeBack) setShowWelcomeBack(false);
+        historyPushedRef.current.modal = false;
         return;
       }
       if (activeModalProduct || isCartOpen) {
         if (activeModalProduct) setActiveModalProduct(null);
         if (isCartOpen) setIsCartOpen(false);
+        historyPushedRef.current.modal = false;
         return;
       }
       if (isSearchModeActive) {
         setSearch('');
         setIsSearchOpen(false);
         if (searchInputRef.current) searchInputRef.current.blur();
+        historyPushedRef.current.search = false;
       }
     };
 
@@ -521,7 +528,8 @@ export default function Home() {
     setSearch('');
     setIsSearchOpen(false);
     if (searchInputRef.current) searchInputRef.current.blur();
-    if (typeof window !== 'undefined' && window.history.state?.sedraSearch) {
+    if (typeof window !== 'undefined' && historyPushedRef.current.search) {
+      historyPushedRef.current.search = false;
       window.history.back();
     }
   };
@@ -578,7 +586,7 @@ export default function Home() {
   }, [data.products]);
 
   const filteredProducts = useMemo(() => {
-    const trimmedSearch = search.trim();
+    const trimmedSearch = deferredSearch.trim();
 
     // السلوك الأصلي تمامًا عند عدم وجود نص بحث
     if (!trimmedSearch) {
@@ -624,7 +632,7 @@ export default function Home() {
     });
 
     return finalResults.map(r => r.product);
-  }, [data.products, indexedProducts, selectedCategory, search]);
+  }, [data.products, indexedProducts, selectedCategory, deferredSearch]);
 
   const openProductModal = (product) => {
     const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
@@ -1002,7 +1010,21 @@ export default function Home() {
       localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
       setLastOrder(orderData);
       
-      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
+      const cleanPhone = WHATSAPP_NUMBER.replace(/\D/g, '');
+      const encodedMessage = encodeURIComponent(message);
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+      
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // على الهاتف: التوجيه المباشر في نفس النافذة يفعّل App Links / Universal Links
+        // فيفتح تطبيق WhatsApp المثبت فوراً دون الوقوف في صفحة api.whatsapp.com الوسيطة
+        window.location.href = waUrl;
+      } else {
+        // على الكمبيوتر: يفتح في نافذة جديدة لإبقاء متجر العميل مفتوحاً وتشغيل WhatsApp Web
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
+      }
+
       setCart([]);
       setIsEditing(false);
       setCustomer(prev => {
@@ -1235,7 +1257,7 @@ export default function Home() {
                           <div className="flex items-start gap-2 mb-2">
                             <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
                               {product.image ? (
-                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
                               )}
@@ -1306,7 +1328,7 @@ export default function Home() {
               <div className="flex items-start gap-3">
                 {activeModalProduct.image && (
                   <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group" title="انقر لتكبير الصورة">
-                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
+                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" />
                     <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>
                   </div>
                 )}
@@ -1521,7 +1543,7 @@ export default function Home() {
         <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setZoomedImage(null)}>
           <div className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setZoomedImage(null)} className="absolute top-4 left-4 z-20 p-2 bg-black/60 text-white rounded-full"><X className="w-5 h-5" /></button>
-            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center"><img src={zoomedImage} alt="صورة المنتج" referrerPolicy="no-referrer" className="w-full h-full object-contain" /></div>
+            <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-50 flex items-center justify-center"><img src={zoomedImage} alt="صورة المنتج" referrerPolicy="no-referrer" decoding="async" className="w-full h-full object-contain" /></div>
             <p className="text-sm font-bold text-slate-300 mt-3">انقر في أي مكان للإغلاق</p>
           </div>
         </div>
