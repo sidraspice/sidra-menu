@@ -70,11 +70,255 @@ const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
 };
 
+// --- دوال البحث الذكي وتطبيع النص العربي ---
+const normalizeArabic = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '') // إزالة التشكيل والتطويل (ـ)
+    .replace(/[أإآٱ]/g, 'ا') // توحيد الهمزات
+    .replace(/ة/g, 'ه') // توحيد التاء المربوطة والهاء
+    .replace(/[ىئ\u06CC\u0649]/g, 'ي') // توحيد الياء والألف المقصورة
+    .replace(/[\u06A9گ]/g, 'ك') // توحيد الكاف الفارسية (مثل کرکم)
+    .replace(/ؤ/g, 'و')
+    .replace(/[-_()/،,.٫!؟"'\[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const stripDefiniteArticle = (word) => {
+  if (word && word.length > 3 && word.startsWith('ال')) {
+    return word.slice(2);
+  }
+  return word;
+};
+
+const ORTHOGRAPHIC_EQUIVALENTS = {
+  'يانسون': 'ينسون',
+  'ثوم': 'توم',
+  'ذهب': 'دهب',
+  'ذهبي': 'دهبي',
+  'كسبره': 'كزبره',
+  'بذور': 'بذر'
+};
+
+const normalizeOrthographicWord = (word) => {
+  const stripped = stripDefiniteArticle(word);
+  return ORTHOGRAPHIC_EQUIVALENTS[stripped] || stripped;
+};
+
+const SIMILAR_ARABIC_GROUPS = [
+  'قك',
+  'سص',
+  'تط',
+  'دض',
+  'ذزظ',
+  'ثسص',
+  'هحخ',
+  'عغ',
+  'بف',
+  'نلر',
+  'شس',
+  'تث',
+  'جحخ',
+  'طك'
+];
+
+const areArabicCharsClose = (c1, c2) => {
+  if (c1 === c2) return true;
+  for (let i = 0; i < SIMILAR_ARABIC_GROUPS.length; i++) {
+    const group = SIMILAR_ARABIC_GROUPS[i];
+    if (group.includes(c1) && group.includes(c2)) return true;
+  }
+  return false;
+};
+
+const getTypoScore = (qWord, targetWord) => {
+  if (!qWord || !targetWord) return 0;
+  const lq = qWord.length;
+  const lt = targetWord.length;
+
+  if (lq < 4 || lt < 3) return 0;
+  if (Math.abs(lq - lt) > 1) return 0;
+
+  // الحالة 1: نفس الطول (إبدال حرف متقارب أو تبديل حرفين متجاورين)
+  if (lq === lt) {
+    const diffs = [];
+    for (let i = 0; i < lq; i++) {
+      if (qWord[i] !== targetWord[i]) diffs.push(i);
+      if (diffs.length > 2) return 0;
+    }
+    if (diffs.length === 1) {
+      const idx = diffs[0];
+      if (areArabicCharsClose(qWord[idx], targetWord[idx])) {
+        return 240;
+      }
+      if (lq >= 5 && idx > 0 && qWord[0] === targetWord[0]) {
+        return 200;
+      }
+      return 0;
+    }
+    if (diffs.length === 2 && diffs[1] === diffs[0] + 1) {
+      const i = diffs[0];
+      if (qWord[i] === targetWord[i + 1] && qWord[i + 1] === targetWord[i]) {
+        return 220;
+      }
+    }
+    return 0;
+  }
+
+  // الحالة 2: فرق حرف واحد (حرف ناقص أو زائد) بشرط تطابق الحرف الأول
+  const shorter = lq < lt ? qWord : targetWord;
+  const longer = lq < lt ? targetWord : qWord;
+  if (shorter.length < 4 || shorter[0] !== longer[0]) return 0;
+
+  for (let i = 1; i < longer.length; i++) {
+    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) {
+      return 210;
+    }
+  }
+
+  return 0;
+};
+
+const scoreProductMatch = (itemIndex, queryMeta) => {
+  const { normQ, compactQ, qWords, qWordsOrtho } = queryMeta;
+  const { normName, compactName, nameWords, nameWordsOrtho, catWords, grindWords, normCode } = itemIndex;
+
+  if (!normQ) return 0;
+
+  // 1. تطابق كامل مع اسم المنتج أو كود الصنف
+  if (normName === normQ || (compactQ.length >= 2 && compactName === compactQ)) return 1000;
+  if (normCode && normCode === normQ) return 980;
+
+  // 2. يبدأ اسم المنتج بعبارة البحث كاملة
+  if (normName.startsWith(normQ + ' ')) return 950;
+
+  // 3. معالجة البحث بكلمة واحدة مع ترتيب ذكي حسب موضع الكلمة وطولها
+  if (qWords.length === 1) {
+    const qw = qWords[0];
+    const qwo = qWordsOrtho[0];
+
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      if (nameWords[idx] === qw || nameWordsOrtho[idx] === qwo) {
+        return idx === 0 ? 920 : Math.max(750, 830 - idx * 15);
+      }
+    }
+
+    let bestPrefixScore = 0;
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      if (nameWords[idx].startsWith(qw) || nameWordsOrtho[idx].startsWith(qwo)) {
+        const lenDiff = Math.min(Math.abs(nameWordsOrtho[idx].length - qwo.length), 10);
+        const base = idx === 0 ? 860 : Math.max(700, 760 - idx * 15);
+        bestPrefixScore = Math.max(bestPrefixScore, base - lenDiff);
+      }
+    }
+    if (bestPrefixScore > 0) return bestPrefixScore;
+  }
+
+  // 4. يبدأ اسم المنتج بنص البحث متصلًا أو مباشرًا
+  if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) {
+    return 800;
+  }
+
+  // 5. عبارة البحث موجودة بشكل متصل داخل اسم المنتج
+  if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) {
+    return 700;
+  }
+
+  // 6. فحص تطابق جميع كلمات البحث (جزئي / دلالي في بيانات المنتج / خطأ إملائي بسيط)
+  let totalTokenScore = 0;
+  let matchedInNameCount = 0;
+  let usedTypo = false;
+
+  for (let i = 0; i < qWords.length; i++) {
+    const qw = qWords[i];
+    const qwo = qWordsOrtho[i];
+    let bestForToken = 0;
+    let tokenUsedTypo = false;
+    let inName = false;
+
+    for (let idx = 0; idx < nameWords.length; idx++) {
+      const nw = nameWords[idx];
+      const nwo = nameWordsOrtho[idx];
+
+      if (nw === qw || nwo === qwo) {
+        const s = idx === 0 ? 160 : 135;
+        if (s > bestForToken) {
+          bestForToken = s;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else if (nw.startsWith(qw) || nwo.startsWith(qwo)) {
+        const lenDiff = Math.min(Math.abs(nwo.length - qwo.length), 10);
+        const s = (idx === 0 ? 125 : 105) - lenDiff;
+        if (s > bestForToken) {
+          bestForToken = s;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else if (qw.length >= 2 && (nw.includes(qw) || nwo.includes(qwo))) {
+        if (80 > bestForToken) {
+          bestForToken = 80;
+          inName = true;
+          tokenUsedTypo = false;
+        }
+      } else {
+        const ts = Math.max(getTypoScore(qw, nw), getTypoScore(qwo, nwo));
+        if (ts > 0) {
+          const s = Math.floor(ts / 4);
+          if (s > bestForToken) {
+            bestForToken = s;
+            inName = true;
+            tokenUsedTypo = true;
+          }
+        }
+      }
+    }
+
+    // فحص الحقول الإضافية الموجودة في بيانات المنتج (حالة الطحن والتصنيف)
+    if (bestForToken === 0 && qwo.length >= 2) {
+      for (let g = 0; g < grindWords.length; g++) {
+        if (grindWords[g] === qwo || grindWords[g].startsWith(qwo)) {
+          bestForToken = 50;
+          break;
+        }
+      }
+    }
+
+    if (bestForToken === 0 && qwo.length >= 2) {
+      for (let c = 0; c < catWords.length; c++) {
+        if (catWords[c] === qwo || catWords[c].startsWith(qwo)) {
+          bestForToken = 40;
+          break;
+        }
+      }
+    }
+
+    if (bestForToken === 0) return 0;
+
+    if (tokenUsedTypo) usedTypo = true;
+    if (inName) matchedInNameCount++;
+    totalTokenScore += bestForToken;
+  }
+
+  if (matchedInNameCount === 0 && qWords.length > 1) return 0;
+
+  if (usedTypo) {
+    return Math.min(280, 150 + totalTokenScore);
+  }
+
+  return Math.min(640, 350 + totalTokenScore);
+};
+
 export default function Home() {
   const [data, setData] = useState({ products: [], categories: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
   
   const [cart, setCart] = useState([]);
@@ -232,6 +476,22 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }, []);
 
+  const openSearchMode = () => {
+    setIsSearchOpen(true);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setTimeout(() => {
+      if (searchInputRef.current) searchInputRef.current.focus();
+    }, 60);
+  };
+
+  const closeSearchMode = () => {
+    setSearch('');
+    setIsSearchOpen(false);
+    if (searchInputRef.current) searchInputRef.current.blur();
+  };
+
   const handleShareProduct = (product, e) => {
     e.stopPropagation();
     const shareText = `🌿 شاهد هذا المنتج الرائع من عطارة سدرة:\n*${product.name}*\nاطلبه الآن من المنيو الإلكتروني!`;
@@ -250,15 +510,92 @@ export default function Home() {
     return ['كل المنتجات', 'فرص خاصة', ...originalCats];
   }, [data.categories]);
 
-  const filteredProducts = useMemo(() => {
-    return data.products.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(search.trim().toLowerCase());
-      if (selectedCategory === 'فرص خاصة') {
-        return item.variants.some(v => isOfferValid(v.price, v.originalPrice)) && matchesSearch;
-      }
-      return (selectedCategory === 'كل المنتجات' || item.category === selectedCategory) && matchesSearch;
+  // تجهيز فهرس البحث المطبّع محليًا دون المساس بالبيانات الأصلية للمنتجات
+  const indexedProducts = useMemo(() => {
+    return data.products.map((product, originalIndex) => {
+      const normName = normalizeArabic(product.name || '');
+      const compactName = normName.replace(/\s+/g, '');
+      const nameWords = normName ? normName.split(' ') : [];
+      const nameWordsOrtho = nameWords.map(normalizeOrthographicWord);
+
+      const normCat = normalizeArabic(product.category || '');
+      const catWords = normCat ? normCat.split(' ').map(normalizeOrthographicWord) : [];
+
+      const rawGrind = product.grindOptions || product['حالة الطحن'] || '';
+      const normGrind = normalizeArabic(rawGrind);
+      const grindWords = normGrind ? normGrind.split(' ').map(normalizeOrthographicWord) : [];
+
+      const normCode = normalizeArabic(product.itemCode || '');
+
+      return {
+        product,
+        originalIndex,
+        searchIndex: {
+          normName,
+          compactName,
+          nameWords,
+          nameWordsOrtho,
+          catWords,
+          grindWords,
+          normCode
+        }
+      };
     });
-  }, [data.products, selectedCategory, search]);
+  }, [data.products]);
+
+  const filteredProducts = useMemo(() => {
+    const trimmedSearch = search.trim();
+
+    // السلوك الأصلي تمامًا عند عدم وجود نص بحث
+    if (!trimmedSearch) {
+      return data.products.filter(item => {
+        if (selectedCategory === 'فرص خاصة') {
+          return item.variants.some(v => isOfferValid(v.price, v.originalPrice));
+        }
+        return selectedCategory === 'كل المنتجات' || item.category === selectedCategory;
+      });
+    }
+
+    const normQ = normalizeArabic(trimmedSearch);
+    if (!normQ) return [];
+
+    const compactQ = normQ.replace(/\s+/g, '');
+    const qWords = normQ.split(' ').filter(Boolean);
+    const qWordsOrtho = qWords.map(normalizeOrthographicWord);
+    const queryMeta = { normQ, compactQ, qWords, qWordsOrtho };
+
+    const scoredResults = [];
+    let maxScore = 0;
+
+    for (let i = 0; i < indexedProducts.length; i++) {
+      const entry = indexedProducts[i];
+      const item = entry.product;
+
+      const matchesCategory = selectedCategory === 'فرص خاصة'
+        ? item.variants.some(v => isOfferValid(v.price, v.originalPrice))
+        : (selectedCategory === 'كل المنتجات' || item.category === selectedCategory);
+
+      if (!matchesCategory) continue;
+
+      const score = scoreProductMatch(entry.searchIndex, queryMeta);
+      if (score > 0) {
+        if (score > maxScore) maxScore = score;
+        scoredResults.push({ product: item, score, originalIndex: entry.originalIndex });
+      }
+    }
+
+    // إذا وُجد تطابق مباشر قوي، نستبعد التطابقات المبنية فقط على تخمين خطأ إملائي ضعيف
+    const finalResults = maxScore >= 750
+      ? scoredResults.filter(r => r.score >= 300)
+      : scoredResults;
+
+    finalResults.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.originalIndex - b.originalIndex;
+    });
+
+    return finalResults.map(r => r.product);
+  }, [data.products, indexedProducts, selectedCategory, search]);
 
   const openProductModal = (product) => {
     const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
@@ -647,6 +984,8 @@ export default function Home() {
     }
   };
 
+  const isSearchModeActive = isSearchOpen || search.trim().length > 0;
+
   return (
     <div className="min-h-screen pb-32 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       <style dangerouslySetInnerHTML={{__html: `
@@ -655,6 +994,8 @@ export default function Home() {
           40% { top: calc(var(--startY) - 80px); left: calc((var(--startX) + var(--endX)) / 2); transform: scale(1.3) rotate(15deg); opacity: 0.9; }
           100% { top: var(--endY); left: var(--endX); transform: scale(0.1) rotate(45deg); opacity: 0; }
         }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}} />
 
       {flyingItems.map(item => (
@@ -677,21 +1018,24 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
-        <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
-          <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white"><img src="/logo.png" alt="عطارة سدرة" className="w-full h-full object-cover" /></div>
-          <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
-            <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide text-center leading-tight">ما تدفعش ولا جنيه غير بعد المعاينة</span>
-            <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
+      {/* إخفاء مساحة اللوجو أثناء وضع البحث فقط لإعطاء الأولوية لمربع البحث والنتائج على الهاتف */}
+      {!isSearchModeActive && (
+        <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
+          <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
+            <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white"><img src="/logo.png" alt="عطارة سدرة" className="w-full h-full object-cover" /></div>
+            <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
+              <span className="text-[15px] sm:text-base font-black text-[#fff4d6] tracking-wide text-center leading-tight">ما تدفعش ولا جنيه غير بعد المعاينة</span>
+              <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="max-w-xl mx-auto px-4 mt-0">
-        <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md pt-1 pb-2.5 -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs mb-3">
+        <div className={`sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md -mx-4 px-4 border-b border-[#e8e2d5] shadow-xs ${isSearchModeActive ? 'pt-2.5 pb-2 mb-2' : 'pt-1 pb-2.5 mb-3'}`}>
           
-          {isEditing && (
+          {isEditing && !isSearchModeActive && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2.5 mb-2.5 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
                 <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" style={{ animationDuration: '3s' }} />
@@ -704,23 +1048,72 @@ export default function Home() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="flex-1 bg-white rounded-2xl shadow-xs p-2 flex items-center gap-2 border border-[#e8e2d5]">
-              <Search className="w-4 h-4 text-[#4d7c60] mr-1.5 shrink-0" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث عن منتج بالاسم..." className="w-full bg-transparent focus:outline-none text-sm font-semibold text-[#1e382b]" />
-              {search && <button onClick={() => setSearch('')} className="p-1 text-slate-400"><X className="w-4 h-4" /></button>}
-            </div>
-
-            {lastOrder && !isEditing && (
-              <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
-                <RotateCcw className="w-4 h-4 text-[#c89d56]" />
-                <span>تعديل آخر طلب</span>
+          {!isSearchModeActive ? (
+            <div className="flex items-center gap-2 mb-2.5">
+              <button
+                type="button"
+                onClick={openSearchMode}
+                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-2 border-2 border-[#e8e2d5] hover:border-[#2d533e] active:scale-[0.99] transition text-right"
+                aria-label="فتح البحث"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-xl bg-[#2d533e]/10 flex items-center justify-center shrink-0">
+                    <Search className="w-4 h-4 text-[#2d533e]" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-500 truncate">ابحث عن صنف بالاسم...</span>
+                </div>
+                <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">بحث 🔍</span>
               </button>
-            )}
-          </div>
+
+              {lastOrder && !isEditing && (
+                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
+                  <RotateCcw className="w-4 h-4 text-[#c89d56]" />
+                  <span>تعديل آخر طلب</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex-1 bg-white rounded-2xl shadow-sm p-2 flex items-center gap-2 border-2 border-[#2d533e]">
+                <Search className="w-5 h-5 text-[#2d533e] mr-1 shrink-0" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') closeSearchMode();
+                  }}
+                  placeholder="اكتب اسم الصنف الذي تبحث عنه..."
+                  className="w-full bg-transparent focus:outline-none text-sm sm:text-base font-bold text-[#1e382b] placeholder:text-slate-400 placeholder:font-semibold"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      if (searchInputRef.current) searchInputRef.current.focus();
+                    }}
+                    className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition"
+                  >
+                    مسح
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={closeSearchMode}
+                className="w-11 h-11 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 flex items-center justify-center shrink-0 shadow-2xs active:scale-95 transition"
+                title="إغلاق البحث"
+                aria-label="إغلاق البحث"
+              >
+                <X className="w-5 h-5 stroke-[2.5]" />
+              </button>
+            </div>
+          )}
 
           {!loading && !error && displayCategories.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
+            <div className={isSearchModeActive ? "flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 pb-0.5" : "flex flex-wrap justify-center gap-1.5 pt-1 pb-1"}>
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
@@ -752,10 +1145,10 @@ export default function Home() {
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     style={btnStyle}
-                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group"
+                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group shrink-0"
                   >
                     <span className="text-sm leading-none">{visual.icon}</span>
-                    <span className={`text-xs font-bold leading-tight ${textClass}`}>{visual.label}</span>
+                    <span className={`text-xs font-bold leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
                   </button>
                 );
               })}
@@ -778,73 +1171,115 @@ export default function Home() {
         )}
 
         {!loading && !error && (
-          <div>
-            <div className="flex justify-between items-center mb-2.5">
-              <span className="text-xs font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              {filteredProducts.map(product => (
-                <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
-                  <div>
-                    <div className="flex items-start gap-2 mb-2">
-                      <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
-                        {product.image ? (
-                          <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
-                        )}
-                        {product.image && <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-0.5">
-                          <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
-                          <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                        <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
-                      </div>
+          <>
+            {/* حالة فتح واجهة البحث قبل كتابة أي نص */}
+            {isSearchModeActive && !search.trim() ? (
+              <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-3 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-[#2d533e]/10 flex items-center justify-center mx-auto mb-2.5">
+                  <Search className="w-6 h-6 text-[#2d533e]" />
+                </div>
+                <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">اكتب اسم الصنف للبحث</p>
+                <p className="text-xs font-semibold text-slate-500">مثال: كركم، ينسون، بهارات، بن، قرفة...</p>
+              </div>
+            ) : (
+              <div>
+                <div className="flex justify-between items-center mb-2.5">
+                  {search.trim() ? (
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span className="text-xs font-black text-[#1e382b]">
+                        نتائج البحث عن &laquo;{search.trim()}&raquo; ({filteredProducts.length} منتج)
+                      </span>
+                      {selectedCategory !== 'كل المنتجات' && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCategory('كل المنتجات')}
+                          className="text-[11px] font-black text-[#2d533e] underline shrink-0"
+                        >
+                          البحث في كل المنتجات
+                        </button>
+                      )}
                     </div>
-                  </div>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-500">{selectedCategory} ({filteredProducts.length} منتج)</span>
+                  )}
+                </div>
 
-                  <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
-                    <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
-                      {product.variants.map((v, i) => {
-                        const hasOffer = isOfferValid(v.price, v.originalPrice);
-                        return (
-                          <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
-                              {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
-                            </div>
-                            <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
-                              {v.available ? (
-                                <>
-                                  {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
-                                  <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
-                                </>
+                {filteredProducts.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {filteredProducts.map(product => (
+                      <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
+                        <div>
+                          <div className="flex items-start gap-2 mb-2">
+                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
+                              {product.image ? (
+                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                               ) : (
-                                <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
                               )}
+                              {product.image && <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
+                                <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                              <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                    {product.isAvailable ? (
-                      <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
-                    ) : (
-                      <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
+                        </div>
+
+                        <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
+                          <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
+                            {product.variants.map((v, i) => {
+                              const hasOffer = isOfferValid(v.price, v.originalPrice);
+                              return (
+                                <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
+                                    {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
+                                  </div>
+                                  <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
+                                    {v.available ? (
+                                      <>
+                                        {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
+                                        <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
+                                      </>
+                                    ) : (
+                                      <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {product.isAvailable ? (
+                            <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
+                          ) : (
+                            <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-4 shadow-2xs">
+                    <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">لم نجد صنفًا مطابقًا لبحثك.</p>
+                    <p className="text-xs font-semibold text-slate-500">جرّب كلمة أخرى أو اكتب جزءًا من اسم الصنف.</p>
+                    {selectedCategory !== 'كل المنتجات' && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategory('كل المنتجات')}
+                        className="mt-3 bg-[#2d533e] text-white text-xs font-black px-4 py-2 rounded-xl shadow-xs hover:bg-[#1e382b] transition"
+                      >
+                        البحث في كل المنتجات
+                      </button>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!loading && !error && filteredProducts.length === 0 && (
-          <div className="text-center py-14 text-slate-400 font-bold text-sm">لا توجد منتجات مطابقة لعملية البحث</div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </main>
 
