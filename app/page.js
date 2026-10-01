@@ -106,7 +106,7 @@ export default function Home() {
   const [toast, setToast] = useState({ visible: false, message: '' });
 
   const [currentStep, setCurrentStep] = useState('shop');
-  const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', address: '', notes: '' });
+  const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', paymentMethod: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -218,10 +218,13 @@ export default function Home() {
       const savedCustomer = localStorage.getItem('sedra_customer');
       if (savedCustomer) {
         const parsed = JSON.parse(savedCustomer);
+        const savedZone = parsed.deliveryZone || '';
+        const savedPayment = parsed.paymentMethod || '';
         setCustomer({ 
           name: parsed.name || '', 
           phone: parsed.phone || '', 
-          deliveryZone: parsed.deliveryZone || '', 
+          deliveryZone: savedZone, 
+          paymentMethod: (savedZone === 'outside' && savedPayment === 'نقدًا') ? '' : savedPayment,
           address: parsed.address || '', 
           notes: '' 
         });
@@ -442,12 +445,25 @@ export default function Home() {
     }
     
     if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
+
+    const validPaymentMethods = customer.deliveryZone === 'outside'
+      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
+      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+
+    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
+      errors.paymentMethod = 'من فضلك اختر طريقة الدفع أولًا.';
+    }
+
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
     
     setFormErrors(errors);
     
     if (Object.keys(errors).length > 0) {
       triggerVibration();
+      if (errors.paymentMethod) {
+        setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
+        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      }
       return false;
     }
     return true;
@@ -469,6 +485,16 @@ export default function Home() {
   const executeRestore = () => {
     if (lastOrder?.items) {
       setCart(lastOrder.items);
+      setCustomer(prev => {
+        const restoredZone = lastOrder.deliveryZone || lastOrder.customer?.deliveryZone || prev.deliveryZone || '';
+        const restoredPayment = lastOrder.paymentMethod || lastOrder.customer?.paymentMethod || prev.paymentMethod || '';
+        const validPayment = (restoredZone === 'outside' && restoredPayment === 'نقدًا') ? '' : restoredPayment;
+        return {
+          ...prev,
+          deliveryZone: restoredZone,
+          paymentMethod: validPayment
+        };
+      });
       setIsEditing(true);
       setShowRestoreConfirm(false);
       setToast({ visible: true, message: 'تم استرجاع الطلب لتعديله' });
@@ -477,6 +503,19 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = async () => {
+    const validPaymentMethods = customer.deliveryZone === 'outside'
+      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
+      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+
+    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
+      setFormErrors(prev => ({ ...prev, paymentMethod: 'من فضلك اختر طريقة الدفع أولًا.' }));
+      triggerVibration();
+      setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      setCurrentStep('checkout');
+      return;
+    }
+
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -501,6 +540,7 @@ export default function Home() {
         body: JSON.stringify({
           orderId,
           customer,
+          paymentMethod: customer.paymentMethod,
           cart,
           totalAmount
         })
@@ -525,7 +565,7 @@ export default function Home() {
         message += `\n`;
       }
 
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n💳 طريقة الدفع: ${customer.paymentMethod}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
       
@@ -549,7 +589,7 @@ export default function Home() {
           message += `🎁 مستحق للتوصيل المجاني داخل دمنهور\n`;
         }
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
-        message += `✨ الدفع عند الاستلام بعد المعاينة\n\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
+        message += `⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
       } else if (customer.deliveryZone === 'outside') {
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n\n`;
         message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
@@ -570,6 +610,15 @@ export default function Home() {
       const orderData = { 
         id: orderId, 
         items: cart, 
+        deliveryZone: customer.deliveryZone,
+        paymentMethod: customer.paymentMethod,
+        customer: {
+          name: customer.name,
+          phone: customer.phone,
+          deliveryZone: customer.deliveryZone,
+          paymentMethod: customer.paymentMethod,
+          address: customer.address
+        },
         createdAt: isEditing ? lastOrder.createdAt : nowTs, 
         expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
       };
@@ -581,7 +630,7 @@ export default function Home() {
       setCart([]);
       setIsEditing(false);
       setCustomer(prev => {
-        const nextData = { ...prev, notes: '', deliveryZone: '' };
+        const nextData = { ...prev, notes: '', deliveryZone: '', paymentMethod: '' };
         localStorage.setItem('sedra_customer', JSON.stringify(nextData));
         return nextData;
       });
@@ -1115,13 +1164,37 @@ export default function Home() {
                       مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
                     </label>
                     <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'damanhour' }); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />} داخل دمنهور
                       </button>
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer({ ...customer, deliveryZone: 'outside' }); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'outside', paymentMethod: prev.paymentMethod === 'نقدًا' ? '' : prev.paymentMethod })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />} خارج دمنهور
                       </button>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">طريقة الدفع <span className="text-red-500">*</span></label>
+                    <select
+                      value={customer.paymentMethod || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomer(prev => ({ ...prev, paymentMethod: val }));
+                        if (val) setFormErrors(prev => ({ ...prev, paymentMethod: null }));
+                      }}
+                      className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 bg-white ${formErrors.paymentMethod ? 'border-red-400 bg-red-50 text-red-700' : 'border-slate-200 focus:border-[#2d533e] text-[#1e382b]'} outline-none`}
+                    >
+                      <option value="">اختر طريقة الدفع</option>
+                      <option value="InstaPay">InstaPay</option>
+                      <option value="محفظة كاش">محفظة كاش</option>
+                      {customer.deliveryZone !== 'outside' && (
+                        <option value="نقدًا">نقدًا</option>
+                      )}
+                      <option value="تحويل بنكي">تحويل بنكي</option>
+                    </select>
+                    {formErrors.paymentMethod && (
+                      <p className="text-red-600 text-[10px] sm:text-[11px] font-bold mt-1">{formErrors.paymentMethod}</p>
+                    )}
                   </div>
 
                   <div>
@@ -1150,6 +1223,7 @@ export default function Home() {
                       <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
                       <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
                       <div><strong className="font-black text-slate-800">مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
+                      <div><strong className="font-black text-slate-800">طريقة الدفع:</strong> {customer.paymentMethod}</div>
                       <div><strong className="font-black text-slate-800">العنوان:</strong> {customer.address}</div>
                       {customer.notes && <div><strong className="font-black text-slate-800">الملاحظات:</strong> {customer.notes}</div>}
                     </div>
