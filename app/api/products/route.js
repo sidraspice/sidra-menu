@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30;
 
 function formatImageUrl(url) {
   if (!url) return '';
@@ -9,7 +9,7 @@ function formatImageUrl(url) {
 
   if (trimmed.includes('drive.google.com') || trimmed.includes('googleusercontent.com')) {
     const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
-                  trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                  trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) || 
                   trimmed.match(/id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
       return `https://lh3.googleusercontent.com/d/${match[1]}`;
@@ -49,7 +49,6 @@ function parseCSV(text) {
 
   const headers = parseCSVLine(lines[0]);
 
-  // البحث المرن والشامل عن عمود القسم بكل أشكاله المحتملة
   const categoryIdx = headers.findIndex(h => {
     const clean = h.trim().toLowerCase();
     return clean.includes('قسم') || clean.includes('تصنيف') || clean.includes('category') || clean.includes('cat');
@@ -223,14 +222,14 @@ function parseCSV(text) {
   return { products, storeSettings };
 }
 
+let lastSuccessfulCache = null;
+
 export async function GET() {
   try {
     const sheetUrl = process.env.GOOGLE_SHEET_CSV_URL || "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0KMamBEhCgLLWA4TEsYLz9uvxBE-EShQ0kBON0tYut-dZrBm4BDfuDgf23rD4KlWTt_PgCf--4vQz/pub?output=csv";
-    const urlWithCacheBust = sheetUrl + (sheetUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now();
 
-    const res = await fetch(urlWithCacheBust, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    const res = await fetch(sheetUrl, {
+      next: { revalidate: 30 }
     });
 
     if (!res.ok) throw new Error('فشل جلب البيانات من Google Sheets');
@@ -240,8 +239,22 @@ export async function GET() {
     const rawCategories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
     const categories = ['كل المنتجات', ...rawCategories];
 
-    return NextResponse.json({ success: true, categories, products, storeSettings, updatedAt: new Date().toISOString() });
+    const result = { success: true, categories, products, storeSettings, updatedAt: new Date().toISOString() };
+    lastSuccessfulCache = result;
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+      }
+    });
   } catch (error) {
+    if (lastSuccessfulCache) {
+      return NextResponse.json(lastSuccessfulCache, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
+        }
+      });
+    }
     return NextResponse.json({ success: false, error: 'تعذر تحميل قائمة المنتجات حاليًا.' }, { status: 500 });
   }
 }
