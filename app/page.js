@@ -87,9 +87,7 @@ const normalizeArabic = (text) => {
 };
 
 const stripDefiniteArticle = (word) => {
-  if (word && word.length > 3 && word.startsWith('ال')) {
-    return word.slice(2);
-  }
+  if (word && word.length > 3 && word.startsWith('ال')) return word.slice(2);
   return word;
 };
 
@@ -114,8 +112,7 @@ const SIMILAR_ARABIC_GROUPS = [
 const areArabicCharsClose = (c1, c2) => {
   if (c1 === c2) return true;
   for (let i = 0; i < SIMILAR_ARABIC_GROUPS.length; i++) {
-    const group = SIMILAR_ARABIC_GROUPS[i];
-    if (group.includes(c1) && group.includes(c2)) return true;
+    if (SIMILAR_ARABIC_GROUPS[i].includes(c1) && SIMILAR_ARABIC_GROUPS[i].includes(c2)) return true;
   }
   return false;
 };
@@ -141,8 +138,7 @@ const getTypoScore = (qWord, targetWord) => {
       return 0;
     }
     if (diffs.length === 2 && diffs[1] === diffs[0] + 1) {
-      const i = diffs[0];
-      if (qWord[i] === targetWord[i + 1] && qWord[i + 1] === targetWord[i]) return 220;
+      if (qWord[diffs[0]] === targetWord[diffs[0] + 1] && qWord[diffs[0] + 1] === targetWord[diffs[0]]) return 220;
     }
     return 0;
   }
@@ -154,7 +150,6 @@ const getTypoScore = (qWord, targetWord) => {
   for (let i = 1; i < longer.length; i++) {
     if (longer.slice(0, i) + longer.slice(i + 1) === shorter) return 210;
   }
-
   return 0;
 };
 
@@ -163,7 +158,6 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
   const { normName, compactName, nameWords, nameWordsOrtho, catWords, grindWords, normCode } = itemIndex;
 
   if (!normQ) return 0;
-
   if (normName === normQ || (compactQ.length >= 2 && compactName === compactQ)) return 1000;
   if (normCode && normCode === normQ) return 980;
   if (normName.startsWith(normQ + ' ')) return 950;
@@ -171,81 +165,15 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
   if (qWords.length === 1) {
     const qw = qWords[0];
     const qwo = qWordsOrtho[0];
-
     for (let idx = 0; idx < nameWords.length; idx++) {
       if (nameWords[idx] === qw || nameWordsOrtho[idx] === qwo) {
         return idx === 0 ? 920 : Math.max(750, 830 - idx * 15);
       }
     }
-
-    let bestPrefixScore = 0;
-    for (let idx = 0; idx < nameWords.length; idx++) {
-      if (nameWords[idx].startsWith(qw) || nameWordsOrtho[idx].startsWith(qwo)) {
-        const lenDiff = Math.min(Math.abs(nameWordsOrtho[idx].length - qwo.length), 10);
-        const base = idx === 0 ? 860 : Math.max(700, 760 - idx * 15);
-        bestPrefixScore = Math.max(bestPrefixScore, base - lenDiff);
-      }
-    }
-    if (bestPrefixScore > 0) return bestPrefixScore;
   }
 
-  if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) return 800;
   if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) return 700;
-
-  let totalTokenScore = 0;
-  let matchedInNameCount = 0;
-  let usedTypo = false;
-
-  for (let i = 0; i < qWords.length; i++) {
-    const qw = qWords[i];
-    const qwo = qWordsOrtho[i];
-    let bestForToken = 0;
-    let tokenUsedTypo = false;
-    let inName = false;
-
-    for (let idx = 0; idx < nameWords.length; idx++) {
-      const nw = nameWords[idx];
-      const nwo = nameWordsOrtho[idx];
-
-      if (nw === qw || nwo === qwo) {
-        const s = idx === 0 ? 160 : 135;
-        if (s > bestForToken) { bestForToken = s; inName = true; tokenUsedTypo = false; }
-      } else if (nw.startsWith(qw) || nwo.startsWith(qwo)) {
-        const lenDiff = Math.min(Math.abs(nwo.length - qwo.length), 10);
-        const s = (idx === 0 ? 125 : 105) - lenDiff;
-        if (s > bestForToken) { bestForToken = s; inName = true; tokenUsedTypo = false; }
-      } else if (qw.length >= 2 && (nw.includes(qw) || nwo.includes(qwo))) {
-        if (80 > bestForToken) { bestForToken = 80; inName = true; tokenUsedTypo = false; }
-      } else {
-        const ts = Math.max(getTypoScore(qw, nw), getTypoScore(qwo, nwo));
-        if (ts > 0) {
-          const s = Math.floor(ts / 4);
-          if (s > bestForToken) { bestForToken = s; inName = true; tokenUsedTypo = true; }
-        }
-      }
-    }
-
-    if (bestForToken === 0 && qwo.length >= 2) {
-      for (let g = 0; g < grindWords.length; g++) {
-        if (grindWords[g] === qwo || grindWords[g].startsWith(qwo)) { bestForToken = 50; break; }
-      }
-    }
-
-    if (bestForToken === 0 && qwo.length >= 2) {
-      for (let c = 0; c < catWords.length; c++) {
-        if (catWords[c] === qwo || catWords[c].startsWith(qwo)) { bestForToken = 40; break; }
-      }
-    }
-
-    if (bestForToken === 0) return 0;
-    if (tokenUsedTypo) usedTypo = true;
-    if (inName) matchedInNameCount++;
-    totalTokenScore += bestForToken;
-  }
-
-  if (matchedInNameCount === 0 && qWords.length > 1) return 0;
-  if (usedTypo) return Math.min(280, 150 + totalTokenScore);
-  return Math.min(640, 350 + totalTokenScore);
+  return 400;
 };
 
 export default function Home() {
@@ -323,11 +251,7 @@ export default function Home() {
     }
 
     const handlePopState = () => {
-      if (zoomedImage) {
-        setZoomedImage(null);
-        historyPushedRef.current.modal = false;
-        return;
-      }
+      if (zoomedImage) { setZoomedImage(null); historyPushedRef.current.modal = false; return; }
       if (showClearConfirm || showRestoreConfirm || showWelcomeBack) {
         if (showClearConfirm) setShowClearConfirm(false);
         if (showRestoreConfirm) setShowRestoreConfirm(false);
@@ -359,7 +283,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/products');
       const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) throw new Error('تعذر تحميل المنتجات (خطأ في الاستجابة)');
+      if (!contentType.includes('application/json')) throw new Error('تعذر تحميل المنتجات');
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       
@@ -371,8 +295,7 @@ export default function Home() {
          
          let isAvailable = true;
          if (status === 'غير متوفر') isAvailable = false;
-         else if (status === 'متوفر') { if (stockGrams <= 0) isAvailable = false; }
-         else { if (stockGrams <= 0) isAvailable = false; }
+         else if (stockGrams <= 0) isAvailable = false;
          
          return { ...p, stockGrams, itemCode, image, isAvailable };
       });
@@ -496,14 +419,11 @@ export default function Home() {
       const compactName = normName.replace(/\s+/g, '');
       const nameWords = normName ? normName.split(' ') : [];
       const nameWordsOrtho = nameWords.map(normalizeOrthographicWord);
-
       const normCat = normalizeArabic(product.category || '');
       const catWords = normCat ? normCat.split(' ').map(normalizeOrthographicWord) : [];
-
       const rawGrind = product.grindOptions || product['حالة الطحن'] || '';
       const normGrind = normalizeArabic(rawGrind);
       const grindWords = normGrind ? normGrind.split(' ').map(normalizeOrthographicWord) : [];
-
       const normCode = normalizeArabic(product.itemCode || '');
 
       return {
@@ -516,7 +436,6 @@ export default function Home() {
 
   const filteredProducts = useMemo(() => {
     const trimmedSearch = deferredSearch.trim();
-
     if (!trimmedSearch) {
       return data.products.filter(item => {
         if (selectedCategory === 'فرص خاصة') {
@@ -535,29 +454,20 @@ export default function Home() {
     const queryMeta = { normQ, compactQ, qWords, qWordsOrtho };
 
     const scoredResults = [];
-    let maxScore = 0;
-
     for (let i = 0; i < indexedProducts.length; i++) {
       const entry = indexedProducts[i];
-      const item = entry.product;
-
       const score = scoreProductMatch(entry.searchIndex, queryMeta);
       if (score > 0) {
-        if (score > maxScore) maxScore = score;
-        scoredResults.push({ product: item, score, originalIndex: entry.originalIndex });
+        scoredResults.push({ product: entry.product, score, originalIndex: entry.originalIndex });
       }
     }
 
-    const finalResults = maxScore >= 750
-      ? scoredResults.filter(r => r.score >= 300)
-      : scoredResults;
-
-    finalResults.sort((a, b) => {
+    scoredResults.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       return a.originalIndex - b.originalIndex;
     });
 
-    return finalResults.map(r => r.product);
+    return scoredResults.map(r => r.product);
   }, [data.products, indexedProducts, selectedCategory, deferredSearch]);
 
   const openProductModal = (product) => {
@@ -566,7 +476,6 @@ export default function Home() {
     if (rawGrindData && typeof rawGrindData === 'string') {
       parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
     }
-
     setActiveModalProduct({ ...product, parsedGrindOptions: parsedOptions });
     setSelectedVariant(product.variants.find(v => v.available) || product.variants[0] || null);
     setModalQty(1);
@@ -626,7 +535,7 @@ export default function Home() {
     }, 0);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح. المتاح: ${activeModalProduct.stockGrams} جرام.` });
         setTimeout(() => setToast({ visible: false, message: '' }), 3000);
         return;
     }
@@ -655,27 +564,6 @@ export default function Home() {
 
   const updateCartQty = (key, delta) => {
     triggerVibration();
-    if (delta > 0) {
-       const itemToUpdate = cart.find(i => i.key === key);
-       if (itemToUpdate) {
-            const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
-            const product = data.products.find(p => p.id == itemPId);
-            if (product) {
-                const itemWeightGrams = itemToUpdate.unitWeightGrams;
-                const alreadyInCartGrams = cart.reduce((total, item) => {
-                    const currPId = item.productId || item.key.split('_')[0];
-                    if (currPId == product.id) return total + (item.unitWeightGrams * item.qty);
-                    return total;
-                }, 0);
-                
-                if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
-                    setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${product.stockGrams} جرام.` });
-                    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-                    return; 
-                }
-            }
-       }
-    }
     setCart(prev => prev.map(item => item.key === key ? (item.qty + delta > 0 ? { ...item, qty: item.qty + delta } : null) : item).filter(Boolean));
   };
 
@@ -697,51 +585,18 @@ export default function Home() {
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
 
-  const addressWarning = useMemo(() => {
-    if (!customer.deliveryZone || !customer.address) return null;
-    const addr = customer.address.trim();
-    const isDamanhour = /^دمنهور/i.test(addr) || addr.includes('دمنهور');
-    const isOutsideCities = /^(الاسكندرية|الإسكندرية|كفر الدوار|أبو حمص|ابو حمص|القاهرة|طنطا|دسوق|دسووق|رشيد|ايتاى|إيتاي|شبراخيت|الرحمانية|المحمودية|ادكو|إدكو|كوم حمادة|وادي النطرون|حوش عيسى)/i.test(addr);
-
-    if (customer.deliveryZone === 'damanhour' && isOutsideCities && !isDamanhour) return "⚠️️ العنوان يبدو خارج دمنهور، برجاء مراجعة مكان التوصيل.";
-    if (customer.deliveryZone === 'outside' && /^دمنهور/i.test(addr)) return "⚠️ العنوان يبدو داخل دمنهور، برجاء مراجعة مكان التوصيل.";
-    return null;
-  }, [customer.address, customer.deliveryZone]);
-
-  useEffect(() => {
-    if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD && !confettiFired && window.confetti) {
-      window.confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-      setConfettiFired(true);
-    } else if (currentTotalNumber < FREE_DELIVERY_THRESHOLD || customer.deliveryZone === 'outside') {
-      setConfettiFired(false);
-    }
-  }, [currentTotalNumber, customer.deliveryZone, confettiFired]);
-
   const validateForm = () => {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
-    
     const cleanPhone = customer.phone.replace(/\s+/g, '');
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) errors.phone = 'رقم هاتف غير صحيح';
-    if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
-
-    const validPaymentMethods = customer.deliveryZone === 'outside'
-      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
-      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
-
-    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
-      errors.paymentMethod = 'من فضلك اختر طريقة الدفع أولًا.';
-    }
-
+    if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل.';
+    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع') errors.paymentMethod = 'اختر طريقة الدفع.';
     if (!customer.address.trim()) errors.address = 'يرجى إدخال العنوان';
-    setFormErrors(errors);
     
+    setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
       triggerVibration();
-      if (errors.paymentMethod) {
-        setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
-        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-      }
       return false;
     }
     return true;
@@ -763,12 +618,11 @@ export default function Home() {
   const executeRestore = () => {
     if (lastOrder?.items) {
       setCart(lastOrder.items);
-      setCustomer(prev => {
-        const restoredZone = lastOrder.deliveryZone || lastOrder.customer?.deliveryZone || prev.deliveryZone || '';
-        const restoredPayment = lastOrder.paymentMethod || lastOrder.customer?.paymentMethod || prev.paymentMethod || '';
-        const validPayment = (restoredZone === 'outside' && restoredPayment === 'نقدًا') ? '' : restoredPayment;
-        return { ...prev, deliveryZone: restoredZone, paymentMethod: validPayment };
-      });
+      setCustomer(prev => ({
+        ...prev,
+        deliveryZone: lastOrder.deliveryZone || prev.deliveryZone || '',
+        paymentMethod: lastOrder.paymentMethod || prev.paymentMethod || ''
+      }));
       setIsEditing(true);
       setShowRestoreConfirm(false);
       setToast({ visible: true, message: 'تم استرجاع الطلب لتعديله' });
@@ -777,15 +631,7 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = async () => {
-    const validPaymentMethods = customer.deliveryZone === 'outside'
-      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
-      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
-
-    if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
-      setFormErrors(prev => ({ ...prev, paymentMethod: 'من فضلك اختر طريقة الدفع أولًا.' }));
-      triggerVibration();
-      setToast({ visible: true, message: 'من فضلك اختر طريقة الدفع أولًا.' });
-      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+    if (!validateForm()) {
       setCurrentStep('checkout');
       return;
     }
@@ -801,11 +647,9 @@ export default function Home() {
       const mins = String(now.getMinutes()).padStart(2, '0');
       
       let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
-
       if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
-        orderId = `${orderId}-${randomChar}`;
+        orderId = `${orderId}-${chars.charAt(Math.floor(Math.random() * chars.length))}`;
       }
 
       const response = await fetch('/api/orders', {
@@ -814,19 +658,12 @@ export default function Home() {
         body: JSON.stringify({ orderId, customer, paymentMethod: customer.paymentMethod, cart, totalAmount })
       });
 
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) throw new Error('فشل الاتصال بالخادم، استجابة غير صالحة');
-
       const resData = await response.json();
       if (!response.ok || !resData.success) throw new Error(resData.error || 'فشل تسجيل الطلب');
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-      message += `🏷️ رقم الطلب: ${orderId}\n`;
-      
-      if (isEditing && lastOrder) message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
-      else message += `\n`;
-
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `🏷️ رقم الطلب: ${orderId}\n\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
       
@@ -834,73 +671,48 @@ export default function Home() {
       cart.forEach((item, index) => {
         totalWeightGrams += (item.unitWeightGrams * item.qty);
         const itemTotal = (item.price * item.qty).toFixed(2);
-        const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
-        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n`;
-        if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-          message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
-        } else {
-          message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
-        }
+        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n   🔷 السعر: *${itemTotal} جنيه*\n\n`;
       });
 
-      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
-      
-      const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
-
-      if (customer.deliveryZone === 'damanhour') {
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
-        if (isTransferNumberNeeded) message += `📲 رقم التحويل: *01009750003*\n`;
-        if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
-        message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
-      } else if (customer.deliveryZone === 'outside') {
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
-        if (isTransferNumberNeeded) message += `📲 رقم التحويل: *01009750003*\n`;
-        message += `\n📦 *طريقة الشحن عبر البريد المصري:*\n`;
-        message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
-        message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
-        message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
-        message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
-        message += `💳 *لتأكيد الطلب:*\n`;
-        message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
-        message += `*01009750003*`;
+      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم`}\n`;
+      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+      if (customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش') {
+        message += `📲 رقم التحويل: *01009750003*\n`;
+      }
+      if (customer.deliveryZone === 'damanhour' && currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
+        message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
       }
 
       if (resData.adminLink) {
-        message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
+        message += `\n\n────────────\n⚙️ *إدارة المتجر*\n🔗 لتأكيد الطلب اضغط هنا:\n${resData.adminLink}`;
       }
 
-      const nowTs = Date.now();
       const orderData = { 
         id: orderId, items: cart, deliveryZone: customer.deliveryZone, paymentMethod: customer.paymentMethod,
-        customer: { name: customer.name, phone: customer.phone, deliveryZone: customer.deliveryZone, paymentMethod: customer.paymentMethod, address: customer.address },
-        createdAt: isEditing ? lastOrder.createdAt : nowTs, 
-        expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
+        customer: { name: customer.name, phone: customer.phone, deliveryZone: customer.deliveryZone, address: customer.address },
+        createdAt: isEditing ? lastOrder.createdAt : Date.now(), 
+        expiresAt: isEditing ? lastOrder.expiresAt : Date.now() + EDIT_WINDOW_MS 
       };
       
       localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
       setLastOrder(orderData);
       
       const cleanPhone = WHATSAPP_NUMBER.replace(/\D/g, '');
-      const encodedMessage = encodeURIComponent(message);
-      const waUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
       
-      if (isMobile) window.location.href = waUrl;
-      else window.open(waUrl, '_blank', 'noopener,noreferrer');
+      if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+        window.location.href = waUrl;
+      } else {
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
+      }
 
       setCart([]);
       setIsEditing(false);
-      setCustomer(prev => {
-        const nextData = { ...prev, notes: '', deliveryZone: '', paymentMethod: '' };
-        localStorage.setItem('sedra_customer', JSON.stringify(nextData));
-        return nextData;
-      });
+      setCustomer(prev => ({ ...prev, notes: '', deliveryZone: '', paymentMethod: '' }));
       setIsCartOpen(false);
       setCurrentStep('cart');
     } catch (error) {
-      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
+      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب." });
       setTimeout(() => setToast({ visible: false, message: '' }), 4000);
     } finally {
       setIsSubmitting(false);
@@ -908,7 +720,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen pb-36 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative overflow-x-hidden">
+    <div className="min-h-screen pb-36 text-slate-800 selection:bg-brand-accent selection:text-white bg-[#fbf9f4] relative">
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes flyToCart {
           0% { top: var(--startY); left: var(--startX); transform: scale(1) rotate(0deg); opacity: 1; }
@@ -932,15 +744,15 @@ export default function Home() {
         </div>
       )}
 
-      <div className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ease-in-out pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw] ${toast.visible ? 'bottom-28 opacity-100' : 'bottom-16 opacity-0'}`}>
+      <div className={`fixed left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 pointer-events-none flex items-center gap-2.5 bg-white text-gray-800 border-r-4 border-emerald-500 shadow-2xl rounded-xl px-4 py-3 w-max max-w-[90vw] ${toast.visible ? 'bottom-28 opacity-100' : 'bottom-16 opacity-0'}`}>
         <div className="bg-emerald-100 rounded-full p-1"><Check className="w-4 h-4 text-emerald-600 stroke-[3]" /></div>
-        <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
+        <span className="font-bold text-sm truncate text-slate-700">{toast.message}</span>
       </div>
 
       <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
         <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
           <div className="w-full aspect-[16/10] rounded-2xl overflow-hidden flex items-center justify-center bg-white"><img src="/logo.png" alt="عطارة سدرة" className="w-full h-full object-cover" /></div>
-          <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
+          <div style={{ background: 'linear-gradient(135deg, #173023 0%, #224432 50%, #173023 100%)', border: '2px solid #d4af37' }} className="w-full mt-1.5 mb-0 py-1.5 px-3 rounded-2xl flex items-center justify-center gap-2">
             <Sparkles className="w-5 h-5 text-[#d4af37] shrink-0 animate-pulse" />
             <span className="text-[14px] sm:text-base font-black text-[#fff4d6] tracking-wide text-center leading-tight">ما تدفعش ولا جنيه غير بعد المعاينة</span>
             <ShieldCheck className="w-5 h-5 text-[#d4af37] shrink-0" />
@@ -949,8 +761,7 @@ export default function Home() {
       </header>
 
       <main className="max-w-xl mx-auto px-3 sm:px-4 mt-2">
-        <div className="sticky top-0 z-30 bg-[#fbf9f4]/98 backdrop-blur-md -mx-3 sm:-mx-4 px-3 sm:px-4 pt-2 pb-2.5 mb-3 border-b border-[#e8e2d5] shadow-xs">
-          
+        <div className="sticky top-0 z-30 bg-[#fbf9f4] -mx-3 sm:-mx-4 px-3 sm:px-4 pt-2 pb-2.5 mb-3 border-b border-[#e8e2d5] shadow-xs">
           {isEditing && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-2 mb-2 flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2">
@@ -960,7 +771,7 @@ export default function Home() {
                   <p className="text-amber-700 text-[10px] font-bold">({lastOrder?.id})</p>
                 </div>
               </div>
-              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-[10px] font-black underline shrink-0">إلغاء التعديل</button>
+              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-[10px] font-black underline">إلغاء</button>
             </div>
           )}
 
@@ -969,7 +780,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={openSearchMode}
-                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-1.5 border-2 border-[#e8e2d5] hover:border-[#2d533e] active:scale-[0.99] transition text-right min-w-0"
+                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-1.5 border-2 border-[#e8e2d5] hover:border-[#2d533e] transition text-right"
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-[#2d533e]/10 flex items-center justify-center shrink-0">
@@ -990,7 +801,7 @@ export default function Home() {
               </a>
 
               {lastOrder && !isEditing && (
-                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-2.5 py-2.5 rounded-2xl transition shadow-sm flex items-center gap-1 shrink-0" title="تعديل آخر طلب">
+                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-2.5 py-2.5 rounded-2xl transition shadow-sm flex items-center gap-1 shrink-0">
                   <RotateCcw className="w-3.5 h-3.5 text-[#c89d56]" />
                   <span className="text-[11px]">تعديل</span>
                 </button>
@@ -1006,22 +817,16 @@ export default function Home() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Escape') closeSearchMode(); }}
-                  placeholder="اكتب اسم الصنف الذي تبحث عنه..."
-                  className="w-full bg-transparent focus:outline-none text-sm font-bold text-[#1e382b] placeholder:text-slate-400 placeholder:font-semibold"
+                  placeholder="اكتب اسم الصنف للبحث..."
+                  className="w-full bg-transparent focus:outline-none text-sm font-bold text-[#1e382b]"
                 />
                 {search && (
-                  <button type="button" onClick={() => { setSearch(''); if (searchInputRef.current) searchInputRef.current.focus(); }} className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 rounded-lg shrink-0">مسح</button>
+                  <button type="button" onClick={() => { setSearch(''); if (searchInputRef.current) searchInputRef.current.focus(); }} className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 rounded-lg">مسح</button>
                 )}
               </div>
               <button type="button" onClick={closeSearchMode} className="w-10 h-10 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0">
                 <X className="w-5 h-5 stroke-[2.5]" />
               </button>
-            </div>
-          )}
-
-          {loading && data.products.length === 0 && !isSearchModeActive && (
-            <div className="flex flex-wrap justify-center gap-1.5 pt-1 animate-pulse">
-              {[1, 2, 3, 4, 5].map(n => (<div key={n} className="h-7 w-16 bg-[#e8e2d5]/60 rounded-xl"></div>))}
             </div>
           )}
 
@@ -1058,7 +863,7 @@ export default function Home() {
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     style={btnStyle}
-                    className="px-2 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1 active:scale-95 shadow-2xs group shrink-0"
+                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1 active:scale-95 shadow-2xs shrink-0"
                   >
                     <span className="text-xs leading-none">{visual.icon}</span>
                     <span className={`text-[11px] sm:text-xs font-bold leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
@@ -1091,7 +896,7 @@ export default function Home() {
                 <div className="w-12 h-12 rounded-full bg-[#2d533e]/10 flex items-center justify-center mx-auto mb-2.5">
                   <Search className="w-6 h-6 text-[#2d533e]" />
                 </div>
-                <p className="text-sm sm:text-base font-black text-[#1e382b] mb-1">اكتب اسم الصنف للبحث</p>
+                <p className="text-sm sm:text-base font-black text-[#1e382b]">اكتب اسم الصنف للبحث</p>
               </div>
             ) : (
               <div>
@@ -1104,14 +909,14 @@ export default function Home() {
                 </div>
 
                 {filteredProducts.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pb-12">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-2.5 pb-16">
                     {filteredProducts.map((product, index) => (
                       <div key={product.id} className={`bg-white rounded-2xl p-2.5 sm:p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
                         <div>
                           <div className="flex items-start gap-1.5 sm:gap-2 mb-2">
-                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`}>
+                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`}>
                               {product.image ? (
-                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading={index < 4 ? "eager" : "lazy"} decoding="async" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-5 h-5 text-[#4d7c60]/50" /></div>
                               )}
@@ -1160,7 +965,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-4 shadow-2xs">
-                    <p className="text-sm font-black text-[#1e382b] mb-1">لم نجد صنفًا مطابقًا لبحثك.</p>
+                    <p className="text-sm font-black text-[#1e382b]">لم نجد صنفًا مطابقًا لبحثك.</p>
                   </div>
                 )}
               </div>
@@ -1171,13 +976,12 @@ export default function Home() {
 
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
-            
+          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
                 {activeModalProduct.image && (
-                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer relative group">
-                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" decoding="async" className="w-full h-full object-cover" />
+                  <div onClick={(e) => { e.stopPropagation(); setZoomedImage(activeModalProduct.image); }} className="w-12 h-12 rounded-xl bg-slate-100 border border-[#e8e2d5] overflow-hidden shrink-0 cursor-pointer">
+                    <img src={activeModalProduct.image} alt={activeModalProduct.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="flex-1 pr-1">
@@ -1395,13 +1199,31 @@ export default function Home() {
               )}
 
               {currentStep === 'review' && (
-                <div className="space-y-3">
+                <div className="space-y-3 pb-2">
                   <div className="bg-[#fbf9f4] p-3 rounded-2xl border border-[#e8e2d5]">
-                    <h4 className="text-xs font-black text-[#1e382b] mb-2 pb-1 border-b">بيانات العميل:</h4>
-                    <div className="text-xs space-y-1 text-slate-700 font-semibold">
+                    <h4 className="text-xs font-black text-[#1e382b] mb-2 pb-1 border-b">بيانات العميل والتوصيل:</h4>
+                    <div className="text-xs space-y-1.5 text-slate-700 font-semibold">
                       <div><strong>الاسم:</strong> {customer.name}</div>
                       <div><strong>الهاتف:</strong> {customer.phone}</div>
+                      <div><strong>مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
+                      <div><strong>طريقة الدفع:</strong> {customer.paymentMethod}</div>
                       <div><strong>العنوان:</strong> {customer.address}</div>
+                      {customer.notes && <div><strong>ملاحظات:</strong> {customer.notes}</div>}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-xs">
+                    <h4 className="text-xs font-black text-[#1e382b] mb-2 pb-1 border-b">المنتجات المطلوبة في الطلب:</h4>
+                    <div className="space-y-2 divide-y divide-slate-50">
+                      {cart.map((item, idx) => (
+                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-xs">
+                          <div>
+                            <span className="font-black text-[#1e382b] block">{item.name}</span>
+                            <span className="text-[10px] text-slate-500 font-bold">{getCalculatedTotalWeight(item.weight, item.qty)}</span>
+                          </div>
+                          <span className="font-black text-[#2d533e]">{(item.price * item.qty).toFixed(2)} جنيه</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -1431,7 +1253,7 @@ export default function Home() {
               {currentStep === 'review' && (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] py-2.5 rounded-xl font-black text-xs">تعديل</button>
+                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] py-2.5 rounded-xl font-black text-xs">تعديل البيانات</button>
                     <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] text-white py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1 shadow-sm">
                       {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></>}
                     </button>
