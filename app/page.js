@@ -950,17 +950,25 @@ export default function Home() {
 
       message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
       
+      const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
+
       if (customer.deliveryZone === 'damanhour') {
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
         message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+        if (isTransferNumberNeeded) {
+          message += `📲 رقم التحويل: *01009750003*\n`;
+        }
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
-          message += `🎁 التوصيل مجاني (حساب المندوب علينا)\n`;
+          message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
         }
         message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
       } else if (customer.deliveryZone === 'outside') {
         message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n\n`;
-        message += `📦 *طريقة الشحن عبر البريد المصري:*\n`;
+        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+        if (isTransferNumberNeeded) {
+          message += `📲 رقم التحويل: *01009750003*\n`;
+        }
+        message += `\n📦 *طريقة الشحن عبر البريد المصري:*\n`;
         message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
         message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
         message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
