@@ -948,9 +948,9 @@ export default function Home() {
         message += `تحويل قيمة الفاتورة عبر ${customer.paymentMethod} على:\n*${TRANSFER_NUMBER}*`;
       }
 
-      // إرسال الطلب للسيرفر مع AbortController (مهلة 2.5 ثانية فقط) لتفادي أي بطء
+      // إرسال الطلب للسيرفر مع مهلة 7 ثوانٍ لضمان استلام رابط تأكيد الإدارة من شيت جوجل
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
 
       try {
         const response = await fetch('/api/orders', {
@@ -978,7 +978,7 @@ export default function Home() {
           }
         }
       } catch (err) {
-        console.warn('تجاوز السيرفر المهلة الزمنية، المتابعة إلى واتساب مباشرة دون تعطيل العميل:', err);
+        console.warn('تأخر رد السيرفر، المتابعة إلى واتساب مباشرة:', err);
       }
 
       const nowTs = Date.now();
@@ -1011,7 +1011,7 @@ export default function Home() {
       setIsCartOpen(false);
       setCurrentStep('cart');
       
-      // فتح تطبيق واتساب فوراً عبر الرابط المباشر
+      // فتح تطبيق واتساب مباشرة
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
       window.location.assign(whatsappUrl);
       
