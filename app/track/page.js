@@ -3,6 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Package, Clock, CheckCircle2, Truck, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react';
 
+// تحويل الأرقام العربية المشرقية إلى إنجليزية لضمان صحة البحث
+const toEnglishDigits = (str) => {
+  if (!str) return '';
+  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦ desert".indexOf(d) !== -1 ? "٠١٢٣٤٥٦٧٨٩".indexOf(d) : "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+};
+
+const cleanDigits = (str) => {
+  if (!str) return '';
+  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+};
+
 export default function TrackOrderPage() {
   const [orderId, setOrderId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +44,9 @@ export default function TrackOrderPage() {
   }, []);
 
   const performTrack = async (idToSearch) => {
-    const targetId = (idToSearch || orderId).trim();
+    const rawId = (idToSearch || orderId);
+    const targetId = cleanDigits(rawId).trim();
+    
     if (!targetId) {
       setError('يرجى كتابة رقم الطلب.');
       return;
@@ -91,7 +104,7 @@ export default function TrackOrderPage() {
             <h1 className="text-base font-black text-[#1e382b]">متابعة حالة الطلب</h1>
           </div>
           <p className="text-xs font-semibold text-slate-500 mb-4 leading-relaxed">
-            أدخل رقم طلبك (مثل: SD-01/10-14:30) لمعرفة حالة تجهيزه وتوصيله.
+            أدخل رقم طلبك (مثل: SD-0210-1203) لمعرفة حالة تجهيزه وتوصيله.
           </p>
 
           <form onSubmit={handleFormSubmit} className="space-y-3">
@@ -101,7 +114,7 @@ export default function TrackOrderPage() {
                 dir="ltr"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                placeholder="SD-DD/MM-HH:MM"
+                placeholder="SD-XXXX-XXXX"
                 className="w-full py-3 px-4 text-sm font-black rounded-2xl border-2 border-[#e8e2d5] focus:border-[#2d533e] text-center tracking-wider outline-none text-[#1e382b] bg-[#fbf9f4]/40"
               />
             </div>
