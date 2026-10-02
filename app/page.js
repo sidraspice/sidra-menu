@@ -11,14 +11,14 @@ const TRANSFER_NUMBER = "01009750003";
 const EDIT_WINDOW_MS = 96 * 60 * 60 * 1000;
 const FREE_DELIVERY_THRESHOLD = 500;
 
-// دالة اهتزاز الهاتف
+// دالة اهتزاز الهاتف عند التفاعل
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
     window.navigator.vibrate(50);
   }
 };
 
-// تحويل الأرقام العربية المشرقية (٠-٩) إلى أرقام إنجليزية لضمان صحة الفحص والحسابات
+// تحويل الأرقام المشرقية (٠-٩) إلى أرقام إنجليزية
 const toEnglishDigits = (str) => {
   if (!str) return '';
   return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
@@ -43,7 +43,7 @@ const getCategoryVisual = (catName) => {
   return { icon: '🍃', label: catName };
 };
 
-// استخراج قيمة الوزن بالجرام مع دعم الأوزان النصية الشائعة
+// استخراج قيمة الوزن بالجرام مع دعم الأوزان اللفظية
 const getWeightNumberInGrams = (weightStr) => {
   if (!weightStr) return 1;
   const str = toEnglishDigits(weightStr).toLowerCase();
@@ -75,14 +75,12 @@ const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
 };
 
-// تحديد طرق الدفع المتاحة حسب النطاق
 const getValidPaymentMethods = (deliveryZone) => {
   return deliveryZone === 'outside'
     ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
     : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
 };
 
-// حساب مجموع الجرامات المحجوزة بالفعل لنفس المنتج في السلة
 const getReservedStockGrams = (cart, productId) => {
   return cart.reduce((total, item) => {
     const itemPId = item.productId || item.key.split('_')[0];
@@ -90,7 +88,7 @@ const getReservedStockGrams = (cart, productId) => {
   }, 0);
 };
 
-// --- دوال البحث الذكي وتطبيع النص العربي ---
+// --- دوال تطبيع النص العربي والبحث الذكي ---
 const normalizeArabic = (text) => {
   if (!text) return '';
   return text
@@ -324,7 +322,7 @@ export default function Home() {
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
 
-  const [currentStep, setCurrentStep] = useState('shop'); // 'shop' | 'cart' | 'checkout' | 'review'
+  const [currentStep, setCurrentStep] = useState('shop');
   const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', paymentMethod: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -332,7 +330,7 @@ export default function Home() {
   const isSearchModeActive = isSearchOpen || search.trim().length > 0;
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
 
-  // تحميل سكريبت الاحتفال مرة واحدة فقط بأمان
+  // تحميل سكريبت الاحتفال بشكل آمن ولمرة واحدة فقط
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.confetti && !document.getElementById('canvas-confetti-script')) {
       const script = document.createElement('script');
@@ -343,7 +341,7 @@ export default function Home() {
     }
   }, []);
 
-  // إدارة تاريخ المتصفح لمنع التسريب وإغلاق النوافذ بزر الرجوع خطوة بخطوة
+  // إدارة سجل المتصفح لزر الرجوع
   useEffect(() => {
     if (isSearchModeActive) {
       window.history.pushState({ sedraSearch: true }, '');
@@ -493,7 +491,6 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }, []);
 
-  // فتح البحث مباشرة مع مراعاة لوحة مفاتيح iOS
   const openSearchMode = () => {
     setIsSearchOpen(true);
     if (typeof window !== 'undefined') {
@@ -623,7 +620,6 @@ export default function Home() {
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
-  // تسعير عادل للوزن المخصص: يعتمد على سعر الجرام من أصغر عبوة قياسية متوفرة
   const getCustomWeightBaseRate = () => {
     if (!activeModalProduct?.variants?.length) return { pricePerGram: 0, originalPricePerGram: null };
     const availableVariants = activeModalProduct.variants.filter(v => v.available);
@@ -789,7 +785,6 @@ export default function Home() {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
     
-    // دعم الأرقام العربية المشرقية والإنجليزية
     const cleanPhone = toEnglishDigits(customer.phone).replace(/\s+/g, '');
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
       errors.phone = 'رقم هاتف غير صحيح (يجب أن يبدأ بـ 01 ويتكون من 11 رقم)';
@@ -872,38 +867,12 @@ export default function Home() {
       const hh = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
       
-      // معالجة رقم الطلب برموز آمنة للروابط والمسارات
       let orderId = `SD-${dd}${mm}-${hh}${mins}`;
 
       if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
         const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
         orderId = `${orderId}-${randomChar}`;
-      }
-
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId,
-          customer: {
-            ...customer,
-            phone: toEnglishDigits(customer.phone).replace(/\s+/g, '')
-          },
-          paymentMethod: customer.paymentMethod,
-          cart,
-          totalAmount
-        })
-      });
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('فشل الاتصال بالخادم، استجابة غير صالحة');
-      }
-
-      const resData = await response.json();
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'فشل تسجيل الطلب');
       }
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
@@ -956,8 +925,37 @@ export default function Home() {
         message += `تحويل قيمة الفاتورة عبر ${customer.paymentMethod} على:\n*${TRANSFER_NUMBER}*`;
       }
 
-      if (resData.adminLink) {
-        message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
+      // إرسال الطلب للسيرفر مع AbortController (مهلة 3.5 ثوانٍ فقط) لتفادي التعليق
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      try {
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            orderId,
+            customer: {
+              ...customer,
+              phone: toEnglishDigits(customer.phone).replace(/\s+/g, '')
+            },
+            paymentMethod: customer.paymentMethod,
+            cart,
+            totalAmount
+          })
+        });
+        clearTimeout(timeoutId);
+
+        const contentType = response.headers.get('content-type') || '';
+        if (response.ok && contentType.includes('application/json')) {
+          const resData = await response.json();
+          if (resData.adminLink) {
+            message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
+          }
+        }
+      } catch (err) {
+        console.warn('تجاوز السيرفر المهلة الزمنية، المتابعة إلى واتساب مباشرة:', err);
       }
 
       const nowTs = Date.now();
@@ -990,11 +988,21 @@ export default function Home() {
       setIsCartOpen(false);
       setCurrentStep('cart');
       
-      // التوجيه المباشر لحل مشكلة Popup Blocker على متصفحات Safari وChrome على الهاتف
-      window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      // فتح تطبيق واتساب فوراً عبر Deep Link للهواتف
+      const encodedMsg = encodeURIComponent(message);
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        window.location.href = `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encodedMsg}`;
+        setTimeout(() => {
+          window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMsg}`;
+        }, 1500);
+      } else {
+        window.open(`https://web.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodedMsg}`, '_blank');
+      }
       
     } catch (error) {
-      setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
+      setToast({ visible: true, message: "حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى." });
       setTimeout(() => setToast({ visible: false, message: '' }), 4000);
     } finally {
       setIsSubmitting(false);
@@ -1673,7 +1681,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* الجزء السفلي من الـ Modal مع توحيد زر الإلغاء/الرجوع */}
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
               <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">الإجمالي النهائي:</span>
