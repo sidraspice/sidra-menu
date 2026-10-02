@@ -643,8 +643,19 @@ export default function Home() {
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
   };
 
+  // حساب سعر الجرام للوزن المخصص مباشرة من سعر الكيلو
   const getCustomWeightBaseRate = () => {
-    if (!activeModalProduct?.variants?.length) return { pricePerGram: 0, originalPricePerGram: null };
+    if (!activeModalProduct) return { pricePerGram: 0, originalPricePerGram: null };
+    
+    if (activeModalProduct.kiloPrice) {
+      return {
+        pricePerGram: activeModalProduct.kiloPrice / 1000,
+        originalPricePerGram: activeModalProduct.originalKiloPrice ? (activeModalProduct.originalKiloPrice / 1000) : null
+      };
+    }
+
+    // احتياطي للأصناف القديمة إن وُجدت
+    if (!activeModalProduct.variants?.length) return { pricePerGram: 0, originalPricePerGram: null };
     const availableVariants = activeModalProduct.variants.filter(v => v.available);
     const targetVariant = availableVariants.length > 0 ? availableVariants[0] : activeModalProduct.variants[0];
     const grams = getWeightNumberInGrams(targetVariant.weight);
