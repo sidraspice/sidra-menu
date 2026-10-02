@@ -43,6 +43,19 @@ function parseCSVLine(text) {
   return result;
 }
 
+// دالة قراءة واستخراج الأوزان من عمود الوزن سواء رقم واحد أو رقمين
+function parseWeightsFromCell(cellValue) {
+  if (!cellValue) return [50, 125];
+  
+  // تحويل الأرقام المشرقية إلى إنجليزية واستبدال جميع الفواصل الممكنة
+  const normalized = cellValue.toString().replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  const cleaned = normalized.replace(/[,،/\-|;+]/g, ' ');
+  const matches = cleaned.match(/\d+(\.\d+)?/g);
+  
+  if (!matches || matches.length === 0) return [50, 125];
+  return matches.map(m => parseFloat(m));
+}
+
 function parseCSV(text) {
   const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) return { products: [], storeSettings: { openHour: 9, closeHour: 23, mode: 'تلقائي' } };
@@ -57,6 +70,11 @@ function parseCSV(text) {
   const nameIdx = headers.findIndex(h => {
     const clean = h.trim().toLowerCase();
     return clean.includes('منتج') || clean.includes('اسم') || clean.includes('صنف') || clean.includes('name');
+  });
+
+  const weightIdx = headers.findIndex(h => {
+    const clean = h.trim().toLowerCase();
+    return clean.includes('وزن') || clean.includes('حجم') || clean.includes('weight');
   });
 
   const grindIdx = headers.findIndex(h => {
@@ -116,6 +134,7 @@ function parseCSV(text) {
 
     if (regularPriceIdx === -1 || !values[regularPriceIdx]) continue;
 
+    const rawWeight = weightIdx !== -1 && values[weightIdx] ? values[weightIdx].trim() : '';
     const itemCodeVal = codeIdx !== -1 && values[codeIdx] ? values[codeIdx].trim() : '';
     const stockVal = stockIdx !== -1 && values[stockIdx] ? parseFloat(values[stockIdx].replace(/,/g, '')) || 0 : 0;
     const alertVal = alertIdx !== -1 && values[alertIdx] ? parseFloat(values[alertIdx].replace(/,/g, '')) || 0 : 0;
@@ -142,9 +161,11 @@ function parseCSV(text) {
     const hasStock = stockVal > 0;
     const isAvailable = statusVal !== 'غير متوفر' && hasStock;
 
-    // توليد الأوزان الأساسية (50 جرام و 125 جرام) تلقائياً من سعر الكيلو
-    const standardWeights = [50, 125];
-    const variants = standardWeights.map(grams => {
+    // استخراج الأوزان المحددة للصنف من عمود الوزن
+    const targetWeights = parseWeightsFromCell(rawWeight);
+
+    // توليد الأوزان تلقائياً بحسب ما حددته في الشيت
+    const variants = targetWeights.map(grams => {
       const price = parseFloat(((finalKiloPrice * grams) / 1000).toFixed(2));
       const originalPrice = crossedOutKiloPrice 
         ? parseFloat(((crossedOutKiloPrice * grams) / 1000).toFixed(2)) 
@@ -180,7 +201,6 @@ function parseCSV(text) {
         isAvailable: isAvailable
       };
     } else {
-      // توافق مؤقت أثناء مرحلة الانتقال في حال وجود صف مكرر في الشيت
       if (stockVal > productsMap[key].stockGrams) {
         productsMap[key].stockGrams = stockVal;
         productsMap[key]['المخزون الحالي بالجرام'] = stockVal;
