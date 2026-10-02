@@ -3,17 +3,25 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  User, MapPin, FileText, AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package
+  AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package 
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
+const TRANSFER_NUMBER = "01009750003";
 const EDIT_WINDOW_MS = 96 * 60 * 60 * 1000;
 const FREE_DELIVERY_THRESHOLD = 500;
 
+// دالة اهتزاز الهاتف
 const triggerVibration = () => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
     window.navigator.vibrate(50);
   }
+};
+
+// تحويل الأرقام العربية المشرقية (٠-٩) إلى أرقام إنجليزية لضمان صحة الفحص والحسابات
+const toEnglishDigits = (str) => {
+  if (!str) return '';
+  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
 };
 
 const getCategoryVisual = (catName) => {
@@ -35,39 +43,51 @@ const getCategoryVisual = (catName) => {
   return { icon: '🍃', label: catName };
 };
 
+// استخراج قيمة الوزن بالجرام مع دعم الأوزان النصية الشائعة
 const getWeightNumberInGrams = (weightStr) => {
   if (!weightStr) return 1;
-  const str = weightStr.toString().toLowerCase();
+  const str = toEnglishDigits(weightStr).toLowerCase();
+
+  if (str.includes('نصف') || str.includes('نص')) return 500;
+  if (str.includes('ربع')) return 250;
+  if (str.includes('ثمن') || str.includes('تمن')) return 125;
+
   const match = str.match(/\d+(\.\d+)?/);
   let num = match ? parseFloat(match[0]) : 1;
-  if (str.includes('كيلو') || str.includes('كجم') || str.includes('kg')) num = num * 1000;
+  if (str.includes('كيلو') || str.includes('كجم') || str.includes('kg')) num *= 1000;
   return num;
 };
 
-const getCalculatedTotalWeight = (weightStr, qty) => {
+// تنسيق عرض إجمالي الوزن بناءً على الكمية
+const getCalculatedTotalWeight = (weightStr, qty = 1) => {
   if (!weightStr) return '';
-  const str = weightStr.toString();
-  const numMatch = str.match(/\d+(\.\d+)?/);
-  
-  if (numMatch) {
-    const isKilo = str.includes('كيلو') || str.includes('كجم') || str.includes('kg');
-    let unitWeight = parseFloat(numMatch[0]);
-    if (isKilo) unitWeight *= 1000;
-    
-    const totalGrams = unitWeight * qty;
-    
-    if (totalGrams >= 1000 && totalGrams % 1000 === 0) return `${totalGrams / 1000} كيلو`;
-    if (totalGrams >= 1000) return `${(totalGrams / 1000).toFixed(2).replace(/\.00$/, '')} كيلو`;
-    return `${totalGrams} جرام`;
-  } else if (qty > 1) {
-    return `${str} (عدد ${qty})`;
+  const unitGrams = getWeightNumberInGrams(weightStr);
+  const totalGrams = unitGrams * qty;
+
+  if (totalGrams >= 1000) {
+    const kilos = totalGrams / 1000;
+    return totalGrams % 1000 === 0 ? `${kilos} كيلو` : `${kilos.toFixed(2).replace(/\.00$/, '')} كيلو`;
   }
-  
-  return str;
+  return `${totalGrams} جرام`;
 };
 
 const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
+};
+
+// تحديد طرق الدفع المتاحة حسب النطاق
+const getValidPaymentMethods = (deliveryZone) => {
+  return deliveryZone === 'outside'
+    ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
+    : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+};
+
+// حساب مجموع الجرامات المحجوزة بالفعل لنفس المنتج في السلة
+const getReservedStockGrams = (cart, productId) => {
+  return cart.reduce((total, item) => {
+    const itemPId = item.productId || item.key.split('_')[0];
+    return itemPId == productId ? total + (item.unitWeightGrams * item.qty) : total;
+  }, 0);
 };
 
 // --- دوال البحث الذكي وتطبيع النص العربي ---
@@ -76,11 +96,11 @@ const normalizeArabic = (text) => {
   return text
     .toString()
     .toLowerCase()
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '') // إزالة التشكيل والتطويل (ـ)
-    .replace(/[أإآٱ]/g, 'ا') // توحيد الهمزات
-    .replace(/ة/g, 'ه') // توحيد التاء المربوطة والهاء
-    .replace(/[ىئ\u06CC\u0649]/g, 'ي') // توحيد الياء والألف المقصورة
-    .replace(/[\u06A9گ]/g, 'ك') // توحيد الكاف الفارسية (مثل کرکم)
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[ىئ\u06CC\u0649]/g, 'ي')
+    .replace(/[\u06A9گ]/g, 'ك')
     .replace(/ؤ/g, 'و')
     .replace(/[-_()/،,.٫!؟"'\[\]{}]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -109,27 +129,13 @@ const normalizeOrthographicWord = (word) => {
 };
 
 const SIMILAR_ARABIC_GROUPS = [
-  'قك',
-  'سص',
-  'تط',
-  'دض',
-  'ذزظ',
-  'ثسص',
-  'هحخ',
-  'عغ',
-  'بف',
-  'نلر',
-  'شس',
-  'تث',
-  'جحخ',
-  'طك'
+  'قك', 'سص', 'تط', 'دض', 'ذزظ', 'ثسص', 'هحخ', 'عغ', 'بف', 'نلر', 'شس', 'تث', 'جحخ', 'طك'
 ];
 
 const areArabicCharsClose = (c1, c2) => {
   if (c1 === c2) return true;
   for (let i = 0; i < SIMILAR_ARABIC_GROUPS.length; i++) {
-    const group = SIMILAR_ARABIC_GROUPS[i];
-    if (group.includes(c1) && group.includes(c2)) return true;
+    if (SIMILAR_ARABIC_GROUPS[i].includes(c1) && SIMILAR_ARABIC_GROUPS[i].includes(c2)) return true;
   }
   return false;
 };
@@ -139,10 +145,8 @@ const getTypoScore = (qWord, targetWord) => {
   const lq = qWord.length;
   const lt = targetWord.length;
 
-  if (lq < 4 || lt < 3) return 0;
-  if (Math.abs(lq - lt) > 1) return 0;
+  if (lq < 4 || lt < 3 || Math.abs(lq - lt) > 1) return 0;
 
-  // الحالة 1: نفس الطول (إبدال حرف متقارب أو تبديل حرفين متجاورين)
   if (lq === lt) {
     const diffs = [];
     for (let i = 0; i < lq; i++) {
@@ -151,34 +155,24 @@ const getTypoScore = (qWord, targetWord) => {
     }
     if (diffs.length === 1) {
       const idx = diffs[0];
-      if (areArabicCharsClose(qWord[idx], targetWord[idx])) {
-        return 240;
-      }
-      if (lq >= 5 && idx > 0 && qWord[0] === targetWord[0]) {
-        return 200;
-      }
+      if (areArabicCharsClose(qWord[idx], targetWord[idx])) return 240;
+      if (lq >= 5 && idx > 0 && qWord[0] === targetWord[0]) return 200;
       return 0;
     }
     if (diffs.length === 2 && diffs[1] === diffs[0] + 1) {
       const i = diffs[0];
-      if (qWord[i] === targetWord[i + 1] && qWord[i + 1] === targetWord[i]) {
-        return 220;
-      }
+      if (qWord[i] === targetWord[i + 1] && qWord[i + 1] === targetWord[i]) return 220;
     }
     return 0;
   }
 
-  // الحالة 2: فرق حرف واحد (حرف ناقص أو زائد) بشرط تطابق الحرف الأول
   const shorter = lq < lt ? qWord : targetWord;
   const longer = lq < lt ? targetWord : qWord;
   if (shorter.length < 4 || shorter[0] !== longer[0]) return 0;
 
   for (let i = 1; i < longer.length; i++) {
-    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) {
-      return 210;
-    }
+    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) return 210;
   }
-
   return 0;
 };
 
@@ -187,15 +181,10 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
   const { normName, compactName, nameWords, nameWordsOrtho, catWords, grindWords, normCode } = itemIndex;
 
   if (!normQ) return 0;
-
-  // 1. تطابق كامل مع اسم المنتج أو كود الصنف
   if (normName === normQ || (compactQ.length >= 2 && compactName === compactQ)) return 1000;
   if (normCode && normCode === normQ) return 980;
-
-  // 2. يبدأ اسم المنتج بعبارة البحث كاملة
   if (normName.startsWith(normQ + ' ')) return 950;
 
-  // 3. معالجة البحث بكلمة واحدة مع ترتيب ذكي حسب موضع الكلمة وطولها
   if (qWords.length === 1) {
     const qw = qWords[0];
     const qwo = qWordsOrtho[0];
@@ -217,17 +206,9 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
     if (bestPrefixScore > 0) return bestPrefixScore;
   }
 
-  // 4. يبدأ اسم المنتج بنص البحث متصلًا أو مباشرًا
-  if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) {
-    return 800;
-  }
+  if (normName.startsWith(normQ) || (compactQ.length >= 3 && compactName.startsWith(compactQ))) return 800;
+  if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) return 700;
 
-  // 5. عبارة البحث موجودة بشكل متصل داخل اسم المنتج
-  if (normName.includes(normQ) || (compactQ.length >= 3 && compactName.includes(compactQ))) {
-    return 700;
-  }
-
-  // 6. فحص تطابق جميع كلمات البحث (جزئي / دلالي في بيانات المنتج / خطأ إملائي بسيط)
   let totalTokenScore = 0;
   let matchedInNameCount = 0;
   let usedTypo = false;
@@ -277,7 +258,6 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
       }
     }
 
-    // فحص الحقول الإضافية الموجودة في بيانات المنتج (حالة الطحن والتصنيف)
     if (bestForToken === 0 && qwo.length >= 2) {
       for (let g = 0; g < grindWords.length; g++) {
         if (grindWords[g] === qwo || grindWords[g].startsWith(qwo)) {
@@ -297,18 +277,13 @@ const scoreProductMatch = (itemIndex, queryMeta) => {
     }
 
     if (bestForToken === 0) return 0;
-
     if (tokenUsedTypo) usedTypo = true;
     if (inName) matchedInNameCount++;
     totalTokenScore += bestForToken;
   }
 
   if (matchedInNameCount === 0 && qWords.length > 1) return 0;
-
-  if (usedTypo) {
-    return Math.min(280, 150 + totalTokenScore);
-  }
-
+  if (usedTypo) return Math.min(280, 150 + totalTokenScore);
   return Math.min(640, 350 + totalTokenScore);
 };
 
@@ -349,7 +324,7 @@ export default function Home() {
   const [zoomedImage, setZoomedImage] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '' });
 
-  const [currentStep, setCurrentStep] = useState('shop');
+  const [currentStep, setCurrentStep] = useState('shop'); // 'shop' | 'cart' | 'checkout' | 'review'
   const [customer, setCustomer] = useState({ name: '', phone: '', deliveryZone: '', paymentMethod: '', address: '', notes: '' });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -357,45 +332,56 @@ export default function Home() {
   const isSearchModeActive = isSearchOpen || search.trim().length > 0;
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
 
+  // تحميل سكريبت الاحتفال مرة واحدة فقط بأمان
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
-    script.async = true;
-    document.body.appendChild(script);
+    if (typeof window !== 'undefined' && !window.confetti && !document.getElementById('canvas-confetti-script')) {
+      const script = document.createElement('script');
+      script.id = 'canvas-confetti-script';
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, []);
 
-  // تسجيل حالة البحث في سجل المتصفح لتمكين الخروج بزر رجوع الهاتف
+  // إدارة تاريخ المتصفح لمنع التسريب وإغلاق النوافذ بزر الرجوع خطوة بخطوة
   useEffect(() => {
     if (isSearchModeActive) {
       window.history.pushState({ sedraSearch: true }, '');
     }
   }, [isSearchModeActive]);
 
-  // تسجيل حالة النوافذ المنبثقة في سجل المتصفح
   useEffect(() => {
     if (isAnyModalOpen) {
       window.history.pushState({ modal: true }, '');
     }
   }, [isAnyModalOpen]);
 
-  // معالجة زر رجوع الهاتف بالأولوية (إغلاق النوافذ المنبثقة أولًا ثم الخروج من وضع البحث)
   useEffect(() => {
-    if (!isAnyModalOpen && !isSearchModeActive) return;
-
     const handlePopState = () => {
       if (zoomedImage) {
         setZoomedImage(null);
         return;
       }
       if (showClearConfirm || showRestoreConfirm || showWelcomeBack) {
-        if (showClearConfirm) setShowClearConfirm(false);
-        if (showRestoreConfirm) setShowRestoreConfirm(false);
-        if (showWelcomeBack) setShowWelcomeBack(false);
+        setShowClearConfirm(false);
+        setShowRestoreConfirm(false);
+        setShowWelcomeBack(false);
         return;
       }
-      if (activeModalProduct || isCartOpen) {
-        if (activeModalProduct) setActiveModalProduct(null);
-        if (isCartOpen) setIsCartOpen(false);
+      if (activeModalProduct) {
+        setActiveModalProduct(null);
+        return;
+      }
+      if (isCartOpen) {
+        if (currentStep === 'review') {
+          setCurrentStep('checkout');
+          return;
+        }
+        if (currentStep === 'checkout') {
+          setCurrentStep('cart');
+          return;
+        }
+        setIsCartOpen(false);
         return;
       }
       if (isSearchModeActive) {
@@ -407,7 +393,7 @@ export default function Home() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAnyModalOpen, isSearchModeActive, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack, activeModalProduct, isCartOpen]);
+  }, [isAnyModalOpen, isSearchModeActive, zoomedImage, showClearConfirm, showRestoreConfirm, showWelcomeBack, activeModalProduct, isCartOpen, currentStep]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -422,27 +408,23 @@ export default function Home() {
       if (!json.success) throw new Error(json.error);
       
       const mappedProducts = json.products.map(p => {
-         const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
-         const itemCode = p['كود الصنف'] || '';
-         const image = p['صورة'] || p['صورة المنتج'] || p['رابط الصورة'] || p['image'] || '';
-         let status = (p['حالة الصنف'] || '').toString().trim();
-         
-         let isAvailable = true;
-         if (status === 'غير متوفر') {
-             isAvailable = false;
-         } else if (status === 'متوفر') {
-             if (stockGrams <= 0) isAvailable = false;
-         } else {
-             if (stockGrams <= 0) isAvailable = false;
-         }
-         
-         return { 
-             ...p, 
-             stockGrams, 
-             itemCode, 
-             image,
-             isAvailable
-         };
+        const stockGrams = parseFloat(p['المخزون الحالي بالجرام']) || 0;
+        const itemCode = p['كود الصنف'] || '';
+        const image = p['صورة'] || p['صورة المنتج'] || p['رابط الصورة'] || p['image'] || '';
+        let status = (p['حالة الصنف'] || '').toString().trim();
+        
+        let isAvailable = true;
+        if (status === 'غير متوفر' || stockGrams <= 0) {
+          isAvailable = false;
+        }
+        
+        return { 
+          ...p, 
+          stockGrams, 
+          itemCode, 
+          image, 
+          isAvailable 
+        };
       });
 
       setData({ products: mappedProducts, categories: json.categories });
@@ -475,7 +457,11 @@ export default function Home() {
         if (savedOrder) {
           const parsed = JSON.parse(savedOrder);
           if (Date.now() < parsed.expiresAt) setLastOrder(parsed);
-          else { localStorage.removeItem('sedra_last_order'); setLastOrder(null); setIsEditing(false); }
+          else { 
+            localStorage.removeItem('sedra_last_order'); 
+            setLastOrder(null); 
+            setIsEditing(false); 
+          }
         }
       } catch (e) { console.error(e); }
     };
@@ -499,7 +485,7 @@ export default function Home() {
           name: parsed.name || '', 
           phone: parsed.phone || '', 
           deliveryZone: savedZone, 
-          paymentMethod: (savedZone === 'outside' && savedPayment === 'نقدًا') ? '' : savedPayment,
+          paymentMethod: (savedZone === 'outside' && savedPayment === 'نقدًا') ? '' : savedPayment, 
           address: parsed.address || '', 
           notes: '' 
         });
@@ -507,14 +493,15 @@ export default function Home() {
     } catch (e) { console.error(e); }
   }, []);
 
+  // فتح البحث مباشرة مع مراعاة لوحة مفاتيح iOS
   const openSearchMode = () => {
     setIsSearchOpen(true);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    setTimeout(() => {
-      if (searchInputRef.current) searchInputRef.current.focus();
-    }, 60);
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   };
 
   const closeSearchMode = () => {
@@ -544,7 +531,6 @@ export default function Home() {
     return ['كل المنتجات', 'فرص خاصة', ...originalCats];
   }, [data.categories]);
 
-  // تجهيز فهرس البحث المطبّع محليًا دون المساس بالبيانات الأصلية للمنتجات
   const indexedProducts = useMemo(() => {
     return data.products.map((product, originalIndex) => {
       const normName = normalizeArabic(product.name || '');
@@ -580,7 +566,6 @@ export default function Home() {
   const filteredProducts = useMemo(() => {
     const trimmedSearch = search.trim();
 
-    // السلوك الأصلي تمامًا عند عدم وجود نص بحث
     if (!trimmedSearch) {
       return data.products.filter(item => {
         if (selectedCategory === 'فرص خاصة') {
@@ -601,19 +586,15 @@ export default function Home() {
     const scoredResults = [];
     let maxScore = 0;
 
-    // أثناء البحث يتم الفحص في جميع منتجات المتجر
     for (let i = 0; i < indexedProducts.length; i++) {
       const entry = indexedProducts[i];
-      const item = entry.product;
-
       const score = scoreProductMatch(entry.searchIndex, queryMeta);
       if (score > 0) {
         if (score > maxScore) maxScore = score;
-        scoredResults.push({ product: item, score, originalIndex: entry.originalIndex });
+        scoredResults.push({ product: entry.product, score, originalIndex: entry.originalIndex });
       }
     }
 
-    // إذا وُجد تطابق مباشر قوي، نستبعد التطابقات المبنية فقط على تخمين خطأ إملائي ضعيف
     const finalResults = maxScore >= 750
       ? scoredResults.filter(r => r.score >= 300)
       : scoredResults;
@@ -639,22 +620,39 @@ export default function Home() {
     setIsCustomWeight(false);
     setCustomWeightValue('');
     setGrindError(false);
-    
     setGrindOption(parsedOptions.length === 1 ? parsedOptions[0] : '');
+  };
+
+  // تسعير عادل للوزن المخصص: يعتمد على سعر الجرام من أصغر عبوة قياسية متوفرة
+  const getCustomWeightBaseRate = () => {
+    if (!activeModalProduct?.variants?.length) return { pricePerGram: 0, originalPricePerGram: null };
+    const availableVariants = activeModalProduct.variants.filter(v => v.available);
+    const targetVariant = availableVariants.length > 0 ? availableVariants[0] : activeModalProduct.variants[0];
+    const grams = getWeightNumberInGrams(targetVariant.weight);
+    
+    return {
+      pricePerGram: targetVariant.price / grams,
+      originalPricePerGram: isOfferValid(targetVariant.price, targetVariant.originalPrice) ? (targetVariant.originalPrice / grams) : null
+    };
   };
 
   const getCalculatedPrice = () => {
     if (!selectedVariant) return 0;
     if (!isCustomWeight) return selectedVariant.price;
-    const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
-    return parseFloat(((selectedVariant.price / baseWeightGrams) * (parseFloat(customWeightValue) || 0)).toFixed(2));
+    const { pricePerGram } = getCustomWeightBaseRate();
+    const grams = parseFloat(customWeightValue) || 0;
+    return parseFloat((pricePerGram * grams).toFixed(2));
   };
 
   const getCalculatedOriginalPrice = () => {
-    if (!selectedVariant || !isOfferValid(selectedVariant.price, selectedVariant.originalPrice)) return null;
-    if (!isCustomWeight) return selectedVariant.originalPrice;
-    const baseWeightGrams = getWeightNumberInGrams(selectedVariant.weight);
-    return parseFloat(((selectedVariant.originalPrice / baseWeightGrams) * (parseFloat(customWeightValue) || 0)).toFixed(2));
+    if (!selectedVariant) return null;
+    if (!isCustomWeight) {
+      return isOfferValid(selectedVariant.price, selectedVariant.originalPrice) ? selectedVariant.originalPrice : null;
+    }
+    const { originalPricePerGram } = getCustomWeightBaseRate();
+    if (!originalPricePerGram) return null;
+    const grams = parseFloat(customWeightValue) || 0;
+    return parseFloat((originalPricePerGram * grams).toFixed(2));
   };
 
   const triggerFlyingAnimation = (e, imgUrl) => {
@@ -685,19 +683,13 @@ export default function Home() {
       finalOriginalPrice = getCalculatedOriginalPrice();
     }
 
-    let requestedGrams = unitWeightGrams * modalQty;
-    let alreadyInCartGrams = cart.reduce((total, item) => {
-        const itemPId = item.productId || item.key.split('_')[0];
-        if (itemPId == activeModalProduct.id) {
-            return total + (item.unitWeightGrams * item.qty);
-        }
-        return total;
-    }, 0);
+    const requestedGrams = unitWeightGrams * modalQty;
+    const alreadyInCartGrams = getReservedStockGrams(cart, activeModalProduct.id);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-        setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
-        setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-        return;
+      setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+      return;
     }
 
     triggerVibration(); 
@@ -716,8 +708,8 @@ export default function Home() {
         name: finalName, 
         category: activeModalProduct.category, 
         weight: finalWeight, 
-        unitWeightGrams: unitWeightGrams,
-        grindOption: grindOption,
+        unitWeightGrams: unitWeightGrams, 
+        grindOption: grindOption, 
         price: finalPrice, 
         originalPrice: finalOriginalPrice, 
         qty: modalQty 
@@ -733,27 +725,19 @@ export default function Home() {
     triggerVibration();
 
     if (delta > 0) {
-       const itemToUpdate = cart.find(i => i.key === key);
-       if (itemToUpdate) {
-            const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
-            const product = data.products.find(p => p.id == itemPId);
-            if (product) {
-                const itemWeightGrams = itemToUpdate.unitWeightGrams;
-                const alreadyInCartGrams = cart.reduce((total, item) => {
-                    const currPId = item.productId || item.key.split('_')[0];
-                    if (currPId == product.id) {
-                        return total + (item.unitWeightGrams * item.qty);
-                    }
-                    return total;
-                }, 0);
-                
-                if ((alreadyInCartGrams + itemWeightGrams) > product.stockGrams) {
-                    setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${product.stockGrams} جرام.` });
-                    setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-                    return; 
-                }
-            }
-       }
+      const itemToUpdate = cart.find(i => i.key === key);
+      if (itemToUpdate) {
+        const itemPId = itemToUpdate.productId || itemToUpdate.key.split('_')[0];
+        const product = data.products.find(p => p.id == itemPId);
+        if (product) {
+          const alreadyInCartGrams = getReservedStockGrams(cart, product.id);
+          if ((alreadyInCartGrams + itemToUpdate.unitWeightGrams) > product.stockGrams) {
+            setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${product.stockGrams} جرام.` });
+            setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+            return; 
+          }
+        }
+      }
     }
 
     setCart(prev => prev.map(item => item.key === key ? (item.qty + delta > 0 ? { ...item, qty: item.qty + delta } : null) : item).filter(Boolean));
@@ -805,17 +789,15 @@ export default function Home() {
     const errors = {};
     if (!customer.name.trim()) errors.name = 'يرجى إدخال الاسم الكامل';
     
-    const cleanPhone = customer.phone.replace(/\s+/g, '');
+    // دعم الأرقام العربية المشرقية والإنجليزية
+    const cleanPhone = toEnglishDigits(customer.phone).replace(/\s+/g, '');
     if (!cleanPhone || !/^01[0125][0-9]{8}$/.test(cleanPhone)) {
-      errors.phone = 'رقم هاتف غير صحيح';
+      errors.phone = 'رقم هاتف غير صحيح (يجب أن يبدأ بـ 01 ويتكون من 11 رقم)';
     }
     
     if (!customer.deliveryZone) errors.deliveryZone = 'من فضلك اختر مكان التوصيل أولاً.';
 
-    const validPaymentMethods = customer.deliveryZone === 'outside'
-      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
-      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
-
+    const validPaymentMethods = getValidPaymentMethods(customer.deliveryZone);
     if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
       errors.paymentMethod = 'من فضلك اختر طريقة الدفع أولًا.';
     }
@@ -869,9 +851,7 @@ export default function Home() {
   };
 
   const handleSendWhatsAppOrder = async () => {
-    const validPaymentMethods = customer.deliveryZone === 'outside'
-      ? ['InstaPay', 'محفظة كاش', 'تحويل بنكي']
-      : ['InstaPay', 'محفظة كاش', 'نقدًا', 'تحويل بنكي'];
+    const validPaymentMethods = getValidPaymentMethods(customer.deliveryZone);
 
     if (!customer.paymentMethod || customer.paymentMethod === 'اختر طريقة الدفع' || !validPaymentMethods.includes(customer.paymentMethod)) {
       setFormErrors(prev => ({ ...prev, paymentMethod: 'من فضلك اختر طريقة الدفع أولًا.' }));
@@ -892,7 +872,8 @@ export default function Home() {
       const hh = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
       
-      let orderId = `SD-${dd}/${mm}-${hh}:${mins}`;
+      // معالجة رقم الطلب برموز آمنة للروابط والمسارات
+      let orderId = `SD-${dd}${mm}-${hh}${mins}`;
 
       if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -905,7 +886,10 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
-          customer,
+          customer: {
+            ...customer,
+            phone: toEnglishDigits(customer.phone).replace(/\s+/g, '')
+          },
           paymentMethod: customer.paymentMethod,
           cart,
           totalAmount
@@ -931,7 +915,7 @@ export default function Home() {
         message += `\n`;
       }
 
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${customer.phone.trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${toEnglishDigits(customer.phone).trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
       message += `\n📦 المنتجات المطلوبة:\n\n`;
       
@@ -948,34 +932,28 @@ export default function Home() {
         }
       });
 
-      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${totalWeightGrams / 1000} كجم (${totalWeightGrams} جرام)`}\n`;
-      
+      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}\n`;
+      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+      message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
+      if (isTransferNumberNeeded) {
+        message += `📲 رقم التحويل (${customer.paymentMethod}): *${TRANSFER_NUMBER}*\n`;
+      }
 
       if (customer.deliveryZone === 'damanhour') {
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
-        if (isTransferNumberNeeded) {
-          message += `📲 رقم التحويل: *01009750003*\n`;
-        }
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
           message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
         }
         message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
       } else if (customer.deliveryZone === 'outside') {
-        message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
-        message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
-        if (isTransferNumberNeeded) {
-          message += `📲 رقم التحويل: *01009750003*\n`;
-        }
         message += `\n📦 *طريقة الشحن عبر البريد المصري:*\n`;
         message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
         message += `📌 *عادي:* استلام من أقرب مكتب بريد.\n`;
         message += `💰 يتم إبلاغكم بمصاريف الشحن قبل الإرسال.\n\n`;
         message += `*يرجى إبلاغنا بطريقة الشحن المناسبة.*\n\n`;
         message += `💳 *لتأكيد الطلب:*\n`;
-        message += `تحويل قيمة الفاتورة عبر InstaPay على:\n`;
-        message += `*01009750003*`;
+        message += `تحويل قيمة الفاتورة عبر ${customer.paymentMethod} على:\n*${TRANSFER_NUMBER}*`;
       }
 
       if (resData.adminLink) {
@@ -986,15 +964,15 @@ export default function Home() {
       const orderData = { 
         id: orderId, 
         items: cart, 
-        deliveryZone: customer.deliveryZone,
-        paymentMethod: customer.paymentMethod,
+        deliveryZone: customer.deliveryZone, 
+        paymentMethod: customer.paymentMethod, 
         customer: {
           name: customer.name,
-          phone: customer.phone,
+          phone: toEnglishDigits(customer.phone),
           deliveryZone: customer.deliveryZone,
           paymentMethod: customer.paymentMethod,
           address: customer.address
-        },
+        }, 
         createdAt: isEditing ? lastOrder.createdAt : nowTs, 
         expiresAt: isEditing ? lastOrder.expiresAt : nowTs + EDIT_WINDOW_MS 
       };
@@ -1002,7 +980,6 @@ export default function Home() {
       localStorage.setItem('sedra_last_order', JSON.stringify(orderData));
       setLastOrder(orderData);
       
-      window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
       setCart([]);
       setIsEditing(false);
       setCustomer(prev => {
@@ -1012,6 +989,9 @@ export default function Home() {
       });
       setIsCartOpen(false);
       setCurrentStep('cart');
+      
+      // التوجيه المباشر لحل مشكلة Popup Blocker على متصفحات Safari وChrome على الهاتف
+      window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
       
     } catch (error) {
       setToast({ visible: true, message: error.message || "تعذر تسجيل الطلب، يرجى المحاولة مرة أخرى." });
@@ -1051,7 +1031,6 @@ export default function Home() {
         <span className="font-bold text-sm md:text-base truncate text-slate-700">{toast.message}</span>
       </div>
 
-      {/* إخفاء مساحة اللوجو أثناء وضع البحث فقط لإعطاء الأولوية لمربع البحث والنتائج على الهاتف */}
       {!isSearchModeActive && (
         <header className="pt-2 pb-0 px-4 max-w-xl mx-auto flex flex-col items-center justify-center">
           <div className="w-full max-w-[340px] sm:max-w-[380px] bg-white rounded-3xl p-2 shadow-sm border border-[#e8e2d5] flex flex-col items-center">
@@ -1145,7 +1124,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* إظهار الأقسام في الوضع الطبيعي فقط وإخفاؤها تمامًا أثناء وضع البحث */}
           {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
               {displayCategories.map(cat => {
@@ -1206,7 +1184,6 @@ export default function Home() {
 
         {!loading && !error && (
           <>
-            {/* حالة فتح واجهة البحث قبل كتابة أي نص */}
             {isSearchModeActive && !search.trim() ? (
               <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-3 shadow-2xs">
                 <div className="w-12 h-12 rounded-full bg-[#2d533e]/10 flex items-center justify-center mx-auto mb-2.5">
@@ -1297,7 +1274,7 @@ export default function Home() {
         )}
       </main>
 
-      {/* --- Modal --- */}
+      {/* --- Modal تفاصيل الصنف --- */}
       {activeModalProduct && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
@@ -1319,7 +1296,6 @@ export default function Home() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
-              
               <div className="space-y-3">
                 <label className="text-xs font-black text-slate-800 block border-b border-slate-50 pb-1.5">الأوزان المتاحة</label>
                 
@@ -1352,7 +1328,7 @@ export default function Home() {
                     triggerVibration(); 
                     setIsCustomWeight(true); 
                     setTimeout(() => {
-                      if(customWeightInputRef.current) customWeightInputRef.current.focus();
+                      if (customWeightInputRef.current) customWeightInputRef.current.focus();
                     }, 50);
                   }} 
                   className={`p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${isCustomWeight ? 'border-[#2d533e] bg-white shadow-md' : 'border-[#e8e2d5] bg-[#fdfcfa] hover:border-[#c89d56]'}`}
@@ -1369,12 +1345,13 @@ export default function Home() {
                       <div className="flex items-center gap-2">
                         <input 
                           ref={customWeightInputRef}
-                          type="number" 
-                          inputMode="numeric" 
-                          pattern="[0-9]*" 
-                          min="1" 
+                          type="text" 
+                          inputMode="decimal"
                           value={customWeightValue} 
-                          onChange={(e) => setCustomWeightValue(e.target.value.replace(/[^0-9]/g, ''))} 
+                          onChange={(e) => {
+                            const val = toEnglishDigits(e.target.value).replace(/[^0-9.]/g, '');
+                            setCustomWeightValue(val);
+                          }} 
                           placeholder="مثال: 250" 
                           className="flex-1 p-2.5 text-center text-base font-black border-2 border-slate-200 rounded-lg outline-none focus:border-[#2d533e] focus:bg-[#fbf9f4] bg-white shadow-sm text-[#1e382b] transition-colors" 
                         />
@@ -1463,26 +1440,22 @@ export default function Home() {
                 <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
                 <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
                   <button onClick={() => { 
-                      triggerVibration(); 
-                      setModalQty(Math.max(1, modalQty - 1)); 
+                    triggerVibration(); 
+                    setModalQty(Math.max(1, modalQty - 1)); 
                   }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Minus className="w-4 h-4" /></button>
                   <span className="font-black text-base text-[#1e382b] w-6 text-center">{modalQty}</span>
                   <button onClick={() => { 
-                      triggerVibration(); 
-                      const weightGrams = isCustomWeight ? (parseFloat(customWeightValue)||0) : getWeightNumberInGrams(selectedVariant?.weight);
-                      const requestedGrams = weightGrams * (modalQty + 1);
-                      const alreadyInCartGrams = cart.reduce((total, item) => {
-                          const itemPId = item.productId || item.key.split('_')[0];
-                          if (itemPId == activeModalProduct.id) return total + (item.unitWeightGrams * item.qty);
-                          return total;
-                      }, 0);
-                      
-                      if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
-                          setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح حالياً: ${activeModalProduct.stockGrams} جرام.` });
-                          setTimeout(() => setToast({ visible: false, message: '' }), 3000);
-                      } else {
-                          setModalQty(modalQty + 1); 
-                      }
+                    triggerVibration(); 
+                    const weightGrams = isCustomWeight ? (parseFloat(customWeightValue) || 0) : getWeightNumberInGrams(selectedVariant?.weight);
+                    const requestedGrams = weightGrams * (modalQty + 1);
+                    const alreadyInCartGrams = getReservedStockGrams(cart, activeModalProduct.id);
+                    
+                    if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
+                      setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
+                      setTimeout(() => setToast({ visible: false, message: '' }), 3000);
+                    } else {
+                      setModalQty(modalQty + 1); 
+                    }
                   }} className="w-8 h-8 rounded-lg bg-white border-2 border-[#e8e2d5] flex items-center justify-center font-bold text-[#1e382b] shadow-sm hover:bg-slate-100"><Plus className="w-4 h-4" /></button>
                 </div>
               </div>
@@ -1490,7 +1463,7 @@ export default function Home() {
 
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
               <button 
-                disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0))} 
+                disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0))} 
                 onClick={(e) => {
                   if (activeModalProduct.parsedGrindOptions?.length > 1 && !grindOption) {
                     setGrindError(true);
@@ -1507,7 +1480,7 @@ export default function Home() {
                 className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
               >
                 {(() => {
-                  if (isCustomWeight && (!customWeightValue || parseInt(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
+                  if (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
                   return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
                 })()}
@@ -1517,6 +1490,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* --- تكبير الصورة --- */}
       {zoomedImage && (
         <div style={{ zIndex: 99999 }} className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setZoomedImage(null)}>
           <div className="relative max-w-sm sm:max-w-md w-full bg-white rounded-3xl p-3 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
@@ -1527,6 +1501,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* الشريط السفلي العائم للسلة */}
       <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-[#e8e2d5] z-30 shadow-md pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="max-w-xl mx-auto flex items-center gap-2">
           <button ref={cartIconRef} onClick={() => { triggerVibration(); setCurrentStep('cart'); setIsCartOpen(true); }} className="w-full bg-[#1e382b] text-white p-3.5 rounded-2xl font-bold flex items-center justify-between shadow-lg active:scale-[0.99] transition">
@@ -1542,6 +1517,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* --- Modal السلة ومراحل الطلب --- */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
@@ -1558,7 +1534,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-white pb-[120px] sm:pb-4">
+            <div className="flex-1 overflow-y-auto p-4 bg-white pb-[140px] sm:pb-36">
               {currentStep === 'cart' && (
                 <div className="space-y-4">
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
@@ -1582,7 +1558,9 @@ export default function Home() {
                             <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
                             <div className="text-[11px] sm:text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
                               <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
-                              {item.originalPrice && parseFloat(item.originalPrice) > parseFloat(item.price) && <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>}
+                              {item.originalPrice && isOfferValid(item.price, item.originalPrice) && (
+                                <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
@@ -1608,6 +1586,7 @@ export default function Home() {
                   <div>
                     <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
                     <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
+                    {formErrors.phone && <p className="text-red-600 text-[10px] font-bold mt-1">{formErrors.phone}</p>}
                   </div>
 
                   <div className={`pt-1 pb-1 ${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
@@ -1694,42 +1673,39 @@ export default function Home() {
               )}
             </div>
 
+            {/* الجزء السفلي من الـ Modal مع توحيد زر الإلغاء/الرجوع */}
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
               <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">الإجمالي النهائي:</span>
                 <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
               </div>
 
-              {currentStep === 'cart' && (
-                <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
+                {currentStep === 'cart' && (
                   <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
-                </div>
-              )}
+                )}
 
-              {currentStep === 'checkout' && (
-                <div className="flex flex-col gap-2">
+                {currentStep === 'checkout' && (
                   <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
-                </div>
-              )}
+                )}
 
-              {currentStep === 'review' && (
-                <div className="flex flex-col gap-2">
+                {currentStep === 'review' && (
                   <div className="flex gap-2">
                     <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3 rounded-xl font-black text-xs sm:text-sm transition-colors">تعديل البيانات</button>
                     <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]">
                       {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال عبر واتساب</span></>}
                     </button>
                   </div>
-                  <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-3 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
-                </div>
-              )}
+                )}
+
+                <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-2.5 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* مودال تأكيد مسح السلة */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
@@ -1744,6 +1720,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* مودال استعادة الطلب */}
       {showRestoreConfirm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-5 max-w-xs w-full text-center shadow-2xl">
