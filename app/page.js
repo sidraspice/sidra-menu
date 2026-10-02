@@ -13,12 +13,12 @@ const FREE_DELIVERY_THRESHOLD = 500;
 
 // قائمة النصوص المتحركة داخل مربع البحث للفت الانتباه
 const SEARCH_PLACEHOLDERS = [
-  "ابحث عن كركم بيور... 🌿",
+  "ابحث عن كركم ... 🌿",
   "ابحث عن جينسنج أحمر... ✨",
-  "ابحث عن حبهان أمريكي... 🫙",
+  "ابحث عن حبهان ... 🫙",
   "ابحث عن بهارات فراخ سدرة... 🌶️",
   "ابحث عن ينسون بلدي... ☕",
-  "ابحث عن قرفة سيليكون... 🍃",
+  "ابحث عن قرفة سيلانى... 🍃",
   "ابحث عن خلطة شاورما... 🧂"
 ];
 
@@ -1563,8 +1563,8 @@ export default function Home() {
       {/* --- Modal السلة ومراحل الطلب --- */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
-            <div className="px-4 py-3.5 border-b border-slate-100 shrink-0 bg-white z-10">
+          <div className="bg-white w-full max-w-md h-[96vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+            <div className={`px-4 border-b border-slate-100 shrink-0 bg-white z-10 ${currentStep === 'checkout' ? 'py-2.5' : 'py-3.5'}`}>
               <div className="flex justify-between items-center">
                 <h2 className="text-sm font-black text-[#1e382b]">
                   {currentStep === 'cart' && 'سلة المشتريات'}
@@ -1577,7 +1577,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-white pb-[140px] sm:pb-36">
+            <div className={`flex-1 overflow-y-auto px-4 bg-white pb-[140px] sm:pb-36 ${currentStep === 'checkout' ? 'pt-2.5' : 'pt-4'}`}>
               {currentStep === 'cart' && (
                 <div className="space-y-4">
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
@@ -1620,7 +1620,7 @@ export default function Home() {
               )}
 
               {currentStep === 'checkout' && (
-                <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-3">
+                <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-2.5">
                   <div>
                     <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
                     <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
@@ -1632,7 +1632,7 @@ export default function Home() {
                     {formErrors.phone && <p className="text-red-600 text-[10px] font-bold mt-1">{formErrors.phone}</p>}
                   </div>
 
-                  <div className={`pt-1 pb-1 ${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
+                  <div className={`${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
                     <label className={`text-[11px] sm:text-xs font-bold block mb-1.5 ${formErrors.deliveryZone ? 'text-red-700 border-b border-red-200 pb-1' : 'text-slate-700'}`}>
                       مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
                     </label>
