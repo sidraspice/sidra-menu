@@ -3,13 +3,24 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package 
+  AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package, Truck 
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
 const TRANSFER_NUMBER = "01009750003";
 const EDIT_WINDOW_MS = 96 * 60 * 60 * 1000;
 const FREE_DELIVERY_THRESHOLD = 500;
+
+// قائمة النصوص المتحركة داخل مربع البحث للفت الانتباه
+const SEARCH_PLACEHOLDERS = [
+  "ابحث عن كركم بيور... 🌿",
+  "ابحث عن جينسنج أحمر... ✨",
+  "ابحث عن حبهان أمريكي... 🫙",
+  "ابحث عن بهارات فراخ سدرة... 🌶️",
+  "ابحث عن ينسون بلدي... ☕",
+  "ابحث عن قرفة سيليكون... 🍃",
+  "ابحث عن خلطة شاورما... 🧂"
+];
 
 // دالة اهتزاز الهاتف عند التفاعل
 const triggerVibration = () => {
@@ -294,6 +305,9 @@ export default function Home() {
   const searchInputRef = useRef(null);
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
   
+  // مؤشر النص المتحرك للفت الانتباه داخل مربع البحث
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
   const [cart, setCart] = useState([]);
   const [isCartLoaded, setIsCartLoaded] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -329,6 +343,15 @@ export default function Home() {
 
   const isSearchModeActive = isSearchOpen || search.trim().length > 0;
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
+
+  // تبديل تلقائي للنصوص التوضيحية داخل البحث كل 2.5 ثانية
+  useEffect(() => {
+    if (isSearchModeActive) return;
+    const interval = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % SEARCH_PLACEHOLDERS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isSearchModeActive]);
 
   // تحميل سكريبت الاحتفال بشكل آمن
   useEffect(() => {
@@ -988,7 +1011,7 @@ export default function Home() {
       setIsCartOpen(false);
       setCurrentStep('cart');
       
-      // فتح تطبيق واتساب مباشرة بدون صفحات وسيطة أو مؤقتات معطلة
+      // فتح تطبيق واتساب فوراً عبر الرابط المباشر
       const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
       window.location.assign(whatsappUrl);
       
@@ -1060,28 +1083,49 @@ export default function Home() {
           )}
 
           {!isSearchModeActive ? (
-            <div className="flex items-center gap-2 mb-2.5">
+            <div className="space-y-2 mb-2.5">
+              {/* السطر الأول: شريط البحث بعرض الشاشة كاملة مع التبديل التلقائي للنص */}
               <button
                 type="button"
                 onClick={openSearchMode}
-                className="flex-1 bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-2 border-2 border-[#e8e2d5] hover:border-[#2d533e] active:scale-[0.99] transition text-right"
+                className="w-full bg-white rounded-2xl shadow-xs p-2.5 flex items-center justify-between gap-2 border-2 border-[#e8e2d5] hover:border-[#2d533e] active:scale-[0.99] transition text-right"
                 aria-label="فتح البحث"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-xl bg-[#2d533e]/10 flex items-center justify-center shrink-0">
                     <Search className="w-4 h-4 text-[#2d533e]" />
                   </div>
-                  <span className="text-sm font-bold text-slate-500 truncate">ابحث عن صنف بالاسم...</span>
+                  <span className="text-sm font-bold text-slate-500 truncate transition-all duration-300">
+                    {SEARCH_PLACEHOLDERS[placeholderIndex]}
+                  </span>
                 </div>
-                <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">بحث 🔍</span>
+                <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">
+                  بحث 🔍
+                </span>
               </button>
 
-              {lastOrder && !isEditing && (
-                <button onClick={handleRestoreOrderRequest} className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-bold px-3.5 py-3 rounded-2xl transition shadow-sm flex items-center gap-1.5 shrink-0" title="استرجاع وتعديل طلبك السابق">
-                  <RotateCcw className="w-4 h-4 text-[#c89d56]" />
-                  <span>تعديل آخر طلب</span>
-                </button>
-              )}
+              {/* السطر الثاني: زرا المتابعة وتعديل آخر طلب متجاورين بشكل متناسق */}
+              <div className={`grid gap-2 ${lastOrder && !isEditing ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                <a
+                  href="/track"
+                  className="bg-white border-2 border-[#e8e2d5] hover:border-[#2d533e] text-[#1e382b] text-xs font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Truck className="w-4 h-4 text-[#2d533e]" />
+                  <span>تتبع طلبك 🚚</span>
+                </a>
+
+                {lastOrder && !isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleRestoreOrderRequest}
+                    className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                    title="استرجاع وتعديل طلبك السابق"
+                  >
+                    <RotateCcw className="w-4 h-4 text-[#c89d56]" />
+                    <span>تعديل آخر طلب</span>
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -1095,7 +1139,7 @@ export default function Home() {
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') closeSearchMode();
                   }}
-                  placeholder="اكتب اسم الصنف الذي تبحث عنه..."
+                  placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}
                   className="w-full bg-transparent focus:outline-none text-sm sm:text-base font-bold text-[#1e382b] placeholder:text-slate-400 placeholder:font-semibold"
                 />
                 {search && (
