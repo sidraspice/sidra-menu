@@ -1262,7 +1262,14 @@ export default function Home() {
                     {filteredProducts.map(product => {
                       const hasAnyOffer = product.variants.some(v => isOfferValid(v.price, v.originalPrice));
                       return (
-                        <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
+                        <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition relative ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
+                          {/* شارة فرصة خاصة في المساحة العلوية للكارت مكان التحديد */}
+                          {hasAnyOffer && product.isAvailable && (
+                            <span className="absolute -top-2.5 right-3 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm border border-white z-10 whitespace-nowrap">
+                              🔥 فرصة خاصة
+                            </span>
+                          )}
+
                           <div>
                             <div className="flex items-start gap-2 mb-2">
                               <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
@@ -1276,12 +1283,7 @@ export default function Home() {
 
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-center mb-0.5">
-                                  <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                                    <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
-                                    {hasAnyOffer && product.isAvailable && (
-                                      <span className="text-[9px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded shadow-xs whitespace-nowrap">فرصة خاصة</span>
-                                    )}
-                                  </div>
+                                  <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
                                   <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md shrink-0" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
                                 </div>
                                 <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
