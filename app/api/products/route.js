@@ -59,11 +59,6 @@ function parseCSV(text) {
     return clean.includes('منتج') || clean.includes('اسم') || clean.includes('صنف') || clean.includes('name');
   });
 
-  const weightIdx = headers.findIndex(h => {
-    const clean = h.trim().toLowerCase();
-    return clean.includes('وزن') || clean.includes('حجم') || clean.includes('weight');
-  });
-
   const grindIdx = headers.findIndex(h => {
     const clean = h.trim().toLowerCase();
     return clean.includes('طحن') || clean.includes('grind');
@@ -106,7 +101,7 @@ function parseCSV(text) {
   });
 
   let storeSettings = { openHour: 9, closeHour: 23, mode: 'تلقائي' };
-  const rows = [];
+  const productsMap = {};
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
@@ -121,104 +116,82 @@ function parseCSV(text) {
 
     if (regularPriceIdx === -1 || !values[regularPriceIdx]) continue;
 
-    const rawWeight = weightIdx !== -1 && values[weightIdx] ? values[weightIdx].trim() : '';
     const itemCodeVal = codeIdx !== -1 && values[codeIdx] ? values[codeIdx].trim() : '';
     const stockVal = stockIdx !== -1 && values[stockIdx] ? parseFloat(values[stockIdx].replace(/,/g, '')) || 0 : 0;
     const alertVal = alertIdx !== -1 && values[alertIdx] ? parseFloat(values[alertIdx].replace(/,/g, '')) || 0 : 0;
     const statusVal = statusIdx !== -1 && values[statusIdx] ? values[statusIdx].trim() : '';
+    const rawGrind = grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '';
 
     const rawImageUrl = imageIdx !== -1 && values[imageIdx] ? values[imageIdx].trim() : '';
     const formattedImageUrl = formatImageUrl(rawImageUrl);
 
-    const parsedRegular = parseFloat(values[regularPriceIdx]);
-    if (isNaN(parsedRegular)) continue;
+    const parsedRegularKilo = parseFloat(values[regularPriceIdx]);
+    if (isNaN(parsedRegularKilo)) continue;
 
-    let finalPriceToPay = parsedRegular;
-    let crossedOutPrice = null;
+    let finalKiloPrice = parsedRegularKilo;
+    let crossedOutKiloPrice = null;
 
     if (newDiscountPriceIdx !== -1 && values[newDiscountPriceIdx]) {
       const parsedNew = parseFloat(values[newDiscountPriceIdx]);
-      if (!isNaN(parsedNew) && parsedNew > 0 && parsedNew < parsedRegular) {
-        finalPriceToPay = parsedNew;
-        crossedOutPrice = parsedRegular;
+      if (!isNaN(parsedNew) && parsedNew > 0 && parsedNew < parsedRegularKilo) {
+        finalKiloPrice = parsedNew;
+        crossedOutKiloPrice = parsedRegularKilo;
       }
     }
 
-    let finalWeightStr = 'حسب الطلب';
-    if (rawWeight) {
-      finalWeightStr = (rawWeight.includes('جرام') || rawWeight.includes('g') || rawWeight.includes('ك')) ? rawWeight : `${rawWeight} جرام`;
-    }
+    const hasStock = stockVal > 0;
+    const isAvailable = statusVal !== 'غير متوفر' && hasStock;
 
-    rows.push({
-      category: rowCat || 'أخرى',
-      name: rowName,
-      weight: finalWeightStr,
-      grindOptions: grindIdx !== -1 && values[grindIdx] ? values[grindIdx].trim() : '',
-      price: finalPriceToPay, 
-      originalPrice: crossedOutPrice, 
-      explicitStatus: statusVal, 
-      image: formattedImageUrl,
-      itemCode: itemCodeVal,
-      stockGrams: stockVal,
-      alertLimit: alertVal
+    // توليد الأوزان الأساسية (50 جرام و 125 جرام) تلقائياً من سعر الكيلو
+    const standardWeights = [50, 125];
+    const variants = standardWeights.map(grams => {
+      const price = parseFloat(((finalKiloPrice * grams) / 1000).toFixed(2));
+      const originalPrice = crossedOutKiloPrice 
+        ? parseFloat(((crossedOutKiloPrice * grams) / 1000).toFixed(2)) 
+        : null;
+
+      return {
+        weight: `${grams} جرام`,
+        price: price,
+        originalPrice: originalPrice,
+        available: isAvailable
+      };
     });
-  }
 
-  const productsMap = {};
-  rows.forEach(item => {
-    const key = item.itemCode ? item.itemCode : `${item.category}_${item.name}`;
-    
+    const key = itemCodeVal ? itemCodeVal : `${rowCat}_${rowName}`;
+
     if (!productsMap[key]) {
       productsMap[key] = {
         id: key,
-        itemCode: item.itemCode,
-        name: item.name,
-        category: item.category,
-        image: item.image || '',
-        grindOptions: item.grindOptions || '', 
-        stockGrams: item.stockGrams,
-        alertLimit: item.alertLimit,
-        variants: []
+        itemCode: itemCodeVal,
+        name: rowName,
+        category: rowCat || 'أخرى',
+        image: formattedImageUrl,
+        grindOptions: rawGrind,
+        stockGrams: stockVal,
+        alertLimit: alertVal,
+        status: statusVal,
+        kiloPrice: finalKiloPrice,
+        originalKiloPrice: crossedOutKiloPrice,
+        variants: variants,
+        'كود الصنف': itemCodeVal,
+        'حالة الصنف': statusVal,
+        'المخزون الحالي بالجرام': stockVal,
+        isAvailable: isAvailable
       };
     } else {
-      if (item.stockGrams > productsMap[key].stockGrams) {
-        productsMap[key].stockGrams = item.stockGrams;
+      // توافق مؤقت أثناء مرحلة الانتقال في حال وجود صف مكرر في الشيت
+      if (stockVal > productsMap[key].stockGrams) {
+        productsMap[key].stockGrams = stockVal;
+        productsMap[key]['المخزون الحالي بالجرام'] = stockVal;
       }
-      if (item.category && (!productsMap[key].category || productsMap[key].category === 'أخرى')) {
-        productsMap[key].category = item.category;
+      if (!productsMap[key].image && formattedImageUrl) {
+        productsMap[key].image = formattedImageUrl;
       }
     }
+  }
 
-    if (item.image && !productsMap[key].image) productsMap[key].image = item.image;
-    if (item.grindOptions && !productsMap[key].grindOptions) productsMap[key].grindOptions = item.grindOptions;
-
-    productsMap[key].variants.push({
-      weight: item.weight,
-      price: item.price,
-      originalPrice: item.originalPrice,
-      explicitStatus: item.explicitStatus
-    });
-  });
-
-  const products = Object.values(productsMap).map(product => {
-    const hasStock = product.stockGrams > 0;
-    
-    const mappedVariants = product.variants.map(v => ({
-       weight: v.weight,
-       price: v.price,
-       originalPrice: v.originalPrice,
-       available: v.explicitStatus !== 'غير متوفر' && hasStock
-    }));
-
-    return {
-      ...product,
-      variants: mappedVariants,
-      'كود الصنف': product.itemCode,
-      'المخزون الحالي بالجرام': product.stockGrams, 
-      isAvailable: hasStock && mappedVariants.some(v => v.available)
-    };
-  });
-
+  const products = Object.values(productsMap);
   return { products, storeSettings };
 }
 
