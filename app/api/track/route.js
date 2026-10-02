@@ -15,8 +15,20 @@ export async function POST(request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'track', orderId }),
-      cache: 'no-store'
+      cache: 'no-store',
+      redirect: 'follow'
     });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      try {
+        const parsed = JSON.parse(text);
+        return NextResponse.json(parsed);
+      } catch {
+        return NextResponse.json({ success: false, error: 'تعذر العثور على الطلب أو استجابة غير صالحة من قاعدة البيانات.' }, { status: 502 });
+      }
+    }
 
     const data = await response.json();
     return NextResponse.json(data);
