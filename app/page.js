@@ -654,7 +654,6 @@ export default function Home() {
       };
     }
 
-    // احتياطي للأصناف القديمة إن وُجدت
     if (!activeModalProduct.variants?.length) return { pricePerGram: 0, originalPricePerGram: null };
     const availableVariants = activeModalProduct.variants.filter(v => v.available);
     const targetVariant = availableVariants.length > 0 ? availableVariants[0] : activeModalProduct.variants[0];
@@ -1260,61 +1259,66 @@ export default function Home() {
 
                 {filteredProducts.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2.5">
-                    {filteredProducts.map(product => (
-                      <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
-                        <div>
-                          <div className="flex items-start gap-2 mb-2">
-                            <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
-                              {product.image ? (
-                                <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
-                              )}
-                              {product.image && <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-0.5">
-                                <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate max-w-[70%] ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
-                                <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
+                    {filteredProducts.map(product => {
+                      const hasAnyOffer = product.variants.some(v => isOfferValid(v.price, v.originalPrice));
+                      return (
+                        <div key={product.id} className={`bg-white rounded-2xl p-3 border shadow-2xs flex flex-col justify-between transition ${product.isAvailable ? 'border-[#e8e2d5] hover:shadow-sm' : 'border-red-100 bg-[#fffcfc]'}`}>
+                          <div>
+                            <div className="flex items-start gap-2 mb-2">
+                              <div onClick={(e) => { e.stopPropagation(); if (product.image) setZoomedImage(product.image); }} className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-slate-100 border overflow-hidden shrink-0 relative group cursor-pointer ${product.isAvailable ? 'border-[#e8e2d5]' : 'border-red-100 opacity-70'}`} title="انقر لتكبير الصورة">
+                                {product.image ? (
+                                  <img src={product.image} alt={product.name} referrerPolicy="no-referrer" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-200" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.style.display = 'none'; }} />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-400 bg-[#fbf9f4]"><ImageIcon className="w-6 h-6 text-[#4d7c60]/50" /></div>
+                                )}
+                                {product.image && <span className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[9px] font-bold">تكبير</span>}
                               </div>
-                              <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
-                            </div>
-                          </div>
-                        </div>
 
-                        <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
-                          <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
-                            {product.variants.map((v, i) => {
-                              const hasOffer = isOfferValid(v.price, v.originalPrice);
-                              return (
-                                <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={`text-[11px] sm:text-xs font-bold ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
-                                    {hasOffer && v.available && <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm font-bold">فرصة خاصة</span>}
-                                  </div>
-                                  <div className={`font-bold flex flex-col items-end justify-center ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
-                                    {v.available ? (
-                                      <>
-                                        {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5">{v.originalPrice} جنيه</span>}
-                                        <span className="text-xs sm:text-sm leading-none">{v.price} جنيه</span>
-                                      </>
-                                    ) : (
-                                      <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-0.5">
+                                  <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                                    <span className={`text-[9px] font-bold px-1 py-0.2 rounded border truncate ${product.isAvailable ? 'text-[#c89d56] bg-[#fbf9f4] border-[#e8e2d5]' : 'text-slate-400 bg-slate-50 border-slate-200'}`} title={product.category}>{product.category}</span>
+                                    {hasAnyOffer && product.isAvailable && (
+                                      <span className="text-[9px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded shadow-xs whitespace-nowrap">فرصة خاصة</span>
                                     )}
                                   </div>
+                                  <button onClick={(e) => handleShareProduct(product, e)} className="p-1 text-slate-400 hover:text-[#2d533e] transition rounded-md shrink-0" title="مشاركة المنتج"><Share2 className="w-3.5 h-3.5" /></button>
                                 </div>
-                              );
-                            })}
+                                <h3 onClick={() => product.isAvailable && openProductModal(product)} className={`font-bold text-sm sm:text-base line-clamp-2 leading-snug cursor-pointer hover:text-[#2d533e] ${product.isAvailable ? 'text-[#1e382b]' : 'text-slate-500'}`}>{product.name}</h3>
+                              </div>
+                            </div>
                           </div>
-                          {product.isAvailable ? (
-                            <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
-                          ) : (
-                            <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
-                          )}
+
+                          <div onClick={() => product.isAvailable && openProductModal(product)} className="cursor-pointer">
+                            <div className="text-[11px] text-slate-500 font-semibold mb-2.5">
+                              {product.variants.map((v, i) => {
+                                const hasOffer = isOfferValid(v.price, v.originalPrice);
+                                return (
+                                  <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
+                                    <span className={`text-[11px] sm:text-xs font-bold whitespace-nowrap ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
+                                    <div className={`font-bold flex flex-col items-end justify-center shrink-0 ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
+                                      {v.available ? (
+                                        <>
+                                          {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5 whitespace-nowrap">{v.originalPrice} جنيه</span>}
+                                          <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{v.price} جنيه</span>
+                                        </>
+                                      ) : (
+                                        <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {product.isAvailable ? (
+                              <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
+                            ) : (
+                              <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="bg-white border border-[#e8e2d5] rounded-2xl p-6 text-center my-4 shadow-2xs">
