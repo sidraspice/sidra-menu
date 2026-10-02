@@ -18,7 +18,7 @@ const triggerVibration = () => {
   }
 };
 
-// تحويل الأرقام المشرقية (٠-٩) إلى أرقام إنجليزية
+// تحويل الأرقام المشرقية (٠-٩) إلى أرقام إنجليزية لضمان صحة الفحص
 const toEnglishDigits = (str) => {
   if (!str) return '';
   return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
@@ -330,7 +330,7 @@ export default function Home() {
   const isSearchModeActive = isSearchOpen || search.trim().length > 0;
   const isAnyModalOpen = Boolean(isCartOpen || activeModalProduct || zoomedImage || showClearConfirm || showRestoreConfirm || showWelcomeBack);
 
-  // تحميل سكريبت الاحتفال بشكل آمن ولمرة واحدة فقط
+  // تحميل سكريبت الاحتفال بشكل آمن
   useEffect(() => {
     if (typeof window !== 'undefined' && !window.confetti && !document.getElementById('canvas-confetti-script')) {
       const script = document.createElement('script');
@@ -341,7 +341,7 @@ export default function Home() {
     }
   }, []);
 
-  // إدارة سجل المتصفح لزر الرجوع
+  // إدارة تاريخ المتصفح
   useEffect(() => {
     if (isSearchModeActive) {
       window.history.pushState({ sedraSearch: true }, '');
@@ -925,9 +925,9 @@ export default function Home() {
         message += `تحويل قيمة الفاتورة عبر ${customer.paymentMethod} على:\n*${TRANSFER_NUMBER}*`;
       }
 
-      // إرسال الطلب للسيرفر مع AbortController (مهلة 3.5 ثوانٍ فقط) لتفادي التعليق
+      // إرسال الطلب للسيرفر مع AbortController (مهلة 2.5 ثانية فقط) لتفادي أي بطء
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
 
       try {
         const response = await fetch('/api/orders', {
@@ -955,7 +955,7 @@ export default function Home() {
           }
         }
       } catch (err) {
-        console.warn('تجاوز السيرفر المهلة الزمنية، المتابعة إلى واتساب مباشرة:', err);
+        console.warn('تجاوز السيرفر المهلة الزمنية، المتابعة إلى واتساب مباشرة دون تعطيل العميل:', err);
       }
 
       const nowTs = Date.now();
@@ -988,18 +988,9 @@ export default function Home() {
       setIsCartOpen(false);
       setCurrentStep('cart');
       
-      // فتح تطبيق واتساب فوراً عبر Deep Link للهواتف
-      const encodedMsg = encodeURIComponent(message);
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        window.location.href = `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encodedMsg}`;
-        setTimeout(() => {
-          window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodedMsg}`;
-        }, 1500);
-      } else {
-        window.open(`https://web.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodedMsg}`, '_blank');
-      }
+      // فتح تطبيق واتساب مباشرة بدون صفحات وسيطة أو مؤقتات معطلة
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${encodeURIComponent(message)}`;
+      window.location.assign(whatsappUrl);
       
     } catch (error) {
       setToast({ visible: true, message: "حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى." });
