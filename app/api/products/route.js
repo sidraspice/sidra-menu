@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-export const revalidate = 30;
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 function formatImageUrl(url) {
   if (!url) return '';
@@ -43,15 +44,11 @@ function parseCSVLine(text) {
   return result;
 }
 
-// دالة قراءة واستخراج الأوزان من عمود الوزن سواء رقم واحد أو رقمين
 function parseWeightsFromCell(cellValue) {
   if (!cellValue) return [50, 125];
-  
-  // تحويل الأرقام المشرقية إلى إنجليزية واستبدال جميع الفواصل الممكنة
   const normalized = cellValue.toString().replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
   const cleaned = normalized.replace(/[,،/\-|;+]/g, ' ');
   const matches = cleaned.match(/\d+(\.\d+)?/g);
-  
   if (!matches || matches.length === 0) return [50, 125];
   return matches.map(m => parseFloat(m));
 }
@@ -160,11 +157,8 @@ function parseCSV(text) {
 
     const hasStock = stockVal > 0;
     const isAvailable = statusVal !== 'غير متوفر' && hasStock;
-
-    // استخراج الأوزان المحددة للصنف من عمود الوزن
     const targetWeights = parseWeightsFromCell(rawWeight);
 
-    // توليد الأوزان تلقائياً بحسب ما حددته في الشيت
     const variants = targetWeights.map(grams => {
       const price = parseFloat(((finalKiloPrice * grams) / 1000).toFixed(2));
       const originalPrice = crossedOutKiloPrice 
@@ -219,10 +213,12 @@ let lastSuccessfulCache = null;
 
 export async function GET() {
   try {
-    const sheetUrl = process.env.GOOGLE_SHEET_CSV_URL || "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0KMamBEhCgLLWA4TEsYLz9uvxBE-EShQ0kBON0tYut-dZrBm4BDfuDgf23rD4KlWTt_PgCf--4vQz/pub?output=csv";
+    const rawSheetUrl = process.env.GOOGLE_SHEET_CSV_URL || "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0KMamBEhCgLLWA4TEsYLz9uvxBE-EShQ0kBON0tYut-dZrBm4BDfuDgf23rD4KlWTt_PgCf--4vQz/pub?output=csv";
+    const separator = rawSheetUrl.includes('?') ? '&' : '?';
+    const sheetUrl = `${rawSheetUrl}${separator}_t=${Date.now()}`;
 
     const res = await fetch(sheetUrl, {
-      next: { revalidate: 30 }
+      cache: 'no-store'
     });
 
     if (!res.ok) throw new Error('فشل جلب البيانات من Google Sheets');
@@ -237,17 +233,25 @@ export async function GET() {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
       }
     });
   } catch (error) {
     if (lastSuccessfulCache) {
       return NextResponse.json(lastSuccessfulCache, {
         headers: {
-          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30'
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
         }
       });
     }
-    return NextResponse.json({ success: false, error: 'تعذر تحميل قائمة المنتجات حاليًا.' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'تعذر تحميل قائمة المنتجات حاليًا.' }, { 
+      status: 500,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+      }
+    });
   }
 }
