@@ -1418,7 +1418,7 @@ export default function Home() {
                             const val = toEnglishDigits(e.target.value).replace(/[^0-9.]/g, '');
                             setCustomWeightValue(val);
                           }} 
-                          placeholder="مثال: 250" 
+                          placeholder="مثال: 1 جرام" 
                           className="flex-1 p-2.5 text-center text-base font-black border-2 border-slate-200 rounded-lg outline-none focus:border-[#2d533e] focus:bg-[#fbf9f4] bg-white shadow-sm text-[#1e382b] transition-colors" 
                         />
                         <span className="text-sm font-black text-slate-600 shrink-0 bg-slate-100 px-3 py-2.5 rounded-lg border border-slate-200">جرام</span>
