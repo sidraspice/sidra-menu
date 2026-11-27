@@ -940,14 +940,14 @@ export default function Home() {
         message += `${index + 1}. ${item.name}\n🔹 ${getCalculatedTotalWeight(item.weight, item.qty)} - 🔸 ${priceText}\n`;
       });
 
-      message += `\n🔹 إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}\n`;
+      message += `\n🔹 *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
       message += `💰 *${showDeliveryInMessage ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه*\n`;
-      if (showDeliveryInMessage) {
-        message += `🚚 التوصيل: ${deliveryLineText.replace('غير مضافة للإجمالي', 'غير مضاف')}\n`;
-      }
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
       message += `💳 الدفع: ${customer.paymentMethod}${isTransferNumberNeeded ? ` ${TRANSFER_NUMBER}` : ''}\n`;
+      if (showDeliveryInMessage) {
+        message += `🚚 التوصيل: ${deliveryLineText.replace(/\s*\(.*\)\s*$/, '')}\n`;
+      }
 
       if (customer.deliveryZone === 'damanhour') {
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
@@ -1805,3 +1805,4 @@ export default function Home() {
     </div>
   );
 }
+
