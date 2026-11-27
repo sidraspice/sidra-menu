@@ -795,7 +795,7 @@ export default function Home() {
   const currentTotalNumber = parseFloat(totalAmount) || 0;
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
-  const deliveryLineText = !customer.deliveryZone ? null : (customer.deliveryZone === 'outside' ? 'تُبلغ مصاريف الشحن قبل الإرسال' : (currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مجاني' : 'تُبلغ مصاريف التوصيل عند التأكيد'));
+  const deliveryLineText = !customer.deliveryZone ? null : (customer.deliveryZone === 'outside' ? 'تُبلغ مصاريف الشحن قبل الإرسال' : (currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مجاني' : 'من 20 إلى 25 جنيه (غير مضافة للإجمالي)'));
 
   const addressWarning = useMemo(() => {
     if (!customer.deliveryZone || !customer.address) return null;
