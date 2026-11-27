@@ -96,7 +96,7 @@ export async function GET(request) {
             meta.textContent = parts.join('  •  ');
             (data.items || []).forEach(function(it, i) {
               const row = document.createElement('div');
-              row.style.cssText = 'padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:bold; color:#1e293b;';
+              row.style.cssText = 'padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:12px; font-weight:bold; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
               row.textContent = window.itemLine(it, i);
               list.appendChild(row);
             });
