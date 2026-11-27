@@ -82,6 +82,13 @@ const getCalculatedTotalWeight = (weightStr, qty = 1) => {
   return `${totalGrams} جرام`;
 };
 
+// تنسيق موحد لعرض الأسعار: خانتان عشريتان دائماً، وتُحذف ".00" من الأرقام الصحيحة
+const formatPrice = (value) => {
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  if (isNaN(n)) return String(value);
+  return n.toFixed(2).replace(/\.00$/, '');
+};
+
 const isOfferValid = (price, originalPrice) => {
   return originalPrice != null && parseFloat(originalPrice) > parseFloat(price);
 };
@@ -957,7 +964,7 @@ export default function Home() {
         totalWeightGrams += (item.unitWeightGrams * item.qty);
         const itemTotal = (item.price * item.qty).toFixed(2);
         const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
-        const fmt = (n) => String(n).replace(/\.00$/, '');
+        const fmt = formatPrice;
         const priceText = (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal))
           ? `~${fmt(itemOriginalTotal)}~ *${fmt(itemTotal)} جنيه*`
           : `${fmt(itemTotal)} جنيه`;
@@ -967,7 +974,7 @@ export default function Home() {
       });
 
       message += `\n🧂 *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
-      message += `💰 *الإجمالي: ${totalAmount} جنيه*\n`;
+      message += `💰 *الإجمالي: ${formatPrice(totalAmount)} جنيه*\n`;
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
       message += `💳 الدفع: ${customer.paymentMethod}${isTransferNumberNeeded ? ` ${TRANSFER_NUMBER}` : ''}\n`;
@@ -1337,8 +1344,8 @@ export default function Home() {
                                     <div className={`font-bold flex flex-col items-end justify-center shrink-0 ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
                                       {v.available ? (
                                         <>
-                                          {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5 whitespace-nowrap">{v.originalPrice} جنيه</span>}
-                                          <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{v.price} جنيه</span>
+                                          {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5 whitespace-nowrap">{formatPrice(v.originalPrice)} جنيه</span>}
+                                          <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{formatPrice(v.price)} جنيه</span>
                                         </>
                                       ) : (
                                         <span className="text-xs sm:text-sm font-bold leading-none">0</span>
@@ -1411,7 +1418,7 @@ export default function Home() {
                         </div>
                         <div className="text-xs sm:text-sm font-black text-[#2d533e] mt-0.5 flex flex-col">
                           {variant.available ? (
-                            <div className="flex items-center gap-1"><span>{displayPrice} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{displayOriginalPrice} جنيه</span>}</div>
+                            <div className="flex items-center gap-1"><span>{formatPrice(displayPrice)} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{formatPrice(displayOriginalPrice)} جنيه</span>}</div>
                           ) : <span className="text-slate-400">0</span>}
                         </div>
                       </button>
@@ -1466,11 +1473,11 @@ export default function Home() {
                               <div className="flex items-center gap-1.5 justify-end">
                                 {getCalculatedOriginalPrice() && (
                                   <span className="text-slate-400 line-through text-[10px] font-bold">
-                                    {(getCalculatedOriginalPrice() * modalQty).toFixed(2)}
+                                    {formatPrice(getCalculatedOriginalPrice() * modalQty)}
                                   </span>
                                 )}
                                 <span className="text-base font-black text-[#2d533e]">
-                                  {(getCalculatedPrice() * modalQty).toFixed(2)} جنيه
+                                  {formatPrice(getCalculatedPrice() * modalQty)} جنيه
                                 </span>
                               </div>
                             </div>
@@ -1578,7 +1585,7 @@ export default function Home() {
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
-                  return `إضافة للسلة — ${(getCalculatedPrice() * modalQty).toFixed(2)} جنيه`;
+                  return `إضافة للسلة — ${formatPrice(getCalculatedPrice() * modalQty)} جنيه`;
                 })()}
               </button>
             </div>
@@ -1608,7 +1615,7 @@ export default function Home() {
               </div>
               <span className="text-sm font-black">سلة الطلبات</span>
             </div>
-            <span className="text-sm text-[#c89d56] font-black">{totalAmount} جنيه</span>
+            <span className="text-sm text-[#c89d56] font-black">{formatPrice(totalAmount)} جنيه</span>
           </button>
         </div>
       </div>
@@ -1637,7 +1644,7 @@ export default function Home() {
                     <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center mb-2.5">
                         <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
-                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${remainingForFreeDelivery} جنيه`}</span>
+                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${formatPrice(remainingForFreeDelivery)} جنيه`}</span>
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-500 ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${deliveryProgressPercent}%` }} />
@@ -1653,9 +1660,9 @@ export default function Home() {
                             <h4 className="font-black text-xs sm:text-sm text-[#1e382b] leading-snug">{item.name}</h4>
                             <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
                             <div className="text-[11px] sm:text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
-                              <span>الإجمالي: {(item.price * item.qty).toFixed(2)} جنيه</span>
+                              <span>الإجمالي: {formatPrice(item.price * item.qty)} جنيه</span>
                               {item.originalPrice && isOfferValid(item.price, item.originalPrice) && (
-                                <span className="text-slate-400 line-through font-bold">{(item.originalPrice * item.qty).toFixed(2)} جنيه</span>
+                                <span className="text-slate-400 line-through font-bold">{formatPrice(item.originalPrice * item.qty)} جنيه</span>
                               )}
                             </div>
                           </div>
@@ -1760,7 +1767,7 @@ export default function Home() {
                       {cart.map((item, idx) => (
                         <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-[11px] sm:text-xs">
                           <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[10px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
-                          <span className="font-black text-[#2d533e]">{(item.price * item.qty).toFixed(2)} جنيه</span>
+                          <span className="font-black text-[#2d533e]">{formatPrice(item.price * item.qty)} جنيه</span>
                         </div>
                       ))}
                     </div>
@@ -1778,7 +1785,7 @@ export default function Home() {
               )}
               <div className="flex justify-between items-center font-black text-sm pb-2.5">
                 <span className="text-slate-700">{deliveryLineText ? 'إجمالي المنتجات:' : 'الإجمالي النهائي:'}</span>
-                <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
+                <span className="text-[#2d533e] text-base sm:text-lg">{formatPrice(totalAmount)} جنيه</span>
               </div>
 
               <div className="flex flex-col gap-2">
