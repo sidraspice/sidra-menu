@@ -796,6 +796,7 @@ export default function Home() {
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
   const deliveryLineText = !customer.deliveryZone ? null : (customer.deliveryZone === 'outside' ? 'تُبلغ مصاريف الشحن قبل الإرسال' : (currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مجاني' : 'من 20 إلى 25 جنيه (غير مضافة للإجمالي)'));
+  const showDeliveryInMessage = !!deliveryLineText && deliveryLineText !== 'مجاني';
 
   const addressWarning = useMemo(() => {
     if (!customer.deliveryZone || !customer.address) return null;
@@ -942,8 +943,8 @@ export default function Home() {
       });
 
       message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}\n`;
-      message += `💰 ${deliveryLineText ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه\n`;
-      if (deliveryLineText) {
+      message += `💰 ${showDeliveryInMessage ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه\n`;
+      if (showDeliveryInMessage) {
         message += `🚚 التوصيل: ${deliveryLineText}\n`;
       }
       message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
