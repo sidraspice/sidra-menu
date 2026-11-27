@@ -937,10 +937,12 @@ export default function Home() {
         const priceText = (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal))
           ? `~${fmt(itemOriginalTotal)}~ *${fmt(itemTotal)} جنيه*`
           : `${fmt(itemTotal)} جنيه`;
-        message += `${index + 1}. ${item.name}\n🔹 ${getCalculatedTotalWeight(item.weight, item.qty)} - 🔸 ${priceText}\n`;
+        const n = index + 1;
+        const keycap = n === 10 ? '🔟' : String(n).split('').map(d => d + '\uFE0F\u20E3').join('');
+        message += `${keycap} ${item.name}\n▪️ ${getCalculatedTotalWeight(item.weight, item.qty)} - ▫️ ${priceText}\n`;
       });
 
-      message += `\n🔹 *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
+      message += `\n▪️ *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
       message += `💰 *${showDeliveryInMessage ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه*\n`;
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
