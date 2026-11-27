@@ -795,6 +795,7 @@ export default function Home() {
   const currentTotalNumber = parseFloat(totalAmount) || 0;
   const deliveryProgressPercent = Math.min((currentTotalNumber / FREE_DELIVERY_THRESHOLD) * 100, 100);
   const remainingForFreeDelivery = (FREE_DELIVERY_THRESHOLD - currentTotalNumber).toFixed(2);
+  const deliveryLineText = !customer.deliveryZone ? null : (customer.deliveryZone === 'outside' ? 'مصاريف الشحن: تُبلغ قبل الإرسال' : (currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مجاني' : 'مصاريف التوصيل: تُبلغ عند التأكيد'));
 
   const addressWarning = useMemo(() => {
     if (!customer.deliveryZone || !customer.address) return null;
@@ -941,7 +942,10 @@ export default function Home() {
       });
 
       message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}\n`;
-      message += `💰 إجمالي الفاتورة: ${totalAmount} جنيه\n`;
+      message += `💰 ${deliveryLineText ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه\n`;
+      if (deliveryLineText) {
+        message += `🚚 التوصيل: ${deliveryLineText}\n`;
+      }
       message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
@@ -1737,8 +1741,14 @@ export default function Home() {
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
+              {deliveryLineText && (
+                <div className="flex justify-between items-center font-bold text-xs pb-1.5">
+                  <span className="text-slate-600">التوصيل:</span>
+                  <span className="text-slate-700">{deliveryLineText}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center font-black text-sm pb-2.5">
-                <span className="text-slate-700">الإجمالي النهائي:</span>
+                <span className="text-slate-700">{deliveryLineText ? 'إجمالي المنتجات:' : 'الإجمالي النهائي:'}</span>
                 <span className="text-[#2d533e] text-base sm:text-lg">{totalAmount} جنيه</span>
               </div>
 
