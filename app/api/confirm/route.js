@@ -54,7 +54,7 @@ export async function GET(request) {
           }
 
           window.normalizeOrderId = function(raw) {
-            let idv = String(raw || '').replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
+            let idv = String(raw || '').replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[\\u2010-\\u2015\\u2212]/g, '-').replace(/[\\u200B-\\u200F\\u2060\\uFEFF]/g, '').replace(/[ ]+/g, '').toUpperCase();
             if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
             if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(idv)) idv = 'SD-' + idv;
             return idv;
@@ -112,7 +112,7 @@ export async function GET(request) {
             const pw = document.getElementById('pw').value;
             const presetId = ${JSON.stringify(orderId || '')};
             const rawv = presetId || (document.getElementById('oid') ? document.getElementById('oid').value : '');
-            let idv = String(rawv).replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
+            let idv = String(rawv).replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[\\u2010-\\u2015\\u2212]/g, '-').replace(/[\\u200B-\\u200F\\u2060\\uFEFF]/g, '').replace(/[ ]+/g, '').toUpperCase();
             if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
             if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(idv)) idv = 'SD-' + idv;
             if (!/^[A-Za-z0-9_-]{1,64}$/.test(idv)) {
