@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, ShoppingBag, Plus, Minus, Trash2, RefreshCw, X, Check, Phone, 
-  AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package, Truck 
+  AlertCircle, ChevronRight, Sparkles, ShieldCheck, Ban, Image as ImageIcon, Share2, RotateCcw, Package, Truck, Pencil 
 } from 'lucide-react';
 
 const WHATSAPP_NUMBER = "201044760160";
@@ -358,6 +358,8 @@ export default function Home() {
   const [modalQty, setModalQty] = useState(1);
   const [isCustomWeight, setIsCustomWeight] = useState(false);
   const [customWeightValue, setCustomWeightValue] = useState('');
+  const [editingCartKey, setEditingCartKey] = useState(null);
+  const [vv, setVv] = useState(null);
   const customWeightInputRef = useRef(null); 
   const grindSectionRef = useRef(null);
   
@@ -664,6 +666,61 @@ export default function Home() {
     return finalResults.map(r => r.product);
   }, [data.products, indexedProducts, selectedCategory, search]);
 
+  useEffect(() => {
+    if (!activeModalProduct) setEditingCartKey(null);
+  }, [activeModalProduct]);
+
+  // عند فتح الكيبورد أثناء تعديل الوزن: نحصر النافذة في الجزء الظاهر فوق الكيبورد
+  useEffect(() => {
+    if (!activeModalProduct || typeof window === 'undefined' || !window.visualViewport) { setVv(null); return; }
+    const vp = window.visualViewport;
+    const update = () => {
+      const open = vp.height < window.innerHeight * 0.85;
+      setVv(open ? { h: Math.round(vp.height), top: Math.round(vp.offsetTop) } : null);
+    };
+    update();
+    vp.addEventListener('resize', update);
+    vp.addEventListener('scroll', update);
+    return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); };
+  }, [activeModalProduct]);
+
+  useEffect(() => {
+    if (vv && isCustomWeight) {
+      const t = setTimeout(() => { if (customWeightInputRef.current) customWeightInputRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 120);
+      return () => clearTimeout(t);
+    }
+  }, [vv?.h, isCustomWeight]);
+
+  // السلة بدون الصنف الجاري تعديل وزنه (لحساب المخزون)
+  const cartForStock = editingCartKey ? cart.filter(i => i.key !== editingCartKey) : cart;
+
+  // فتح نافذة الصنف لتعديل وزن صنف موجود في السلة
+  const openEditWeight = (item) => {
+    const product = data.products.find(p => p.id == (item.productId || item.key.split('_')[0]));
+    if (!product || !product.variants?.length) return;
+    triggerVibration();
+    const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
+    let parsedOptions = [];
+    if (rawGrindData && typeof rawGrindData === 'string') {
+      parsedOptions = rawGrindData.split('|').map(s => s.trim()).filter(Boolean);
+    }
+    const matchedVariant = product.variants.find(v => v.weight === item.weight);
+    setActiveModalProduct({ ...product, parsedGrindOptions: parsedOptions });
+    if (matchedVariant) {
+      setSelectedVariant(matchedVariant);
+      setIsCustomWeight(false);
+      setCustomWeightValue('');
+    } else {
+      setSelectedVariant(product.variants.find(v => v.available) || product.variants[0]);
+      setIsCustomWeight(true);
+      setCustomWeightValue(String(item.unitWeightGrams));
+    }
+    setModalQty(1);
+    setGrindError(false);
+    setGrindOption(item.grindOption || (parsedOptions.length === 1 ? parsedOptions[0] : ''));
+    setEditingCartKey(item.key);
+  };
+
   const openProductModal = (product) => {
     const rawGrindData = product.grindOptions || product['حالة الطحن'] || '';
     let parsedOptions = [];
@@ -750,7 +807,7 @@ export default function Home() {
     }
 
     const requestedGrams = unitWeightGrams * modalQty;
-    const alreadyInCartGrams = getReservedStockGrams(cart, activeModalProduct.id);
+    const alreadyInCartGrams = getReservedStockGrams(cartForStock, activeModalProduct.id);
 
     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
       setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
@@ -759,11 +816,45 @@ export default function Home() {
     }
 
     triggerVibration(); 
-    triggerFlyingAnimation(e, activeModalProduct.image || '/logo.png');
+    if (typeof document !== 'undefined' && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (!editingCartKey) triggerFlyingAnimation(e, activeModalProduct.image || '/logo.png');
 
     const finalName = grindOption ? `${activeModalProduct.name} (${grindOption})` : activeModalProduct.name;
     const itemKey = `${activeModalProduct.id}_${finalWeight}_${grindOption || 'default'}`;
     
+    const newItem = { 
+        key: itemKey, 
+        productId: activeModalProduct.id, 
+        itemCode: activeModalProduct.itemCode, 
+        name: finalName, 
+        category: activeModalProduct.category, 
+        weight: finalWeight, 
+        unitWeightGrams: unitWeightGrams, 
+        grindOption: grindOption, 
+        price: finalPrice, 
+        originalPrice: finalOriginalPrice, 
+        qty: modalQty 
+      };
+
+    if (editingCartKey) {
+      // تعديل الوزن: يحل الصنف الجديد محل القديم في نفس المكان بدون تكرار
+      setCart(prev => {
+        const idx = prev.findIndex(i => i.key === editingCartKey);
+        if (idx === -1) return prev;
+        const withoutOld = prev.filter(i => i.key !== editingCartKey);
+        const dup = withoutOld.find(i => i.key === itemKey);
+        // نفس الوزن موجود في سطر آخر: نبقيهما سطرين منفصلين (مفتاح مختلف بدون دمج)
+        if (dup) newItem.key = `${itemKey}_e${Date.now()}`;
+        const next = [...withoutOld];
+        next.splice(idx, 0, newItem);
+        return next;
+      });
+      setActiveModalProduct(null);
+      setToast({ visible: true, message: `تم تعديل وزن "${finalName}"` });
+      setTimeout(() => setToast({ visible: false, message: '' }), 2500);
+      return;
+    }
+
     setCart(prev => {
       const exists = prev.find(i => i.key === itemKey);
       if (exists) return prev.map(i => i.key === itemKey ? { ...i, qty: i.qty + modalQty } : i);
@@ -1121,10 +1212,10 @@ export default function Home() {
                 <RefreshCw className="w-4 h-4 text-amber-600 animate-spin" style={{ animationDuration: '3s' }} />
                 <div>
                   <h4 className="text-amber-800 text-xs font-black">أنت الآن تقوم بتعديل طلبك السابق</h4>
-                  <p className="text-amber-700 text-[10px] font-bold">({lastOrder?.id})</p>
+                  <p className="text-amber-700 text-xs font-bold">({lastOrder?.id})</p>
                 </div>
               </div>
-              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-[10px] font-black underline shrink-0">إلغاء التعديل</button>
+              <button onClick={() => { setIsEditing(false); setCart([]); }} className="text-red-600 hover:text-red-800 text-xs font-black underline shrink-0">إلغاء التعديل</button>
             </div>
           )}
 
@@ -1145,7 +1236,7 @@ export default function Home() {
                     {SEARCH_PLACEHOLDERS[placeholderIndex]}
                   </span>
                 </div>
-                <span className="text-[11px] font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">
+                <span className="text-xs font-black text-[#2d533e] bg-[#fbf9f4] px-2.5 py-1 rounded-lg border border-[#e8e2d5] shrink-0">
                   بحث 🔍
                 </span>
               </button>
@@ -1195,7 +1286,7 @@ export default function Home() {
                       setSearch('');
                       if (searchInputRef.current) searchInputRef.current.focus();
                     }}
-                    className="px-2 py-1 text-[11px] font-black text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition"
+                    className="px-2 py-1 text-xs font-black text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg shrink-0 transition"
                   >
                     مسح
                   </button>
@@ -1379,8 +1470,8 @@ export default function Home() {
 
       {/* --- Modal تفاصيل الصنف --- */}
       {activeModalProduct && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+        <div className={`fixed inset-0 bg-black/60 ${editingCartKey ? 'z-[60]' : 'z-50'} flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm`} style={vv ? { top: vv.top, height: vv.h, bottom: 'auto' } : undefined}>
+          <div style={vv ? { height: '100%', maxHeight: '100%' } : undefined} className="bg-white w-full max-w-md h-[90vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
             
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 bg-white z-10">
               <div className="flex items-start gap-3">
@@ -1391,18 +1482,24 @@ export default function Home() {
                   </div>
                 )}
                 <div className="flex-1 pr-1">
-                  <span className="text-[10px] font-bold text-[#c89d56] block mb-0.5">{activeModalProduct.category}</span>
+                  <span className="text-xs font-bold text-[#c89d56] block mb-0.5">{activeModalProduct.category}</span>
                   <h2 className="text-base sm:text-lg font-black text-[#1e382b] leading-snug">{activeModalProduct.name}</h2>
+                  {editingCartKey && <span className="inline-block mt-1 text-xs font-black text-[#2d533e] bg-[#2d533e]/10 px-2 py-0.5 rounded-md">تعديل وزن صنف في السلة</span>}
                 </div>
                 <button onClick={() => setActiveModalProduct(null)} className="p-1.5 bg-slate-50 text-slate-400 hover:text-red-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-5 bg-white pb-[140px] sm:pb-32">
+            <div className={`flex-1 overflow-y-auto p-4 space-y-5 bg-white ${vv ? 'pb-4' : 'pb-[140px] sm:pb-32'}`}>
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-800 block border-b border-slate-50 pb-1.5">الأوزان المتاحة</label>
+                <div className="flex items-center justify-between border-b border-slate-50 pb-1.5">
+                  <label className="text-xs font-black text-slate-800 block">{isCustomWeight ? 'وزن مخصص' : 'الأوزان المتاحة'}</label>
+                  {isCustomWeight && (
+                    <button type="button" onClick={() => { triggerVibration(); setIsCustomWeight(false); }} className="text-base font-black text-white bg-[#2d533e] border border-[#2d533e] px-4 py-2.5 rounded-xl shadow-sm active:scale-95 transition">الأوزان الجاهزة</button>
+                  )}
+                </div>
                 
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid grid-cols-2 gap-2 ${isCustomWeight ? 'hidden' : ''}`}>
                   {activeModalProduct.variants.map((variant, idx) => {
                     const isSelected = !isCustomWeight && selectedVariant?.weight === variant.weight;
                     const displayWeight = isSelected ? getCalculatedTotalWeight(variant.weight, modalQty) : variant.weight;
@@ -1418,7 +1515,7 @@ export default function Home() {
                         </div>
                         <div className="text-sm sm:text-base font-black text-[#2d533e] mt-0.5 flex flex-col">
                           {variant.available ? (
-                            <div className="flex items-center gap-1 flex-wrap"><span>{formatPrice(displayPrice)} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{formatPrice(displayOriginalPrice)} جنيه</span>}</div>
+                            <div className="flex items-center gap-1 flex-wrap"><span>{formatPrice(displayPrice)} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-xs font-bold">{formatPrice(displayOriginalPrice)} جنيه</span>}</div>
                           ) : <span className="text-slate-400">0</span>}
                         </div>
                       </button>
@@ -1461,18 +1558,18 @@ export default function Home() {
                         <span className="text-sm font-black text-slate-600 shrink-0 bg-slate-100 px-3 py-2.5 rounded-lg border border-slate-200">جرام</span>
                       </div>
 
-                      <div className="mt-3 bg-[#fbf9f4] rounded-lg border border-[#e8e2d5] p-3 shadow-inner">
+                      <div className={`mt-3 bg-[#fbf9f4] rounded-lg border border-[#e8e2d5] ${vv ? 'p-2' : 'p-3'} shadow-inner`}>
                         {customWeightValue && parseFloat(customWeightValue) > 0 ? (
                           <div className="flex justify-between items-center">
                             <div>
-                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">الوزن المطلوب</span>
+                              <span className="text-xs font-bold text-slate-500 block mb-0.5">الوزن المطلوب</span>
                               <span className="text-sm font-black text-[#1e382b]">{getCalculatedTotalWeight(`${customWeightValue} جرام`, modalQty)}</span>
                             </div>
                             <div className="text-left">
-                              <span className="text-[11px] font-bold text-slate-500 block mb-0.5">السعر النهائي</span>
+                              <span className="text-xs font-bold text-slate-500 block mb-0.5">السعر النهائي</span>
                               <div className="flex items-center gap-1.5 justify-end">
                                 {getCalculatedOriginalPrice() && (
-                                  <span className="text-slate-400 line-through text-[10px] font-bold">
+                                  <span className="text-slate-400 line-through text-xs font-bold">
                                     {formatPrice(getCalculatedOriginalPrice() * modalQty)}
                                   </span>
                                 )}
@@ -1496,13 +1593,13 @@ export default function Home() {
               {activeModalProduct.parsedGrindOptions && activeModalProduct.parsedGrindOptions.length > 0 && (
                 <div ref={grindSectionRef} className={`space-y-2 ${grindError ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
                   <span className={`text-xs font-black block mb-1.5 border-b pb-1 ${grindError ? 'text-red-700 border-red-200' : 'text-slate-800 border-slate-50'}`}>
-                    حالة المنتج {grindError && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد الحالة)</span>}
+                    حالة المنتج {grindError && <span className="text-red-600 text-xs mr-1">(مطلوب تحديد الحالة)</span>}
                   </span>
                   {activeModalProduct.parsedGrindOptions.length === 1 ? (
                     <div className="w-full">
                       <div className="flex items-center justify-center gap-1.5 py-3 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-sm font-black rounded-xl cursor-default select-none w-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                        <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[10px] font-bold text-slate-400">(فقط)</span></span>
+                        <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-xs font-bold text-slate-400">(فقط)</span></span>
                       </div>
                     </div>
                   ) : (
@@ -1539,7 +1636,7 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className={`space-y-2 ${vv ? 'hidden' : ''}`}>
                 <span className="text-xs font-black text-slate-800 block mb-1.5 border-b border-slate-50 pb-1">الكمية المطلوبة</span>
                 <div className="flex items-center gap-3 justify-center bg-slate-50 py-1.5 rounded-xl border border-slate-100">
                   <button onClick={() => { 
@@ -1551,7 +1648,7 @@ export default function Home() {
                     triggerVibration(); 
                     const weightGrams = isCustomWeight ? (parseFloat(customWeightValue) || 0) : getWeightNumberInGrams(selectedVariant?.weight);
                     const requestedGrams = weightGrams * (modalQty + 1);
-                    const alreadyInCartGrams = getReservedStockGrams(cart, activeModalProduct.id);
+                    const alreadyInCartGrams = getReservedStockGrams(cartForStock, activeModalProduct.id);
                     
                     if ((requestedGrams + alreadyInCartGrams) > activeModalProduct.stockGrams) {
                       setToast({ visible: true, message: `الكمية المطلوبة أكبر من المتاح حالياً. المتاح: ${activeModalProduct.stockGrams} جرام.` });
@@ -1564,7 +1661,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
+            <div className={`${vv ? 'hidden ' : ''}absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20`}>
               <button 
                 disabled={(!selectedVariant || !selectedVariant.available) || (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0))} 
                 onClick={(e) => {
@@ -1585,7 +1682,7 @@ export default function Home() {
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
                   if (!selectedVariant?.available) return 'هذا الصنف غير متوفر حالياً';
-                  return `إضافة للسلة — ${formatPrice(getCalculatedPrice() * modalQty)} جنيه`;
+                  return `${editingCartKey ? 'حفظ الوزن الجديد' : 'إضافة للسلة'} — ${formatPrice(getCalculatedPrice() * modalQty)} جنيه`;
                 })()}
               </button>
             </div>
@@ -1632,7 +1729,7 @@ export default function Home() {
                   {currentStep === 'review' && 'راجع بياناتك وطلبك قبل الإرسال'}
                 </h2>
                 {currentStep === 'cart' && cart.length > 0 && (
-                  <button onClick={() => setShowClearConfirm(true)} className="text-[11px] font-black text-red-600 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
+                  <button onClick={() => setShowClearConfirm(true)} className="text-xs font-black text-red-600 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
                 )}
               </div>
             </div>
@@ -1655,22 +1752,25 @@ export default function Home() {
                   <div className="divide-y divide-slate-100 pb-2">
                     {cart.length === 0 ? <div className="text-center py-12 text-slate-400 font-bold text-sm">السلة فارغة حالياً</div> : (
                       cart.map(item => (
-                        <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
-                          <div className="flex-1">
-                            <h4 className="font-black text-sm sm:text-base text-[#1e382b] leading-snug">{item.name}</h4>
-                            <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
-                            <div className="text-xs sm:text-sm text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
-                              <span>الإجمالي: {formatPrice(item.price * item.qty)} جنيه</span>
-                              {item.originalPrice && isOfferValid(item.price, item.originalPrice) && (
-                                <span className="text-slate-400 line-through font-bold">{formatPrice(item.originalPrice * item.qty)} جنيه</span>
-                              )}
+                        <div key={item.key} className="py-2.5">
+                          <h4 className="font-black text-sm sm:text-base text-[#1e382b] leading-snug mb-1.5">{item.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <div className="shrink-0">
+                              <div className="text-sm sm:text-base text-slate-700 font-black">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
+                              <div className="text-xs sm:text-sm text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
+                                <span>الإجمالي: {formatPrice(item.price * item.qty)} جنيه</span>
+                                {item.originalPrice && isOfferValid(item.price, item.originalPrice) && (
+                                  <span className="text-slate-400 line-through font-bold">{formatPrice(item.originalPrice * item.qty)} جنيه</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-3.5 h-3.5" /></button>
-                            <span className="text-xs sm:text-sm font-black w-4 sm:w-5 text-center">{item.qty}</span>
-                            <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => removeCartItem(item.key)} className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-100 ml-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => openEditWeight(item)} className="flex-1 min-w-0 flex items-center justify-center gap-1 bg-[#c89d56]/15 border-2 border-[#c89d56] text-[#1e382b] text-xs sm:text-sm font-black leading-tight px-1.5 py-1.5 rounded-xl hover:bg-[#c89d56]/25 active:scale-[0.98] transition"><Pencil className="w-4 h-4 shrink-0 max-[379px]:hidden" /><span>تعديل الوزن من المنيو</span></button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => updateCartQty(item.key, -1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Minus className="w-3.5 h-3.5" /></button>
+                              <span className="text-xs sm:text-sm font-black w-4 sm:w-5 text-center">{item.qty}</span>
+                              <button onClick={() => updateCartQty(item.key, 1)} className="w-7 h-7 sm:w-8 sm:h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200"><Plus className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => removeCartItem(item.key)} className="w-7 h-7 sm:w-8 sm:h-8 bg-red-50 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-100 ml-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -1682,19 +1782,19 @@ export default function Home() {
               {currentStep === 'checkout' && (
                 <form id="checkout-form" onSubmit={handleProceedToReview} className="space-y-2.5">
                   <div>
-                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1">الاسم الكامل <span className="text-red-500">*</span></label>
                     <input type="text" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="أدخل اسمك بالكامل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
                   </div>
                   
                   <div>
-                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1">رقم الهاتف <span className="text-red-500">*</span></label>
                     <input type="tel" dir="ltr" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01012345678" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 text-right ${formErrors.phone ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none`} />
-                    {formErrors.phone && <p className="text-red-600 text-[10px] font-bold mt-1">{formErrors.phone}</p>}
+                    {formErrors.phone && <p className="text-red-600 text-xs font-bold mt-1">{formErrors.phone}</p>}
                   </div>
 
                   <div className={`${formErrors.deliveryZone ? 'p-3 -mx-3 bg-red-50/80 border border-red-200 rounded-2xl transition-all duration-300' : 'transition-all duration-300'}`}>
-                    <label className={`text-[11px] sm:text-xs font-bold block mb-1.5 ${formErrors.deliveryZone ? 'text-red-700 border-b border-red-200 pb-1' : 'text-slate-700'}`}>
-                      مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
+                    <label className={`text-xs sm:text-sm font-bold block mb-1.5 ${formErrors.deliveryZone ? 'text-red-700 border-b border-red-200 pb-1' : 'text-slate-700'}`}>
+                      مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-xs mr-1">(مطلوب تحديد المكان)</span>}
                     </label>
                     <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
                       <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-3.5 px-2 rounded-xl border-2 transition-all font-black text-base flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
@@ -1707,7 +1807,7 @@ export default function Home() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">طريقة الدفع <span className="text-red-500">*</span></label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1">طريقة الدفع <span className="text-red-500">*</span></label>
                     <select
                       value={customer.paymentMethod || ''}
                       onChange={(e) => {
@@ -1726,23 +1826,23 @@ export default function Home() {
                       <option value="تحويل بنكي">تحويل بنكي</option>
                     </select>
                     {formErrors.paymentMethod && (
-                      <p className="text-red-600 text-[10px] sm:text-[11px] font-bold mt-1">{formErrors.paymentMethod}</p>
+                      <p className="text-red-600 text-xs sm:text-sm font-bold mt-1">{formErrors.paymentMethod}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">العنوان بالتفصيل <span className="text-red-500">*</span></label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1">العنوان بالتفصيل <span className="text-red-500">*</span></label>
                     <textarea rows={2} value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} placeholder="المحافظة - المدينة - المنطقة - الشارع - رقم المنزل" className={`w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 ${formErrors.address ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-[#2d533e]'} outline-none resize-none`} />
                     {addressWarning && (
                       <div className="mt-1.5 bg-amber-50 border border-amber-200 p-1.5 rounded-lg flex items-start gap-1.5">
                         <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <span className="text-[10px] font-bold text-amber-800 leading-snug">{addressWarning}</span>
+                        <span className="text-xs font-bold text-amber-800 leading-snug">{addressWarning}</span>
                       </div>
                     )}
                   </div>
                   
                   <div>
-                    <label className="text-[11px] sm:text-xs font-bold text-slate-700 block mb-1">ملاحظات على الطلب (اختياري)</label>
+                    <label className="text-xs sm:text-sm font-bold text-slate-700 block mb-1">ملاحظات على الطلب (اختياري)</label>
                     <textarea rows={2} value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="مثال: يفضل التواصل معي قبل التوصيل، أو اكتب أي ملاحظة خاصة بالطلب." className="w-full py-2.5 px-3 text-sm font-bold rounded-xl border-2 border-slate-200 focus:border-[#2d533e] outline-none resize-none placeholder:text-slate-400 placeholder:font-semibold placeholder:text-[10px] sm:placeholder:text-[11px]" />
                   </div>
                 </form>
@@ -1752,7 +1852,7 @@ export default function Home() {
                 <div className="space-y-3 pb-2">
                   <div className="bg-[#fbf9f4] p-3 rounded-2xl border-2 border-[#e8e2d5]">
                     <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-[#e8e2d5]">بيانات العميل والتوصيل:</h4>
-                    <div className="text-[11px] sm:text-xs space-y-1.5 text-slate-700 font-semibold">
+                    <div className="text-xs sm:text-sm space-y-1.5 text-slate-700 font-semibold">
                       <div><strong className="font-black text-slate-800">الاسم:</strong> {customer.name}</div>
                       <div><strong className="font-black text-slate-800">الهاتف:</strong> {customer.phone}</div>
                       <div><strong className="font-black text-slate-800">مكان التوصيل:</strong> {customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}</div>
@@ -1765,8 +1865,8 @@ export default function Home() {
                     <h4 className="text-xs sm:text-sm font-black text-[#1e382b] mb-2 pb-2 border-b border-slate-100">المنتجات المطلوبة:</h4>
                     <div className="space-y-2 divide-y divide-slate-50">
                       {cart.map((item, idx) => (
-                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-[11px] sm:text-xs">
-                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-[10px] text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
+                        <div key={idx} className="pt-2 first:pt-0 flex justify-between items-center text-xs sm:text-sm">
+                          <div><span className="font-black text-[#1e382b] block">{item.name}</span><span className="text-xs text-slate-500 font-bold mt-0.5 block">{getCalculatedTotalWeight(item.weight, item.qty)}</span></div>
                           <span className="font-black text-[#2d533e]">{formatPrice(item.price * item.qty)} جنيه</span>
                         </div>
                       ))}
@@ -1777,9 +1877,9 @@ export default function Home() {
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 bg-white shadow-[0_-4px_15px_rgba(0,0,0,0.05)] z-20">
-              <div className="flex justify-between items-center gap-2 pb-1.5 text-[10px] sm:text-[11px] font-bold">
-                <span className="flex items-center gap-1 text-[#2d533e]"><ShieldCheck className="w-3.5 h-3.5 shrink-0" /> ما تدفعش ولا جنيه غير بعد المعاينة</span>
-                <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[#c89d56] underline underline-offset-2 whitespace-nowrap"><Phone className="w-3 h-3 shrink-0" /> محتاج مساعدة؟ كلمنا واتساب</a>
+              <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 pb-2 text-xs sm:text-sm font-bold">
+                <span className="flex items-center gap-1 text-[#2d533e]"><ShieldCheck className="w-4 h-4 shrink-0" /> ما تدفعش ولا جنيه غير بعد المعاينة</span>
+                <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[#c89d56] underline underline-offset-2 whitespace-nowrap"><Phone className="w-3.5 h-3.5 shrink-0" /> محتاج مساعدة؟ كلمنا واتساب</a>
               </div>
               {deliveryLineText && (
                 <div className="flex justify-between items-center font-bold text-xs pb-1.5">
@@ -1852,6 +1952,7 @@ export default function Home() {
     </div>
   );
 }
+
 
 
 
