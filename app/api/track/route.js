@@ -5,16 +5,20 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymsdUn22D0kKq6ZkK6J
 export async function POST(request) {
   try {
     const body = await request.json();
+    const prefix = body.prefix ? String(body.prefix).trim().toUpperCase() : '';
+    if (body.prefix && !/^SD-[0-9]{4}-[0-9]{4}$/.test(prefix)) {
+      return NextResponse.json({ success: false, error: 'رقم غير صالح.' }, { status: 400 });
+    }
     const orderId = body.orderId ? String(body.orderId).trim() : '';
 
-    if (!orderId) {
+    if (!orderId && !prefix) {
       return NextResponse.json({ success: false, error: 'يرجى إدخال رقم الطلب.' }, { status: 400 });
     }
 
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'track', orderId }),
+      body: JSON.stringify(prefix ? { action: 'track', prefix } : { action: 'track', orderId }),
       cache: 'no-store',
       redirect: 'follow'
     });
@@ -36,3 +40,4 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: 'تعذر الاتصال بخدمة المتابعة حاليًا، يرجى المحاولة لاحقًا.' }, { status: 500 });
   }
 }
+
