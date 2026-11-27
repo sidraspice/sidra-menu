@@ -20,8 +20,7 @@ export async function POST(request) {
 
     return NextResponse.json({ 
       success: true, 
-      orderId: data.orderId || body.orderId,
-      adminLink: data.adminLink 
+      orderId: data.orderId || body.orderId
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.toString() }, { status: 500 });
