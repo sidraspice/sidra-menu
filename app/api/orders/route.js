@@ -9,7 +9,7 @@ export async function POST(request) {
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify((function(b){ const c = Object.assign({}, b); delete c.action; delete c.secret; return c; })(body)),
     });
 
     const data = await response.json();
