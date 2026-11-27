@@ -1629,7 +1629,7 @@ export default function Home() {
                 <h2 className="text-sm font-black text-[#1e382b]">
                   {currentStep === 'cart' && 'سلة المشتريات'}
                   {currentStep === 'checkout' && 'بيانات توصيل الطلب'}
-                  {currentStep === 'review' && 'مراجعة الطلب قبل الإرسال'}
+                  {currentStep === 'review' && 'راجع بياناتك وطلبك'}
                 </h2>
                 {currentStep === 'cart' && cart.length > 0 && (
                   <button onClick={() => setShowClearConfirm(true)} className="text-[11px] font-black text-red-600 px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">مسح السلة</button>
@@ -1798,7 +1798,7 @@ export default function Home() {
                 )}
 
                 {currentStep === 'checkout' && (
-                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>مراجعة الطلب قبل الإرسال</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button form="checkout-form" type="submit" className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>راجع بياناتك وطلبك</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
                 )}
 
                 {currentStep === 'review' && (
@@ -1852,5 +1852,4 @@ export default function Home() {
     </div>
   );
 }
-
 
