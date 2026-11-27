@@ -303,6 +303,30 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef(null);
+  const catRowRef = useRef(null);
+  const catNudgedRef = useRef(false);
+  const [catHint, setCatHint] = useState(false);
+  const updateCatHint = () => {
+    const el = catRowRef.current;
+    if (!el) return;
+    setCatHint(Math.abs(el.scrollLeft) + el.clientWidth < el.scrollWidth - 4);
+  };
+  useEffect(() => {
+    if (loading) return;
+    const t1 = setTimeout(() => {
+      const el = catRowRef.current;
+      if (!el) return;
+      updateCatHint();
+      if (catNudgedRef.current || el.scrollWidth <= el.clientWidth + 4) return;
+      catNudgedRef.current = true;
+      el.scrollBy({ left: -48, behavior: 'smooth' });
+      setTimeout(() => {
+        const e2 = catRowRef.current;
+        if (e2 && Math.abs(e2.scrollLeft) > 0 && Math.abs(e2.scrollLeft) <= 60) e2.scrollTo({ left: 0, behavior: 'smooth' });
+      }, 650);
+    }, 700);
+    return () => clearTimeout(t1);
+  }, [loading]);
   const [selectedCategory, setSelectedCategory] = useState('كل المنتجات');
   
   // مؤشر النص المتحرك للفت الانتباه داخل مربع البحث
@@ -1183,7 +1207,8 @@ export default function Home() {
           )}
 
           {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
-            <div className="flex flex-nowrap overflow-x-auto gap-1.5 pt-1 pb-1" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
+            <div className="relative">
+            <div ref={catRowRef} onScroll={updateCatHint} className="flex flex-nowrap overflow-x-auto gap-1.5 pt-1 pb-1" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
@@ -1222,6 +1247,12 @@ export default function Home() {
                   </button>
                 );
               })}
+            </div>
+            {catHint && (
+              <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 flex items-center justify-start pl-1" style={{ background: 'linear-gradient(to right, #fbf9f4 45%, rgba(251,249,244,0))' }}>
+                <span className="text-[#2d533e] text-2xl font-black leading-none">‹</span>
+              </div>
+            )}
             </div>
           )}
         </div>
