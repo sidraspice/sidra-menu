@@ -915,8 +915,8 @@ export default function Home() {
       let orderId = makeOrderId();
       while (lastOrder && lastOrder.id === orderId) orderId = makeOrderId();
 
-      let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-      message += `🏷️ رقم الطلب: ${orderId}\n`;
+      let message = isEditing ? `🔄 *تعديل على الطلب السابق - عطارة سدرة*\n` : `🛒 *طلب جديد - عطارة سدرة*\n`;
+      message += `🏷 رقم الطلب: ${orderId}\n`;
       
       if (isEditing && lastOrder) {
         message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
@@ -924,40 +924,38 @@ export default function Home() {
         message += `\n`;
       }
 
-      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${toEnglishDigits(customer.phone).trim()}\n📍 مكان التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n📍 العنوان: ${customer.address.trim()}\n`;
+      message += `👤 الاسم: ${customer.name.trim()}\n📱 الهاتف: ${toEnglishDigits(customer.phone).trim()}\n📍 التوصيل: ${customer.deliveryZone === 'damanhour' ? 'داخل دمنهور' : 'خارج دمنهور'}\n🏠 العنوان: ${customer.address.trim()}\n`;
       if (customer.notes.trim()) message += `📝 ملاحظات: ${customer.notes.trim()}\n`;
-      message += `\n📦 المنتجات المطلوبة:\n\n`;
+      message += `\n📦 *المنتجات*\n`;
       
       let totalWeightGrams = 0;
       cart.forEach((item, index) => {
         totalWeightGrams += (item.unitWeightGrams * item.qty);
         const itemTotal = (item.price * item.qty).toFixed(2);
         const itemOriginalTotal = item.originalPrice ? (item.originalPrice * item.qty).toFixed(2) : null;
-        message += `*${index + 1}. ${item.name}*\n   🔷 الوزن: ${getCalculatedTotalWeight(item.weight, item.qty)}\n`;
-        if (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal)) {
-          message += `   🔷 السعر: ~${itemOriginalTotal}~ جنيه *${itemTotal} جنيه*\n\n`;
-        } else {
-          message += `   🔷 السعر: *${itemTotal} جنيه*\n\n`;
-        }
+        const fmt = (n) => String(n).replace(/\.00$/, '');
+        const priceText = (itemOriginalTotal && parseFloat(itemOriginalTotal) > parseFloat(itemTotal))
+          ? `~${fmt(itemOriginalTotal)}~ *${fmt(itemTotal)} جنيه*`
+          : `${fmt(itemTotal)} جنيه`;
+        const n = index + 1;
+        const keycap = n === 10 ? '🔟' : String(n).split('').map(d => d + '\uFE0F\u20E3').join('');
+        message += `${keycap} ${item.name}\n▪️ ${getCalculatedTotalWeight(item.weight, item.qty)} ▫️ ${priceText}\n`;
       });
 
-      message += `────────────\n\n⚖️ إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}\n`;
-      message += `💰 ${showDeliveryInMessage ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه\n`;
-      if (showDeliveryInMessage) {
-        message += `🚚 التوصيل: ${deliveryLineText}\n`;
-      }
-      message += `💳 طريقة الدفع: ${customer.paymentMethod}\n`;
+      message += `\n🧂 *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
+      message += `💰 *الإجمالي: ${totalAmount} جنيه*\n`;
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
-      if (isTransferNumberNeeded) {
-        message += `📲 رقم التحويل (${customer.paymentMethod}): *${TRANSFER_NUMBER}*\n`;
+      message += `💳 الدفع: ${customer.paymentMethod}${isTransferNumberNeeded ? ` ${TRANSFER_NUMBER}` : ''}\n`;
+      if (showDeliveryInMessage) {
+        message += `🚚 التوصيل: ${deliveryLineText.replace(/\s*\(.*\)\s*$/, '')}\n`;
       }
 
       if (customer.deliveryZone === 'damanhour') {
         if (currentTotalNumber >= FREE_DELIVERY_THRESHOLD) {
           message += `🎁 *التوصيل مجاني (حساب المندوب علينا)*\n`;
         }
-        message += `\n⏳ انتظرونا خلال 24 إلى 48 ساعة لوصول الأوردر، والتوصيل يومياً من الساعة 5 مساءً حتى 9 مساءً.`;
+        message += `⏳ الاستلام خلال 24 إلى 48 ساعة، والتوصيل من 5 إلى 9 مساءً`;
       } else if (customer.deliveryZone === 'outside') {
         message += `\n📦 *طريقة الشحن عبر البريد المصري:*\n`;
         message += `📌 *سريع:* تسليم باليد على العنوان.\n`;
@@ -1809,3 +1807,4 @@ export default function Home() {
     </div>
   );
 }
+
