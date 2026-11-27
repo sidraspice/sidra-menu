@@ -2,9 +2,24 @@ import { NextResponse } from 'next/server';
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymsdUn22D0kKq6ZkK6JtYgaZX7oOe1zc29dLT4ViBR4O5bjVUZzVFkCkY0oZW3UIV8AA/exec';
 
+
+// كلمة سر التأكيد: تُضبط في Vercel كمتغير بيئة ADMIN_CONFIRM_PASSWORD
+function passwordOk(input) {
+  const expected = process.env.ADMIN_CONFIRM_PASSWORD || '';
+  if (!expected || typeof input !== 'string' || input.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ input.charCodeAt(i);
+  return diff === 0;
+}
+
+function escapeHtml(v) {
+  return String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const orderId = searchParams.get('id');
+  const rawId = searchParams.get('id');
+  const orderId = rawId && /^[A-Za-z0-9_-]{1,64}$/.test(rawId) ? rawId : null;
 
   if (!orderId) {
     return new NextResponse(`
@@ -30,12 +45,15 @@ export async function GET(request) {
           @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
         <script>
-          window.onload = async function() {
+          window.confirmOrder = async function() {
+            const pw = document.getElementById('pw').value;
+            document.getElementById('gate').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
             try {
               const response = await fetch('/api/confirm', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: '${orderId}' })
+                body: JSON.stringify({ id: ${JSON.stringify(orderId)}, password: pw })
               });
               const data = await response.json();
 
@@ -58,7 +76,13 @@ export async function GET(request) {
         </script>
       </head>
       <body>
-        <div id="loading" style="text-align: center;">
+        <div id="gate" style="text-align: center; width: 100%; max-width: 400px;">
+          <h2 style="color: #2d533e; margin: 0 0 15px 0;">تأكيد الطلب ${escapeHtml(orderId)}</h2>
+          <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
+          <button onclick="confirmOrder()" style="margin-top: 12px; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: white; background: #2d533e; border: 0; border-radius: 12px;">تأكيد الطلب</button>
+        </div>
+
+        <div id="loading" style="display: none; text-align: center;">
           <div class="spinner"></div>
           <h2 style="color: #2d533e; margin: 0;">جاري معالجة وتأكيد الطلب...</h2>
           <p style="color: #666; font-size: 15px; font-weight: bold; margin-top: 10px;">يرجى الانتظار ولا تغلق الصفحة</p>
@@ -67,13 +91,13 @@ export async function GET(request) {
         <div id="success" class="card" style="border: 2px solid #bbf7d0;">
           <h1 style="font-size: 60px; margin: 0 0 15px 0;">✅</h1>
           <h2 style="margin: 0 0 10px 0; color: #166534;">تم تأكيد الطلب بنجاح!</h2>
-          <p style="margin: 0; font-weight: bold; color: #15803d;">تم نقل الأوردر (${orderId}) للشيت الرسمي وخصم البضاعة.</p>
+          <p style="margin: 0; font-weight: bold; color: #15803d;">تم نقل الأوردر (${escapeHtml(orderId)}) للشيت الرسمي وخصم البضاعة.</p>
         </div>
 
         <div id="warning" class="card" style="border: 2px solid #fde68a;">
           <h1 style="font-size: 60px; margin: 0 0 15px 0;">⚠️</h1>
           <h2 style="margin: 0 0 10px 0; color: #b45309;">الطلب مؤكد مسبقاً!</h2>
-          <p style="margin: 0; color: #92400e;">هذا الأوردر (${orderId}) تم تأكيده وخصمه من المخزن من قبل.</p>
+          <p style="margin: 0; color: #92400e;">هذا الأوردر (${escapeHtml(orderId)}) تم تأكيده وخصمه من المخزن من قبل.</p>
         </div>
 
         <div id="error" class="card" style="border: 2px solid #fca5a5;">
@@ -91,7 +115,8 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    if (!body.id) return NextResponse.json({ success: false, error: 'No ID' });
+    if (!passwordOk(body.password)) return NextResponse.json({ success: false, error: 'كلمة السر غير صحيحة' }, { status: 401 });
+    if (!body.id || !/^[A-Za-z0-9_-]{1,64}$/.test(String(body.id))) return NextResponse.json({ success: false, error: 'No ID' }, { status: 400 });
 
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
