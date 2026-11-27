@@ -112,7 +112,9 @@ export async function GET(request) {
             lines.push('ده طلبك زي ما اخترته 👇');
             lines.push('');
             (d.items || []).forEach(function(it, i) {
-              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + totalWeight(it.weight, it.qty));
+              const unit = parseFloat(it.price);
+              const linePrice = isNaN(unit) ? '' : ' - ' + (Math.round(unit * (Number(it.qty) || 1) * 100) / 100) + ' جنيه';
+              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + totalWeight(it.weight, it.qty) + linePrice);
             });
             lines.push('');
             const t = d.total;
