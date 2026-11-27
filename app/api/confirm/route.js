@@ -55,7 +55,7 @@ export async function GET(request) {
             const rawv = presetId || (document.getElementById('oid') ? document.getElementById('oid').value : '');
             let idv = String(rawv).replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
             if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
-            if (/^[0-9]{4}-[0-9]{4}(-[A-Z])?$/.test(idv)) idv = 'SD-' + idv;
+            if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(idv)) idv = 'SD-' + idv;
             if (!/^[A-Za-z0-9_-]{1,64}$/.test(idv)) {
               document.getElementById('gate-msg').innerText = 'اكتب رقم الطلب بشكل صحيح (مثال: 2711-1510)';
               return;

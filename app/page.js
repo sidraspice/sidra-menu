@@ -908,13 +908,12 @@ export default function Home() {
       const hh = String(now.getHours()).padStart(2, '0');
       const mins = String(now.getMinutes()).padStart(2, '0');
       
-      let orderId = `SD-${dd}${mm}-${hh}${mins}`;
-
-      if (lastOrder && (lastOrder.id === orderId || lastOrder.id.startsWith(`${orderId}-`))) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        const randomChar = chars.charAt(Math.floor(Math.random() * chars.length));
-        orderId = `${orderId}-${randomChar}`;
-      }
+      // رقم الطلب: نفس الشكل SD-DDMM-HHMM + حرفين عشوائيين لتقليل تكرار الرقم بين عملاء مختلفين في نفس الدقيقة
+      const idLetters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const randomIdLetter = () => idLetters.charAt(Math.floor(Math.random() * idLetters.length));
+      const makeOrderId = () => `SD-${dd}${mm}-${hh}${mins}-${randomIdLetter()}${randomIdLetter()}`;
+      let orderId = makeOrderId();
+      while (lastOrder && lastOrder.id === orderId) orderId = makeOrderId();
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
       message += `🏷️ رقم الطلب: ${orderId}\n`;
