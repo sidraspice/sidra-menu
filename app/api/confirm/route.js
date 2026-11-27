@@ -52,9 +52,12 @@ export async function GET(request) {
           window.confirmOrder = async function() {
             const pw = document.getElementById('pw').value;
             const presetId = ${JSON.stringify(orderId || '')};
-            const idv = presetId || (document.getElementById('oid') ? document.getElementById('oid').value.trim() : '');
+            const rawv = presetId || (document.getElementById('oid') ? document.getElementById('oid').value : '');
+            let idv = String(rawv).replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
+            if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
+            if (/^[0-9]{4}-[0-9]{4}(-[A-Z])?$/.test(idv)) idv = 'SD-' + idv;
             if (!/^[A-Za-z0-9_-]{1,64}$/.test(idv)) {
-              document.getElementById('gate-msg').innerText = 'اكتب رقم الطلب بشكل صحيح (مثال: SD-2711-1510)';
+              document.getElementById('gate-msg').innerText = 'اكتب رقم الطلب بشكل صحيح (مثال: 2711-1510)';
               return;
             }
             document.getElementById('gate-msg').innerText = '';
@@ -98,7 +101,7 @@ export async function GET(request) {
 
         <div id="gate" style="display: none; text-align: center; width: 100%; max-width: 400px;">
           <h2 style="color: #2d533e; margin: 0 0 15px 0;">${orderId ? 'تأكيد الطلب ' + escapeHtml(orderId) : 'تأكيد طلب'}</h2>
-          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: SD-2711-1510" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
+          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: 2711-1510" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
           <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
           <button onclick="confirmOrder()" style="margin-top: 12px; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: white; background: #2d533e; border: 0; border-radius: 12px;">تأكيد الطلب</button>
           <p id="gate-msg" style="color: #991b1b; font-size: 14px; margin: 10px 0 0 0;"></p>
