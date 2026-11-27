@@ -78,6 +78,24 @@ export async function GET(request) {
             return (i + 1) + '. ' + nm + ' - ' + w + pr;
           }
 
+          window.itemBlock = function(it, i) {
+            const AR = '٠١٢٣٤٥٦٧٨٩';
+            const qty = Number(it.qty) || 1;
+            const raw = String(it.weight || '').replace(/[٠-٩]/g, function(c) { return String(AR.indexOf(c)); }).replace(/٫/g, '.');
+            const m = raw.match(/^ *([0-9]+([.][0-9]+)?) *(.*)$/);
+            let w = raw.trim() + (qty > 1 ? ' × ' + qty : '');
+            if (m) {
+              const n = Math.round(parseFloat(m[1]) * qty * 100) / 100;
+              w = n + (m[3] ? ' ' + m[3].trim() : '');
+            }
+            let nm = String(it.name || '').replace(/ *سدرة */g, ' ').trim();
+            if (!nm) nm = String(it.name || '');
+            const unit = parseFloat(it.price);
+            const pr = isNaN(unit) ? '' : ' ▫️ ' + (Math.round(unit * qty * 100) / 100) + ' جنيه';
+            const num = String(i + 1).split('').map(function(c) { return c + '\uFE0F\u20E3'; }).join('');
+            return [num + ' ' + nm, '▪️ ' + w + pr];
+          }
+
           window.renderSummary = function(data) {
             const box = document.getElementById('summary');
             const meta = document.getElementById('summary-meta');
@@ -114,7 +132,9 @@ export async function GET(request) {
             lines.push('ده طلبك زي ما اخترته 👇');
             lines.push('');
             (d.items || []).forEach(function(it, i) {
-              lines.push(window.itemLine(it, i));
+              const blk = window.itemBlock(it, i);
+              lines.push(blk[0]);
+              lines.push(blk[1]);
             });
             lines.push('');
             const t = d.total;
@@ -367,4 +387,5 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: error.toString() });
   }
 }
+
 
