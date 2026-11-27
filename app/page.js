@@ -1623,7 +1623,7 @@ export default function Home() {
       {/* --- Modal السلة ومراحل الطلب --- */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md h-[96vh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
+          <div className="bg-white w-full max-w-md h-[96vh] max-h-[96dvh] sm:h-auto sm:max-h-[95vh] rounded-t-[2rem] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200 relative">
             <div className={`px-4 border-b border-slate-100 shrink-0 bg-white z-10 ${currentStep === 'checkout' ? 'py-2.5' : 'py-3.5'}`}>
               <div className="flex justify-between items-center">
                 <h2 className="text-sm font-black text-[#1e382b]">
