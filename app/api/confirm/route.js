@@ -45,6 +45,10 @@ export async function GET(request) {
           @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
         <script>
+          window.showGate = function() {
+            document.getElementById('notice').style.display = 'none';
+            document.getElementById('gate').style.display = 'block';
+          }
           window.confirmOrder = async function() {
             const pw = document.getElementById('pw').value;
             document.getElementById('gate').style.display = 'none';
@@ -77,7 +81,14 @@ export async function GET(request) {
         </script>
       </head>
       <body>
-        <div id="gate" style="text-align: center; width: 100%; max-width: 400px;">
+        <div id="notice" style="text-align: center; width: 100%; max-width: 400px;">
+          <h1 style="font-size: 50px; margin: 0 0 15px 0;">🔒</h1>
+          <h2 style="color: #2d533e; margin: 0 0 10px 0;">هذه الصفحة خاصة بإدارة المتجر فقط</h2>
+          <p style="color: #666; margin: 0 0 25px 0; line-height: 1.7;">تأكيد الطلبات متاح للإدارة فقط. لو كنت عميلًا فلا يلزمك أي إجراء هنا، وسيتواصل معك المتجر بخصوص طلبك.</p>
+          <a href="#" onclick="showGate(); return false;" style="font-size: 12px; color: #94a3b8; text-decoration: none;">دخول الإدارة</a>
+        </div>
+
+        <div id="gate" style="display: none; text-align: center; width: 100%; max-width: 400px;">
           <h2 style="color: #2d533e; margin: 0 0 15px 0;">تأكيد الطلب ${escapeHtml(orderId)}</h2>
           <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
           <button onclick="confirmOrder()" style="margin-top: 12px; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: white; background: #2d533e; border: 0; border-radius: 12px;">تأكيد الطلب</button>
