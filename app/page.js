@@ -1183,7 +1183,7 @@ export default function Home() {
           )}
 
           {!loading && !error && !isSearchModeActive && displayCategories.length > 0 && (
-            <div className="flex flex-wrap justify-center gap-1.5 pt-1 pb-1">
+            <div className="flex flex-nowrap overflow-x-auto gap-1.5 pt-1 pb-1" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {displayCategories.map(cat => {
                 const isSelected = selectedCategory === cat;
                 const isOfferBtn = cat === 'فرص خاصة';
@@ -1807,4 +1807,5 @@ export default function Home() {
     </div>
   );
 }
+
 
