@@ -48,6 +48,65 @@ export async function GET(request) {
           window.showGate = function() {
             document.getElementById('notice').style.display = 'none';
             document.getElementById('gate').style.display = 'block';
+            const known = ${JSON.stringify(orderId || '')} || (document.getElementById('oid') ? document.getElementById('oid').value : '');
+            const normalized = window.normalizeOrderId(known);
+            if (normalized) { document.querySelectorAll('.oid').forEach(function(el) { el.textContent = normalized; }); window.loadSummary(normalized); }
+          }
+
+          window.normalizeOrderId = function(raw) {
+            let idv = String(raw || '').replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
+            if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
+            if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(idv)) idv = 'SD-' + idv;
+            return idv;
+          }
+
+          window.renderSummary = function(data) {
+            const box = document.getElementById('summary');
+            const meta = document.getElementById('summary-meta');
+            const list = document.getElementById('summary-items');
+            const totalEl = document.getElementById('summary-total');
+            if (!box) return;
+            if (!data) { box.style.display = 'none'; return; }
+            meta.textContent = '';
+            list.textContent = '';
+            const parts = [];
+            if (data.statusArabic) parts.push(data.statusArabic);
+            if (data.zone) parts.push('التوصيل: ' + data.zone);
+            meta.textContent = parts.join('  •  ');
+            (data.items || []).forEach(function(it, i) {
+              const row = document.createElement('div');
+              row.style.cssText = 'display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13px;';
+              const nameEl = document.createElement('span');
+              nameEl.style.cssText = 'font-weight:bold; color:#1e293b;';
+              nameEl.textContent = (i + 1) + '. ' + (it.name || '');
+              const wEl = document.createElement('span');
+              wEl.style.cssText = 'color:#475569; white-space:nowrap;';
+              wEl.textContent = (it.weight || '') + ' × ' + (it.qty || 1);
+              row.appendChild(nameEl);
+              row.appendChild(wEl);
+              list.appendChild(row);
+            });
+            const t = data.total;
+            totalEl.textContent = (t === 0 || t) ? (t + ' جنيه') : '—';
+            box.style.display = 'block';
+          }
+
+          window.loadSummary = async function(idv) {
+            if (!idv) { window.renderSummary(null); return false; }
+            try {
+              const res = await fetch('/api/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: idv })
+              });
+              const data = await res.json();
+              if (data && data.success) { window.renderSummary(data); return true; }
+              window.renderSummary(null);
+              return false;
+            } catch (err) {
+              window.renderSummary(null);
+              return false;
+            }
           }
           window.confirmOrder = async function() {
             const pw = document.getElementById('pw').value;
@@ -101,7 +160,18 @@ export async function GET(request) {
 
         <div id="gate" style="display: none; text-align: center; width: 100%; max-width: 400px;">
           <h2 style="color: #2d533e; margin: 0 0 15px 0;">${orderId ? 'تأكيد الطلب ' + escapeHtml(orderId) : 'تأكيد طلب'}</h2>
-          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: 2711-1510" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
+          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: 2711-1510" onblur="window.loadSummary(window.normalizeOrderId(this.value))" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
+
+          <div id="summary" style="display: none; text-align: right; margin: 0 0 14px 0; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc;">
+            <div style="font-weight: bold; color: #2d533e; margin-bottom: 6px;">الطلب كما هو مسجل في الشيت</div>
+            <div id="summary-meta" style="font-size: 12px; color: #475569; margin-bottom: 8px;"></div>
+            <div id="summary-items"></div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 8px;">
+              <span>الإجمالي المسجل:</span><span id="summary-total">—</span>
+            </div>
+            <div style="font-size: 12px; color: #b45309; margin-top: 8px; line-height: 1.6;">راجع الأصناف والأوزان والإجمالي فوق، وقارنها برسالة الواتساب اللي وصلتك من العميل قبل التأكيد.</div>
+          </div>
+
           <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
           <button onclick="confirmOrder()" style="margin-top: 12px; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: white; background: #2d533e; border: 0; border-radius: 12px;">تأكيد الطلب</button>
           <p id="gate-msg" style="color: #991b1b; font-size: 14px; margin: 10px 0 0 0;"></p>
