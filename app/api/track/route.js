@@ -5,7 +5,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymsdUn22D0kKq6ZkK6J
 export async function POST(request) {
   try {
     const body = await request.json();
-    const orderId = body.orderId ? String(body.orderId).trim() : '';
+    const orderId = body.orderId ? String(body.orderId).replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[\u200B-\u200F\u2060\uFEFF]/g, '').trim() : '';
 
     if (!orderId) {
       return NextResponse.json({ success: false, error: 'يرجى إدخال رقم الطلب.' }, { status: 400 });
