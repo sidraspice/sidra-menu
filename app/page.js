@@ -988,10 +988,7 @@ export default function Home() {
 
         const contentType = response.headers.get('content-type') || '';
         if (response.ok && contentType.includes('application/json')) {
-          const resData = await response.json();
-          if (resData.adminLink) {
-            message += `\n\n────────────\n⚙️ *إدارة المتجر (للاستخدام الداخلي)*\n🔗 لتأكيد الطلب وخصم المخزن اضغط هنا:\n${resData.adminLink}`;
-          }
+          await response.json(); // رابط التأكيد الإداري لم يعد يُضاف لرسالة العميل
         }
       } catch (err) {
         console.warn('تأخر رد السيرفر، المتابعة إلى واتساب مباشرة:', err);
