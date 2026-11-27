@@ -1794,7 +1794,7 @@ export default function Home() {
 
               <div className="flex flex-col gap-2">
                 {currentStep === 'cart' && (
-                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
+                  <button disabled={cart.length === 0} onClick={() => setCurrentStep('checkout')} className="w-full bg-[#2d533e] disabled:opacity-50 text-white py-4 rounded-xl font-black text-base leading-snug flex items-center justify-center gap-2 shadow-sm hover:bg-[#1e382b] transition-transform active:scale-[0.98]"><span>متابعة إتمام الطلب</span><ChevronRight className="w-3.5 h-3.5 rotate-180" /></button>
                 )}
 
                 {currentStep === 'checkout' && (
@@ -1804,8 +1804,8 @@ export default function Home() {
                 {currentStep === 'review' && (
                   <div>
                     <div className="flex gap-2">
-                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-3 rounded-xl font-black text-xs sm:text-sm transition-colors">تعديل بياناتي</button>
-                    <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-sm transition-transform active:scale-[0.98]">
+                    <button onClick={() => setCurrentStep('checkout')} className="flex-1 bg-slate-100 text-[#1e382b] border-2 border-slate-200 hover:bg-slate-200 py-4 rounded-xl font-black text-base leading-snug transition-colors">تعديل بياناتي</button>
+                    <button disabled={isSubmitting} onClick={handleSendWhatsAppOrder} className="flex-[2] bg-[#25D366] hover:bg-[#20b858] disabled:opacity-50 text-white py-4 rounded-xl font-black text-base leading-snug flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-[0.98]">
                       {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Phone className="w-3.5 h-3.5 fill-white" /><span>إرسال الطلب عبر واتساب</span></>}
                     </button>
                     </div>
@@ -1813,7 +1813,7 @@ export default function Home() {
                   </div>
                 )}
 
-                <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-2.5 rounded-xl font-black text-xs sm:text-sm hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
+                <button onClick={() => setIsCartOpen(false)} className="w-full bg-white text-red-600 border-2 border-red-500 py-4 rounded-xl font-black text-base leading-snug hover:bg-red-50 transition-colors">رجوع لمتابعة التسوق</button>
               </div>
             </div>
           </div>
@@ -1852,5 +1852,6 @@ export default function Home() {
     </div>
   );
 }
+
 
 
