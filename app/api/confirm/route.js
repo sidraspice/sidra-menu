@@ -143,7 +143,7 @@ export async function POST(request) {
     const response = await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'confirm', orderId: body.id }),
+      body: JSON.stringify({ action: 'confirm', orderId: body.id, secret: process.env.CONFIRM_SECRET || '' }),
     });
 
     const data = await response.json();
