@@ -91,22 +91,94 @@ export async function GET(request) {
             box.style.display = 'block';
           }
 
-          window.loadSummary = async function(idv) {
-            if (!idv) { window.renderSummary(null); return false; }
+          window.findByPrefix = async function(prefix) {
             try {
+              const res = await fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prefix: prefix }) });
+              const data = await res.json();
+              if (data && data.success && Array.isArray(data.matches)) return data.matches;
+              return null;
+            } catch (err) { return null; }
+          }
+          window.pickOrder = function(id) {
+            const inp = document.getElementById('oid');
+            if (inp) inp.value = id;
+            document.querySelectorAll('.oid').forEach(function(el) { el.textContent = id; });
+            return window.loadSummary(id);
+          }
+          window.showPick = function(matches) {
+            const pick = document.getElementById('pick');
+            if (!pick) return;
+            pick.textContent = '';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-weight:bold; color:#2d533e; margin-bottom:8px;';
+            title.textContent = 'في أكتر من أوردر بنفس الرقم، اختار الأوردر:';
+            pick.appendChild(title);
+            matches.forEach(function(m) {
+              const b = document.createElement('button');
+              b.type = 'button';
+              b.style.cssText = 'display:block; width:100%; margin-top:6px; padding:10px; font-size:14px; font-weight:bold; color:#1e293b; background:white; border:1px solid #cbd5e1; border-radius:10px;';
+              b.textContent = m.orderId + (m.status === 'confirmed' ? ' (متأكد)' : ' (منتظر التأكيد)');
+              b.onclick = function() { window.pickOrder(m.orderId); };
+              pick.appendChild(b);
+            });
+            pick.style.display = 'block';
+          }
+          window.lookupToken = 0;
+          window.setLoading = function(on) {
+            const el = document.getElementById('loading');
+            if (el) el.style.display = on ? 'block' : 'none';
+          }
+          window.loadSummary = async function(idv) {
+            const token = ++window.lookupToken;
+            window.resolvedId = '';
+            const pickBox = document.getElementById('pick');
+            if (pickBox) { pickBox.style.display = 'none'; pickBox.textContent = ''; }
+            if (!idv) { window.setLoading(false); window.renderSummary(null); return false; }
+            window.lastQuery = idv;
+            window.setLoading(true);
+            try {
+              const digitsOnly = /^SD-[0-9]{4}-[0-9]{4}$/.test(idv);
               const res = await fetch('/api/track', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: idv })
+                body: JSON.stringify(digitsOnly ? { prefix: idv, resolve: true } : { orderId: idv })
               });
               const data = await res.json();
-              if (data && data.success) { window.renderSummary(data); return true; }
+              if (token !== window.lookupToken) return false;
+              if (data && data.success && data.items) {
+                const rid = data.orderId || idv;
+                window.renderSummary(data);
+                window.resolvedId = rid;
+                const inp = document.getElementById('oid');
+                if (inp && rid !== idv) { inp.value = rid; window.lastQuery = rid; }
+                document.querySelectorAll('.oid').forEach(function(el) { el.textContent = rid; });
+                window.setLoading(false);
+                return true;
+              }
+              if (data && data.success && Array.isArray(data.matches) && data.matches.length > 1) {
+                window.renderSummary(null); window.showPick(data.matches);
+                window.setLoading(false);
+                return false;
+              }
               window.renderSummary(null);
+              window.setLoading(false);
               return false;
             } catch (err) {
-              window.renderSummary(null);
+              if (token === window.lookupToken) { window.renderSummary(null); window.setLoading(false); }
               return false;
             }
+          }
+          window.lookupFromInput = function() {
+            const el = document.getElementById('oid');
+            if (!el) return;
+            const n = window.normalizeOrderId(el.value);
+            if (!/^SD-[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(n)) return;
+            if (n === window.lastQuery) return;
+            window.loadSummary(n);
+          }
+          window.lookupSoon = function() {
+            clearTimeout(window.lookupTimer);
+            window.lookupTimer = setTimeout(window.lookupFromInput, 500);
           }
           window.confirmOrder = async function() {
             const pw = document.getElementById('pw').value;
@@ -115,6 +187,19 @@ export async function GET(request) {
             let idv = String(rawv).replace(/[٠-٩]/g, function(d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[ ]+/g, '').toUpperCase();
             if (/^[0-9]{8}$/.test(idv)) idv = idv.slice(0, 4) + '-' + idv.slice(4);
             if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(idv)) idv = 'SD-' + idv;
+            if (/^SD-[0-9]{4}-[0-9]{4}$/.test(idv)) {
+              if (window.resolvedId && (window.resolvedId === idv || window.resolvedId.indexOf(idv + '-') === 0)) {
+                idv = window.resolvedId;
+              } else {
+                await window.loadSummary(idv);
+                if (window.resolvedId && (window.resolvedId === idv || window.resolvedId.indexOf(idv + '-') === 0)) {
+                  idv = window.resolvedId;
+                } else {
+                  document.getElementById('gate-msg').innerText = 'مفيش أوردر واحد بالرقم ده. اختار الأوردر من القائمة أو اكتب الرقم كامل.';
+                  return;
+                }
+              }
+            }
             if (!/^[A-Za-z0-9_-]{1,64}$/.test(idv)) {
               document.getElementById('gate-msg').innerText = 'اكتب رقم الطلب بشكل صحيح (مثال: 2711-1510)';
               return;
@@ -160,8 +245,10 @@ export async function GET(request) {
 
         <div id="gate" style="display: none; text-align: center; width: 100%; max-width: 400px;">
           <h2 style="color: #2d533e; margin: 0 0 15px 0;">${orderId ? 'تأكيد الطلب ' + escapeHtml(orderId) : 'تأكيد طلب'}</h2>
-          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: 2711-1510" onblur="window.loadSummary(window.normalizeOrderId(this.value))" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
+          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: 2711-1510" oninput="window.lookupSoon()" onblur="window.lookupFromInput()" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
 
+          <div id="loading" style="display: none; text-align: center; color: #2d533e; font-size: 14px; font-weight: bold; margin: 0 0 12px 0;">جاري البحث...</div>
+          <div id="pick" style="display: none; text-align: right; margin: 0 0 14px 0; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc;"></div>
           <div id="summary" style="display: none; text-align: right; margin: 0 0 14px 0; padding: 14px; border: 1px solid #e2e8f0; border-radius: 14px; background: #f8fafc;">
             <div style="font-weight: bold; color: #2d533e; margin-bottom: 6px;">الطلب كما هو مسجل في الشيت</div>
             <div id="summary-meta" style="font-size: 12px; color: #475569; margin-bottom: 8px;"></div>
@@ -225,3 +312,4 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: error.toString() });
   }
 }
+
