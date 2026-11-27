@@ -1089,7 +1089,7 @@ export default function Home() {
             <div className="w-16 h-16 bg-[#e8f5e9] rounded-full flex items-center justify-center mx-auto mb-3"><ShoppingBag className="w-8 h-8 text-[#2d533e]" /></div>
             <h3 className="font-black text-lg text-[#1e382b] mb-2">أهلاً بك مرة تانية! 🌿</h3>
             <p className="text-sm text-slate-500 mb-5 font-semibold">منتجاتك في السلة في أمان ومستنية تأكيدك..</p>
-            <button onClick={() => setShowWelcomeBack(false)} className="w-full bg-[#2d533e] text-white py-3 rounded-xl font-bold text-sm shadow-md">متابعة التسوق</button>
+            <button onClick={() => setShowWelcomeBack(false)} className="w-full bg-[#2d533e] text-white py-3.5 rounded-xl font-black text-base shadow-md">متابعة التسوق</button>
           </div>
         </div>
       )}
@@ -1154,7 +1154,7 @@ export default function Home() {
               <div className={`grid gap-2 ${lastOrder && !isEditing ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <a
                   href="/track"
-                  className="bg-white border-2 border-[#e8e2d5] hover:border-[#2d533e] text-[#1e382b] text-xs font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                  className="bg-white border-2 border-[#e8e2d5] hover:border-[#2d533e] text-[#1e382b] text-sm font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
                 >
                   <Truck className="w-4 h-4 text-[#2d533e]" />
                   <span>تتبع طلبك 🚚</span>
@@ -1164,7 +1164,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={handleRestoreOrderRequest}
-                    className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-xs font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+                    className="bg-[#2d533e] hover:bg-[#1e382b] text-white text-sm font-black py-2.5 px-3 rounded-2xl transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
                     title="استرجاع وتعديل طلبك السابق"
                   >
                     <RotateCcw className="w-4 h-4 text-[#c89d56]" />
@@ -1247,10 +1247,10 @@ export default function Home() {
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
                     style={btnStyle}
-                    className="px-2.5 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group shrink-0"
+                    className="px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5 active:scale-95 shadow-2xs group shrink-0"
                   >
                     <span className="text-sm leading-none">{visual.icon}</span>
-                    <span className={`text-xs font-bold leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
+                    <span className={`text-sm font-black leading-tight whitespace-nowrap ${textClass}`}>{visual.label}</span>
                   </button>
                 );
               })}
@@ -1340,15 +1340,15 @@ export default function Home() {
                                 const hasOffer = isOfferValid(v.price, v.originalPrice);
                                 return (
                                   <div key={i} className="flex justify-between items-center py-1 border-t border-slate-50">
-                                    <span className={`text-[11px] sm:text-xs font-bold whitespace-nowrap ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
+                                    <span className={`text-xs sm:text-sm font-black whitespace-nowrap ${!v.available ? 'line-through text-slate-300' : 'text-slate-600'}`}>{v.weight}</span>
                                     <div className={`font-bold flex flex-col items-end justify-center shrink-0 ${v.available ? 'text-[#2d533e]' : 'text-slate-400'}`}>
                                       {v.available ? (
                                         <>
-                                          {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[10px] font-semibold leading-none mb-0.5 whitespace-nowrap">{formatPrice(v.originalPrice)} جنيه</span>}
-                                          <span className="text-xs sm:text-sm leading-none whitespace-nowrap">{formatPrice(v.price)} جنيه</span>
+                                          {hasOffer && <span className="text-slate-500 line-through decoration-slate-400/80 text-[11px] font-semibold leading-none mb-0.5 whitespace-nowrap">{formatPrice(v.originalPrice)} جنيه</span>}
+                                          <span className="text-sm sm:text-base font-black leading-none whitespace-nowrap">{formatPrice(v.price)} جنيه</span>
                                         </>
                                       ) : (
-                                        <span className="text-xs sm:text-sm font-bold leading-none">0</span>
+                                        <span className="text-sm sm:text-base font-black leading-none">0</span>
                                       )}
                                     </div>
                                   </div>
@@ -1356,9 +1356,9 @@ export default function Home() {
                               })}
                             </div>
                             {product.isAvailable ? (
-                              <button className="w-full bg-[#2d533e] text-white text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
+                              <button className="w-full bg-[#2d533e] text-white text-base py-3 rounded-xl font-black flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#1e382b] transition"><Plus className="w-4 h-4" /> اختيار</button>
                             ) : (
-                              <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-sm py-2.5 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
+                              <button disabled className="w-full bg-[#fff0f0] text-[#d63031] border border-[#ffcccc] text-base py-3 rounded-xl font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed shadow-sm"><Ban className="w-4 h-4" /> غير متوفر</button>
                             )}
                           </div>
                         </div>
@@ -1414,11 +1414,11 @@ export default function Home() {
                       <button key={idx} disabled={!variant.available} onClick={() => { triggerVibration(); setSelectedVariant(variant); setIsCustomWeight(false); }} className={`p-2.5 rounded-xl border-2 text-right transition relative ${!variant.available ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed' : isSelected ? 'border-[#2d533e] bg-[#2d533e]/5 text-[#1e382b] shadow-sm' : 'border-[#e8e2d5] text-slate-700 hover:border-[#c89d56]'}`}>
                         {hasOffer && variant.available && <span className="absolute -top-2.5 -left-2 bg-[#d63031] text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black border border-white z-10">فرصة خاصة</span>}
                         <div className="flex justify-between items-center">
-                          <span className="text-xs sm:text-sm font-black">{displayWeight}</span>
+                          <span className="text-sm sm:text-base font-black">{displayWeight}</span>
                         </div>
-                        <div className="text-xs sm:text-sm font-black text-[#2d533e] mt-0.5 flex flex-col">
+                        <div className="text-sm sm:text-base font-black text-[#2d533e] mt-0.5 flex flex-col">
                           {variant.available ? (
-                            <div className="flex items-center gap-1"><span>{formatPrice(displayPrice)} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{formatPrice(displayOriginalPrice)} جنيه</span>}</div>
+                            <div className="flex items-center gap-1 flex-wrap"><span>{formatPrice(displayPrice)} جنيه</span>{hasOffer && <span className="text-slate-500 line-through decoration-slate-400 text-[10px] font-bold">{formatPrice(displayOriginalPrice)} جنيه</span>}</div>
                           ) : <span className="text-slate-400">0</span>}
                         </div>
                       </button>
@@ -1500,7 +1500,7 @@ export default function Home() {
                   </span>
                   {activeModalProduct.parsedGrindOptions.length === 1 ? (
                     <div className="w-full">
-                      <div className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-xs font-black rounded-xl cursor-default select-none w-full">
+                      <div className="flex items-center justify-center gap-1.5 py-3 px-3 bg-[#f4f4f4] border-2 border-[#e8e8e8] text-slate-500 text-sm font-black rounded-xl cursor-default select-none w-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                         <span>{activeModalProduct.parsedGrindOptions[0]} <span className="text-[10px] font-bold text-slate-400">(فقط)</span></span>
                       </div>
@@ -1524,7 +1524,7 @@ export default function Home() {
                             }`}
                           >
                             <div className="flex items-center justify-center w-full relative">
-                              <span className="font-black text-xs sm:text-sm">{opt}</span>
+                              <span className="font-black text-sm sm:text-base">{opt}</span>
                               {isSelected && (
                                 <div className="absolute right-0 flex items-center justify-center animate-in zoom-in duration-200">
                                   <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[3]" />
@@ -1580,7 +1580,7 @@ export default function Home() {
                   }
                   addToCart(e);
                 }} 
-                className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-3.5 rounded-xl font-black text-sm sm:text-base shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
+                className="w-full bg-[#2d533e] disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white py-4 rounded-xl font-black text-base leading-snug shadow-lg hover:bg-[#1e382b] transition transform active:scale-[0.98]"
               >
                 {(() => {
                   if (isCustomWeight && (!customWeightValue || parseFloat(customWeightValue) <= 0)) return 'أدخل الوزن المطلوب أولاً';
@@ -1613,9 +1613,9 @@ export default function Home() {
                 <ShoppingBag className="w-6 h-6 text-[#c89d56]" />
                 {totalItemsCount > 0 && <span className="absolute -top-2.5 -right-2.5 bg-[#c89d56] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black">{totalItemsCount}</span>}
               </div>
-              <span className="text-sm font-black">سلة الطلبات</span>
+              <span className="text-base font-black">سلة الطلبات</span>
             </div>
-            <span className="text-sm text-[#c89d56] font-black">{formatPrice(totalAmount)} جنيه</span>
+            <span className="text-base text-[#c89d56] font-black">{formatPrice(totalAmount)} جنيه</span>
           </button>
         </div>
       </div>
@@ -1643,8 +1643,8 @@ export default function Home() {
                   {cart.length > 0 && customer.deliveryZone !== 'outside' && (
                     <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
                       <div className="flex justify-between items-center mb-2.5">
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
-                        <span className="text-[11px] font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${formatPrice(remainingForFreeDelivery)} جنيه`}</span>
+                        <span className="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-[#2d533e]"/> توصيل مجاني داخل دمنهور</span>
+                        <span className="text-xs sm:text-sm font-black text-[#2d533e]">{currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'مؤهل للتوصيل المجاني 🎉' : `باقي ${formatPrice(remainingForFreeDelivery)} جنيه`}</span>
                       </div>
                       <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                         <div className={`h-full transition-all duration-500 ${currentTotalNumber >= FREE_DELIVERY_THRESHOLD ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${deliveryProgressPercent}%` }} />
@@ -1657,9 +1657,9 @@ export default function Home() {
                       cart.map(item => (
                         <div key={item.key} className="py-2.5 flex justify-between items-center gap-2">
                           <div className="flex-1">
-                            <h4 className="font-black text-xs sm:text-sm text-[#1e382b] leading-snug">{item.name}</h4>
+                            <h4 className="font-black text-sm sm:text-base text-[#1e382b] leading-snug">{item.name}</h4>
                             <div className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-1">الوزن: {getCalculatedTotalWeight(item.weight, item.qty)}</div>
-                            <div className="text-[11px] sm:text-xs text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
+                            <div className="text-xs sm:text-sm text-[#2d533e] font-black mt-1 flex items-center gap-1.5">
                               <span>الإجمالي: {formatPrice(item.price * item.qty)} جنيه</span>
                               {item.originalPrice && isOfferValid(item.price, item.originalPrice) && (
                                 <span className="text-slate-400 line-through font-bold">{formatPrice(item.originalPrice * item.qty)} جنيه</span>
@@ -1697,10 +1697,10 @@ export default function Home() {
                       مكان التوصيل <span className="text-red-500">*</span> {formErrors.deliveryZone && <span className="text-red-600 text-[10px] mr-1">(مطلوب تحديد المكان)</span>}
                     </label>
                     <div className="flex gap-2 w-full" role="radiogroup" aria-label="مكان التوصيل">
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'damanhour'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'damanhour' })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-3.5 px-2 rounded-xl border-2 transition-all font-black text-base flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'damanhour' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'damanhour' && <Check className="w-4 h-4" />} داخل دمنهور
                       </button>
-                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'outside', paymentMethod: prev.paymentMethod === 'نقدًا' ? '' : prev.paymentMethod })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-2.5 px-2 rounded-xl border-2 transition-all font-black text-sm flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
+                      <button type="button" role="radio" aria-checked={customer.deliveryZone === 'outside'} onClick={() => { triggerVibration(); setCustomer(prev => ({ ...prev, deliveryZone: 'outside', paymentMethod: prev.paymentMethod === 'نقدًا' ? '' : prev.paymentMethod })); setFormErrors(prev => ({ ...prev, deliveryZone: null })); }} className={`flex-1 py-3.5 px-2 rounded-xl border-2 transition-all font-black text-base flex items-center justify-center gap-1.5 outline-none ${customer.deliveryZone === 'outside' ? 'bg-[#2d533e] border-[#2d533e] text-white shadow-sm' : formErrors.deliveryZone ? 'bg-white border-red-300 text-red-700 hover:bg-red-50' : 'bg-white border-[#e8e2d5] text-slate-500 hover:border-[#c89d56] hover:bg-[#fffdf8] hover:text-[#1e382b]'}`}>
                         {customer.deliveryZone === 'outside' && <Check className="w-4 h-4" />} خارج دمنهور
                       </button>
                     </div>
