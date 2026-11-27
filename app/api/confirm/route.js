@@ -65,6 +65,7 @@ export async function GET(request) {
                 document.getElementById('warning').style.display = 'block';
               } else {
                 document.getElementById('error-msg').innerText = data.error || 'حدث خطأ مجهول';
+                document.getElementById('error-note').style.display = response.status === 401 ? 'none' : 'block';
                 document.getElementById('error').style.display = 'block';
               }
             } catch (err) {
@@ -103,7 +104,7 @@ export async function GET(request) {
         <div id="error" class="card" style="border: 2px solid #fca5a5;">
           <h1 style="font-size: 60px; margin: 0 0 15px 0;">❌</h1>
           <h2 style="margin: 0 0 10px 0; color: #991b1b;">حدث خطأ!</h2>
-          <p style="margin: 0; color: #7f1d1d;">الطلب غير موجود في غرفة الانتظار.</p>
+          <p id="error-note" style="margin: 0; color: #7f1d1d;">الطلب غير موجود في غرفة الانتظار.</p>
           <p id="error-msg" style="font-size: 13px; color: #666; margin-top: 15px; padding: 10px; background: #f1f5f9; border-radius: 8px; direction: ltr;"></p>
         </div>
       </body>
