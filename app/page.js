@@ -1249,7 +1249,7 @@ export default function Home() {
               })}
             </div>
             {catHint && (
-              <div aria-hidden="true" className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 flex items-center justify-start pl-1" style={{ background: 'linear-gradient(to right, #fbf9f4 45%, rgba(251,249,244,0))' }}>
+              <div aria-hidden="true" dir="ltr" className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 flex items-center justify-start pl-1" style={{ background: 'linear-gradient(to right, #fbf9f4 45%, rgba(251,249,244,0))' }}>
                 <span className="text-[#2d533e] text-2xl font-black leading-none">‹</span>
               </div>
             )}
