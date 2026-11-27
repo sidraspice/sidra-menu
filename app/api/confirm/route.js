@@ -21,7 +21,7 @@ export async function GET(request) {
   const rawId = searchParams.get('id');
   const orderId = rawId && /^[A-Za-z0-9_-]{1,64}$/.test(rawId) ? rawId : null;
 
-  if (!orderId) {
+  if (rawId && !orderId) {
     return new NextResponse(`
       <html dir="rtl">
         <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -51,13 +51,21 @@ export async function GET(request) {
           }
           window.confirmOrder = async function() {
             const pw = document.getElementById('pw').value;
+            const presetId = ${JSON.stringify(orderId || '')};
+            const idv = presetId || (document.getElementById('oid') ? document.getElementById('oid').value.trim() : '');
+            if (!/^[A-Za-z0-9_-]{1,64}$/.test(idv)) {
+              document.getElementById('gate-msg').innerText = 'اكتب رقم الطلب بشكل صحيح (مثال: SD-2711-1510)';
+              return;
+            }
+            document.getElementById('gate-msg').innerText = '';
+            document.querySelectorAll('.oid').forEach(function(el) { el.textContent = idv; });
             document.getElementById('gate').style.display = 'none';
             document.getElementById('loading').style.display = 'block';
             try {
               const response = await fetch('/api/confirm', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: ${JSON.stringify(orderId)}, password: pw })
+                body: JSON.stringify({ id: idv, password: pw })
               });
               const data = await response.json();
 
@@ -89,9 +97,11 @@ export async function GET(request) {
         </div>
 
         <div id="gate" style="display: none; text-align: center; width: 100%; max-width: 400px;">
-          <h2 style="color: #2d533e; margin: 0 0 15px 0;">تأكيد الطلب ${escapeHtml(orderId)}</h2>
+          <h2 style="color: #2d533e; margin: 0 0 15px 0;">${orderId ? 'تأكيد الطلب ' + escapeHtml(orderId) : 'تأكيد طلب'}</h2>
+          ${orderId ? '' : '<input id="oid" type="text" dir="ltr" placeholder="رقم الطلب مثال: SD-2711-1510" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px;">'}
           <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
           <button onclick="confirmOrder()" style="margin-top: 12px; width: 100%; padding: 14px; font-size: 16px; font-weight: bold; color: white; background: #2d533e; border: 0; border-radius: 12px;">تأكيد الطلب</button>
+          <p id="gate-msg" style="color: #991b1b; font-size: 14px; margin: 10px 0 0 0;"></p>
         </div>
 
         <div id="loading" style="display: none; text-align: center;">
@@ -103,13 +113,13 @@ export async function GET(request) {
         <div id="success" class="card" style="border: 2px solid #bbf7d0;">
           <h1 style="font-size: 60px; margin: 0 0 15px 0;">✅</h1>
           <h2 style="margin: 0 0 10px 0; color: #166534;">تم تأكيد الطلب بنجاح!</h2>
-          <p style="margin: 0; font-weight: bold; color: #15803d;">تم نقل الأوردر (${escapeHtml(orderId)}) للشيت الرسمي وخصم البضاعة.</p>
+          <p style="margin: 0; font-weight: bold; color: #15803d;">تم نقل الأوردر (<span class="oid"></span>) للشيت الرسمي وخصم البضاعة.</p>
         </div>
 
         <div id="warning" class="card" style="border: 2px solid #fde68a;">
           <h1 style="font-size: 60px; margin: 0 0 15px 0;">⚠️</h1>
           <h2 style="margin: 0 0 10px 0; color: #b45309;">الطلب مؤكد مسبقاً!</h2>
-          <p style="margin: 0; color: #92400e;">هذا الأوردر (${escapeHtml(orderId)}) تم تأكيده وخصمه من المخزن من قبل.</p>
+          <p style="margin: 0; color: #92400e;">هذا الأوردر (<span class="oid"></span>) تم تأكيده وخصمه من المخزن من قبل.</p>
         </div>
 
         <div id="error" class="card" style="border: 2px solid #fca5a5;">
