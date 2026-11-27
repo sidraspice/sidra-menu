@@ -11,7 +11,7 @@ const toEnglishDigits = (str) => {
 
 const cleanDigits = (str) => {
   if (!str) return '';
-  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u2010-\u2015\u2212]/g, '-').replace(/[\u200B-\u200F\u2060\uFEFF]/g, '');
 };
 
 export default function TrackOrderPage() {
