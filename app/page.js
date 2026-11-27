@@ -942,8 +942,8 @@ export default function Home() {
         message += `${keycap} ${item.name}\n▪️ ${getCalculatedTotalWeight(item.weight, item.qty)} ▫️ ${priceText}\n`;
       });
 
-      message += `\n▪️ *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
-      message += `💰 *${showDeliveryInMessage ? 'إجمالي المنتجات' : 'إجمالي الفاتورة'}: ${totalAmount} جنيه*\n`;
+      message += `\n🧂 *إجمالي الوزن: ${totalWeightGrams < 1000 ? `${totalWeightGrams} جرام` : `${(totalWeightGrams / 1000).toFixed(2)} كجم (${totalWeightGrams} جرام)`}*\n`;
+      message += `💰 *الإجمالي: ${totalAmount} جنيه*\n`;
 
       const isTransferNumberNeeded = customer.paymentMethod === 'InstaPay' || customer.paymentMethod === 'محفظة كاش';
       message += `💳 الدفع: ${customer.paymentMethod}${isTransferNumberNeeded ? ` ${TRANSFER_NUMBER}` : ''}\n`;
