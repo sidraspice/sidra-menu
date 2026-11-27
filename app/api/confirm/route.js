@@ -60,6 +60,24 @@ export async function GET(request) {
             return idv;
           }
 
+          window.itemLine = function(it, i) {
+            const AR = '٠١٢٣٤٥٦٧٨٩';
+            const qty = Number(it.qty) || 1;
+            const raw = String(it.weight || '').replace(/[٠-٩]/g, function(c) { return String(AR.indexOf(c)); }).replace(/٫/g, '.');
+            const m = raw.match(/^ *([0-9]+([.][0-9]+)?) *(.*)$/);
+            let w = raw.trim() + (qty > 1 ? ' × ' + qty : '');
+            if (m) {
+              const n = Math.round(parseFloat(m[1]) * qty * 100) / 100;
+              w = n + (m[3] ? ' ' + m[3].trim() : '');
+            }
+            w = w.replace('جرام', 'جم').replace('كيلو', 'كجم');
+            let nm = String(it.name || '').replace(/ *سدرة */g, ' ').trim();
+            if (!nm) nm = String(it.name || '');
+            const unit = parseFloat(it.price);
+            const pr = isNaN(unit) ? '' : ' - ' + (Math.round(unit * qty * 100) / 100) + ' ج';
+            return (i + 1) + '. ' + nm + ' - ' + w + pr;
+          }
+
           window.renderSummary = function(data) {
             const box = document.getElementById('summary');
             const meta = document.getElementById('summary-meta');
@@ -78,15 +96,8 @@ export async function GET(request) {
             meta.textContent = parts.join('  •  ');
             (data.items || []).forEach(function(it, i) {
               const row = document.createElement('div');
-              row.style.cssText = 'display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:13px;';
-              const nameEl = document.createElement('span');
-              nameEl.style.cssText = 'font-weight:bold; color:#1e293b;';
-              nameEl.textContent = (i + 1) + '. ' + (it.name || '');
-              const wEl = document.createElement('span');
-              wEl.style.cssText = 'color:#475569; white-space:nowrap;';
-              wEl.textContent = (it.weight || '') + ' × ' + (it.qty || 1);
-              row.appendChild(nameEl);
-              row.appendChild(wEl);
+              row.style.cssText = 'padding:6px 0; border-bottom:1px solid #e2e8f0; font-size:12px; font-weight:bold; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;';
+              row.textContent = window.itemLine(it, i);
               list.appendChild(row);
             });
             const t = data.total;
@@ -99,22 +110,11 @@ export async function GET(request) {
             const d = window.lastSummary;
             if (!d) return '';
             const NL = String.fromCharCode(10);
-            const AR = '٠١٢٣٤٥٦٧٨٩';
-            const totalWeight = function(w, q) {
-              const qty = Number(q) || 1;
-              const raw = String(w || '').replace(/[٠-٩]/g, function(c) { return String(AR.indexOf(c)); }).replace(/٫/g, '.');
-              const m = raw.match(/^ *([0-9]+([.][0-9]+)?) *(.*)$/);
-              if (!m) return raw.trim() + (qty > 1 ? ' × ' + qty : '');
-              const n = Math.round(parseFloat(m[1]) * qty * 100) / 100;
-              return n + (m[3] ? ' ' + m[3].trim() : '');
-            };
             const lines = [];
             lines.push('ده طلبك زي ما اخترته 👇');
             lines.push('');
             (d.items || []).forEach(function(it, i) {
-              const unit = parseFloat(it.price);
-              const linePrice = isNaN(unit) ? '' : ' - ' + (Math.round(unit * (Number(it.qty) || 1) * 100) / 100) + ' جنيه';
-              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + totalWeight(it.weight, it.qty) + linePrice);
+              lines.push(window.itemLine(it, i));
             });
             lines.push('');
             const t = d.total;
