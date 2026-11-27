@@ -99,21 +99,29 @@ export async function GET(request) {
             const d = window.lastSummary;
             if (!d) return '';
             const NL = String.fromCharCode(10);
-            const id = window.resolvedId || d.orderId || '';
+            const AR = '٠١٢٣٤٥٦٧٨٩';
+            const totalWeight = function(w, q) {
+              const qty = Number(q) || 1;
+              const raw = String(w || '').replace(/[٠-٩]/g, function(c) { return String(AR.indexOf(c)); }).replace(/٫/g, '.');
+              const m = raw.match(/^ *([0-9]+([.][0-9]+)?) *(.*)$/);
+              if (!m) return raw.trim() + (qty > 1 ? ' × ' + qty : '');
+              const n = Math.round(parseFloat(m[1]) * qty * 100) / 100;
+              return n + (m[3] ? ' ' + m[3].trim() : '');
+            };
             const lines = [];
-            lines.push('أهلاً 👋 ده تأكيد طلبك زي ما هو متسجل عندنا:');
-            lines.push('');
-            lines.push('رقم الطلب: ' + id);
+            lines.push('ده طلبك زي ما اخترته 👇');
             lines.push('');
             (d.items || []).forEach(function(it, i) {
-              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + (it.weight || '') + ' × ' + (it.qty || 1));
+              const unit = parseFloat(it.price);
+              const linePrice = isNaN(unit) ? '' : ' - ' + (Math.round(unit * (Number(it.qty) || 1) * 100) / 100) + ' جنيه';
+              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + totalWeight(it.weight, it.qty) + linePrice);
             });
             lines.push('');
             const t = d.total;
             lines.push('الإجمالي: ' + ((t === 0 || t) ? (t + ' جنيه') : '—'));
-            if (d.zone) lines.push('التوصيل: ' + d.zone);
             lines.push('');
-            lines.push('لو الأصناف والأوزان والإجمالي مظبوطين رد علينا بكلمة «تمام». ولو في أي تعديل قولنا قبل التأكيد.');
+            lines.push('لو مظبوط رد علينا بكلمة «تمام».');
+            lines.push('ولو عايز تعدّل في أي حاجة: https://sidra-menu.vercel.app/');
             return lines.join(NL);
           }
           window.copyCustomerMessage = async function() {
