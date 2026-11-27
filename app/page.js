@@ -916,7 +916,7 @@ export default function Home() {
       while (lastOrder && lastOrder.id === orderId) orderId = makeOrderId();
 
       let message = isEditing ? `🔄 تعديل على الطلب السابق من متجر عطارة سدرة\n` : `🛒 طلب جديد من متجر عطارة سدرة\n`;
-      message += `🏷️ رقم الطلب: ${orderId}\n`;
+      message += `🏷️ رقم الطلب: ${orderId.replace(/-/g, '\u2011')}\n`;
       
       if (isEditing && lastOrder) {
         message += `(هذا تعديل للطلب القديم رقم: ${lastOrder.id})\n\n`;
