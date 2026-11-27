@@ -19,6 +19,7 @@ export default function TrackOrderPage() {
   const [loading, setLoading] = useState(false);
   const [orderData, setOrderData] = useState(null);
   const [error, setError] = useState('');
+  const [choices, setChoices] = useState([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -55,16 +56,35 @@ export default function TrackOrderPage() {
     setLoading(true);
     setError('');
     setOrderData(null);
+    setChoices([]);
 
     try {
-      const res = await fetch('/api/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: targetId })
-      });
+      const post = async (payload) => {
+        const r = await fetch('/api/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        return r.json();
+      };
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      let tid = targetId.replace(/ +/g, '').toUpperCase();
+      if (/^[0-9]{8}$/.test(tid)) tid = tid.slice(0, 4) + '-' + tid.slice(4);
+      if (/^[0-9]{4}-[0-9]{4}(-[A-Z]{1,2})?$/.test(tid)) tid = 'SD-' + tid;
+
+      let data = await post({ orderId: tid });
+      if (!data.success && /^SD-[0-9]{4}-[0-9]{4}$/.test(tid)) {
+        const found = await post({ prefix: tid });
+        if (found.success && Array.isArray(found.matches)) {
+          if (found.matches.length === 1 && found.matches[0].orderId !== tid) {
+            data = await post({ orderId: found.matches[0].orderId });
+          } else if (found.matches.length > 1) {
+            setChoices(found.matches);
+            throw new Error('في أكتر من طلب بنفس الرقم، اختار طلبك من القائمة.');
+          }
+        }
+      }
+      if (!data.success) {
         throw new Error(data.error || 'لم يتم العثور على طلب بهذا الرقم.');
       }
 
@@ -147,6 +167,22 @@ export default function TrackOrderPage() {
         </div>
 
         {/* عرض بيانات وحالة الطلب */}
+        {choices.length > 1 && (
+          <div className="bg-white rounded-3xl p-4 border border-[#e8e2d5] shadow-xs mb-4 space-y-2">
+            {choices.map((c) => (
+              <button
+                key={c.orderId}
+                type="button"
+                onClick={() => { setOrderId(c.orderId); performTrack(c.orderId); }}
+                className="w-full py-2.5 px-3 text-sm font-black rounded-xl border border-[#e8e2d5] text-[#1e382b] bg-[#fbf9f4]"
+                dir="ltr"
+              >
+                {c.orderId}
+              </button>
+            ))}
+          </div>
+        )}
+
         {orderData && (
           <div className="bg-white rounded-3xl p-5 border border-[#e8e2d5] shadow-sm space-y-4 animate-in fade-in duration-300">
             
@@ -211,3 +247,4 @@ export default function TrackOrderPage() {
     </div>
   );
 }
+
