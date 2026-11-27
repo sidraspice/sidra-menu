@@ -66,6 +66,9 @@ export async function GET(request) {
             const list = document.getElementById('summary-items');
             const totalEl = document.getElementById('summary-total');
             if (!box) return;
+            window.lastSummary = data || null;
+            const cb = document.getElementById('copy-note'); if (cb) cb.textContent = '';
+            const cp = document.getElementById('copy-preview'); if (cp) cp.style.display = 'none';
             if (!data) { box.style.display = 'none'; return; }
             meta.textContent = '';
             list.textContent = '';
@@ -89,6 +92,47 @@ export async function GET(request) {
             const t = data.total;
             totalEl.textContent = (t === 0 || t) ? (t + ' جنيه') : '—';
             box.style.display = 'block';
+          }
+
+          window.lastSummary = null;
+          window.buildCustomerMessage = function() {
+            const d = window.lastSummary;
+            if (!d) return '';
+            const NL = String.fromCharCode(10);
+            const id = window.resolvedId || d.orderId || '';
+            const lines = [];
+            lines.push('أهلاً 👋 ده تأكيد طلبك زي ما هو متسجل عندنا:');
+            lines.push('');
+            lines.push('رقم الطلب: ' + id);
+            lines.push('');
+            (d.items || []).forEach(function(it, i) {
+              lines.push((i + 1) + '. ' + (it.name || '') + ' - ' + (it.weight || '') + ' × ' + (it.qty || 1));
+            });
+            lines.push('');
+            const t = d.total;
+            lines.push('الإجمالي: ' + ((t === 0 || t) ? (t + ' جنيه') : '—'));
+            if (d.zone) lines.push('التوصيل: ' + d.zone);
+            lines.push('');
+            lines.push('لو الأصناف والأوزان والإجمالي مظبوطين رد علينا بكلمة «تمام». ولو في أي تعديل قولنا قبل التأكيد.');
+            return lines.join(NL);
+          }
+          window.copyCustomerMessage = async function() {
+            const msg = window.buildCustomerMessage();
+            const note = document.getElementById('copy-note');
+            if (!msg) { if (note) note.textContent = 'مفيش أوردر ظاهر لسه.'; return; }
+            let ok = false;
+            try { await navigator.clipboard.writeText(msg); ok = true; } catch (e) {
+              try {
+                const ta = document.createElement('textarea');
+                ta.value = msg; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                document.body.appendChild(ta); ta.focus(); ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+              } catch (e2) { ok = false; }
+            }
+            if (note) note.textContent = ok ? 'اتنسخت ✓ ابعتها للعميل في الواتساب' : 'النسخ مارضيش، انسخ الرسالة اللي تحت بإيدك.';
+            const prev = document.getElementById('copy-preview');
+            if (prev) { prev.value = msg; prev.style.display = ok ? 'none' : 'block'; }
           }
 
           window.findByPrefix = async function(prefix) {
@@ -256,7 +300,10 @@ export async function GET(request) {
             <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 8px;">
               <span>الإجمالي المسجل:</span><span id="summary-total">—</span>
             </div>
-            <div style="font-size: 12px; color: #b45309; margin-top: 8px; line-height: 1.6;">راجع الأصناف والأوزان والإجمالي فوق، وقارنها برسالة الواتساب اللي وصلتك من العميل قبل التأكيد.</div>
+            <button type="button" onclick="copyCustomerMessage()" style="margin-top: 12px; width: 100%; padding: 12px; font-size: 15px; font-weight: bold; color: #2d533e; background: white; border: 2px solid #2d533e; border-radius: 12px;">نسخ رسالة تأكيد للعميل</button>
+            <div id="copy-note" style="font-size: 13px; color: #2d533e; margin-top: 6px; text-align: center;"></div>
+            <textarea id="copy-preview" readonly rows="8" style="display: none; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 10px;"></textarea>
+            <div style="font-size: 12px; color: #b45309; margin-top: 8px; line-height: 1.6;">الأصناف والأوزان والإجمالي فوق هم الأصل (من الشيت). ابعت رسالة التأكيد للعميل، ولما يرد «تمام» اكّد الطلب. لا تعتمد على رسالة الواتساب الأولى.</div>
           </div>
 
           <input id="pw" type="password" placeholder="كلمة السر" style="width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border-radius: 12px; border: 1px solid #ccc; text-align: center;">
